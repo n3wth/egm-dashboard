@@ -3,6 +3,8 @@ import {createPortal} from 'react-dom'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
 import {consumeAskStream} from './ask-stream.mjs'
+import {MessageResponse} from './MessageResponse.jsx'
+import './growth-advice.css'
 import {trackAskOutcome} from './usage-analytics.js'
 
 const errorMessage=status=>status===401?'Your session expired. Sign in again to ask a question.':status===403?'Your account does not have access to Ask.':status===429?'You have reached the hourly question limit. Try again later.':status===400||status===413?'Use a question between 1 and 1,200 characters.':status===504?'The answer took too long. Try a shorter question.':'Ask is temporarily unavailable. Try again shortly.'
@@ -100,7 +102,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
     const complete=result=>{trackAskOutcome('completed');updateTurn(id,{text:result.answer,status:'complete',result:{...result,sources:Array.isArray(result.sources)?result.sources:[],cards:Array.isArray(result.cards)?result.cards.slice(0,3):[]}})}
     try {
       const history=turns.filter(turn=>turn.status==='complete'&&turn.id!==id).slice(-4).map(turn=>({question:turn.question,answer:turn.text.slice(0,2000)}))
-      const response=await fetch('/api/ask',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','accept':'application/x-ndjson'},body:JSON.stringify({question:submitted,history,stream:true}),signal:controller.signal})
+      const response=await fetch('/api/ask',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','accept':'application/x-ndjson'},body:JSON.stringify({question:submitted,history,stream:true,format:'markdown'}),signal:controller.signal})
       if(!response.ok)throw new Error(errorMessage(response.status))
       if(response.headers.get('content-type')?.includes('application/x-ndjson')) {
         await consumeAskStream(response.body,event=>{
@@ -134,7 +136,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
       <div className="egm-ask-messages">{turns.map(turn=><article className="egm-ask-turn" key={turn.id}>
         <div className="egm-ask-user"><span className="egm-chat-speaker">You</span><p>{turn.question}</p></div>
         <div className="egm-ask-assistant" aria-busy={['pending','streaming'].includes(turn.status)}><span className="egm-chat-speaker">EGM</span>
-          {turn.text&&<p className="egm-ask-message-text">{turn.text}</p>}
+          {turn.text&&<MessageResponse isAnimating={turn.status==='streaming'}>{turn.text}</MessageResponse>}
           {turn.status==='pending'&&<div role="status"><span className="egm-note">Reading dashboard data…</span><div className="egm-ask-skeletons" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><span/><span/></div>)}</div></div>}
           {turn.status==='streaming'&&<span className="egm-note" role="status">Generating…</span>}
           {turn.status==='stopped'&&<p className="egm-note" role="status">Stopped. {turn.text?'Partial response.':'No response generated.'}</p>}
