@@ -11,6 +11,14 @@ function environment() {
   return {APP_URL:'https://egm.n3wth.com',OWNER_EMAIL:owner.email,db,DB:{prepare(sql){return {bind(...args){return {async run(){const result=db.prepare(sql).run(...args);return {meta:{changes:Number(result.changes)}}},sql,args}},async all(){return {results:db.prepare(sql).all()}}}},async batch(statements){return statements.map(({sql,args})=>({meta:{changes:Number(db.prepare(sql).run(...args).changes)}}))}}}
 }
 const request=(body,origin='https://egm.n3wth.com')=>new Request('https://egm.n3wth.com/api/access',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(body)})
+test('oversized streamed access requests are rejected before any mutation',async()=>{
+  const env=environment()
+  const body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array(2049));controller.close()}})
+  const req=new Request(env.APP_URL+'/api/access',{method:'POST',headers:{origin:env.APP_URL,'content-type':'application/json'},body,duplex:'half'})
+  assert.equal((await manageAccess(req,env,owner)).status,413)
+  assert.equal(env.db.prepare('SELECT status FROM users').get().status,'pending')
+  assert.equal(env.db.prepare('SELECT count(*) AS count FROM audit').get().count,0)
+})
 test('owner-only endpoint rejects other identities and cross-origin writes without DB changes',async()=>{
   const env=environment()
   for(const user of [null,{...owner,email:'guest@example.org'},{...owner,verified:0},{...owner,status:'pending'}])assert.equal((await manageAccess(new Request(env.APP_URL+'/api/access'),env,user)).status,403)

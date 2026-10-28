@@ -1,4 +1,5 @@
 import {isDashboardOwner} from './owner-identity.mjs'
+import {readBody} from './request-body.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
 const photoCache=new WeakMap()
 
@@ -53,8 +54,8 @@ export async function manageAccess(request,env,user,fetcher=fetch) {
   if(request.method!=='POST')return reply({error:'method_not_allowed'},405)
   if(request.headers.get('origin')!==env.APP_URL)return reply({error:'invalid_origin'},403)
   if(!request.headers.get('content-type')?.startsWith('application/json'))return reply({error:'json_required'},415)
-  const body=await request.text()
-  if(body.length>2048)return reply({error:'too_large'},413)
+  const body=await readBody(request,2048)
+  if(body===null)return reply({error:'too_large'},413)
   let input
   try{input=JSON.parse(body)}catch{return reply({error:'invalid_request'},400)}
   if(!input||Object.keys(input).some(key=>!['id','decision'].includes(key))||typeof input.id!=='string'||!input.id||input.id.length>200||!['approved','denied'].includes(input.decision)||input.id===user.id)return reply({error:'invalid_request'},400)
