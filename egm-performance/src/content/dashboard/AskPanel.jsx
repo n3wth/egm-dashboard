@@ -10,9 +10,16 @@ import {trackAskOutcome} from './usage-analytics.js'
 const errorMessage=status=>status===401?'Your session expired. Sign in again to ask a question.':status===403?'Your account does not have access to Ask.':status===429?'You have reached the hourly question limit. Try again later.':status===400||status===413?'Use a question between 1 and 1,200 characters.':status===504?'The answer took too long. Try a shorter question.':'Ask is temporarily unavailable. Try again shortly.'
 const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
 const format=value=>typeof value==='number'?value.toLocaleString('en-US'):String(value??'Unavailable')
+export const shouldDismissAsk=active=>!active
+export function AskCompletion({status}) { return <span role="status" className="egm-note">{status==='complete'?'Answer complete.':''}</span> }
+function ObservedAt({value,dateOnly=false}) {
+  if(typeof value!=='string'||!Number.isFinite(Date.parse(value)))return null
+  const options={month:'short',day:'numeric',...(dateOnly?{timeZone:'America/Los_Angeles'}:{hour:'numeric',minute:'2-digit'})}
+  return <time dateTime={value} title={value}> · {dateOnly?new Date(value).toLocaleDateString('en-US',options):new Date(value).toLocaleString('en-US',options)}</time>
+}
 
 export function LiveMetricCard({card}) {
-  return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}{card.observedAt&&<time dateTime={card.observedAt}> · {new Date(card.observedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time>}</p></section>
+  return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}<ObservedAt value={card.observedAt}/></p></section>
 }
 
 export function AnswerCard({card,index,turnId}) {
@@ -21,7 +28,7 @@ export function AnswerCard({card,index,turnId}) {
   const source=queries[card.queryId]
   if(!source)return card.type==='metric'?<LiveMetricCard card={card}/>:null
   const props={id:`ask-result-${turnId}-${index}-${card.queryId}`,title:card.title,queryId:source?card.queryId:undefined,sourceRows:source?.rows??rows,displayRows:rows,variant:'card',showActions:Boolean(source)}
-  const foot=<p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}{Number.isFinite(Date.parse(card.observedAt))&&<time dateTime={card.observedAt} title={card.observedAt}> · {new Date(card.observedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time>}</p>
+  const foot=<p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}<ObservedAt value={card.observedAt}/></p>
   if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
   if(card.type==='table')return <DataComponent {...props} kind="table"><DataTable rows={rows} searchable={false} pageSize={5} columns={(card.columns??[]).map(field=>({field,label:card.columnLabels?.[field]??field}))} label={card.title}/>{card.rowsTruncated&&<p className="egm-note">Showing {rows.length} of {card.rowCount} rows.</p>}{foot}</DataComponent>
   if(card.type==='metric')return <DataComponent {...props} kind="custom"><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl>{foot}</DataComponent>
@@ -77,7 +84,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   useLayoutEffect(()=>{if(open&&followBottom.current&&turns.length)bottom.current?.scrollIntoView({block:'end',behavior:'instant'})},[open,turns])
   useEffect(()=>{
     if(!open||!hosts)return
-    const outside=event=>{if(event.target.closest?.('[role="menu"],[role="dialog"],.source-sidebar'))return;if(!hosts.headerHost.contains(event.target)&&!hosts.bodyHost.contains(event.target)){stop();onClose()}}
+    const outside=event=>{if(event.target.closest?.('[role="menu"],[role="dialog"],.source-sidebar'))return;if(!hosts.headerHost.contains(event.target)&&!hosts.bodyHost.contains(event.target)&&shouldDismissAsk(Boolean(request.current&&!request.current.stopped)))onClose()}
     const escape=event=>{if(event.key==='Escape'){event.preventDefault();stop();onClose()}}
     const scroll=()=>{followBottom.current=nearBottom()}
     document.addEventListener('pointerdown',outside)
@@ -139,9 +146,10 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           {turn.text&&<MessageResponse isAnimating={turn.status==='streaming'}>{turn.text}</MessageResponse>}
           {turn.status==='pending'&&<div role="status"><span className="egm-note">Reading dashboard data…</span><div className="egm-ask-skeletons" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><span/><span/></div>)}</div></div>}
           {turn.status==='streaming'&&<span className="egm-note" role="status">Generating…</span>}
+          <AskCompletion status={turn.status}/>
           {turn.status==='stopped'&&<p className="egm-note" role="status">Stopped. {turn.text?'Partial response.':'No response generated.'}</p>}
           {turn.status==='error'&&<div className="egm-ask-error" role="alert">{turn.error} <button type="button" disabled={loading} onClick={()=>send(turn.question,turn.id)}>Retry</button></div>}
-          {turn.result&&<><div className="egm-ask-options">{turn.result.toolStatus?.status==='live'?'GitHub checked live':turn.result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'}</div>{turn.result.cards.length>0&&<div className="egm-ask-cards">{turn.result.cards.map((card,index)=><AnswerCard key={`${turn.id}-${card.queryId}-${index}`} turnId={turn.id} card={card} index={index}/>)}</div>}{typeof turn.result.coverageNote==='string'&&turn.result.coverageNote&&<p className="egm-note">{turn.result.coverageNote}</p>}{turn.result.sources.length>0&&<details className="egm-ask-sources"><summary>Sources ({turn.result.sources.length})</summary><ul>{turn.result.sources.map((source,index)=>{const href=sourceHref(source.url);const label=`[${source.id??index+1}] ${source.label??source.title??source.queryId??'Saved data'}`;return <li key={`${source.id??index}-${source.queryId??''}`}>{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}{Number.isFinite(Date.parse(source.observedAt))&&<time dateTime={source.observedAt} title={source.observedAt}> · {new Date(source.observedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'America/Los_Angeles'})}</time>}</li>})}</ul></details>}</>}
+          {turn.result&&<><div className="egm-ask-options">{turn.result.toolStatus?.status==='live'?'GitHub checked live':turn.result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'}</div>{turn.result.cards.length>0&&<div className="egm-ask-cards">{turn.result.cards.map((card,index)=><AnswerCard key={`${turn.id}-${card.queryId}-${index}`} turnId={turn.id} card={card} index={index}/>)}</div>}{typeof turn.result.coverageNote==='string'&&turn.result.coverageNote&&<p className="egm-note">{turn.result.coverageNote}</p>}{turn.result.sources.length>0&&<details className="egm-ask-sources"><summary>Sources ({turn.result.sources.length})</summary><ul>{turn.result.sources.map((source,index)=>{const href=sourceHref(source.url);const label=`[${source.id??index+1}] ${source.label??source.title??source.queryId??'Saved data'}`;return <li key={`${source.id??index}-${source.queryId??''}`}>{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<ObservedAt value={source.observedAt} dateOnly/></li>})}</ul></details>}</>}
         </div>
       </article>)}</div>
       {!loading&&latest?.status==='complete'&&Array.isArray(latest.result?.suggestedFollowUps)&&<div className="egm-ask-followups">{latest.result.suggestedFollowUps.filter(value=>typeof value==='string'&&value.length<=1200).slice(0,3).map(value=><button type="button" key={value} onClick={()=>send(value)}>{value}<Icon name="arrowUpRight" size={14}/></button>)}</div>}

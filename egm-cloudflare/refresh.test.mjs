@@ -19,11 +19,13 @@ test('complete refresh reconciles traffic and writes once with fresh provenance'
   let writes=0,saved
   const repo=await load('repo')
   const env={REFRESH_UNTIL:'2099-01-01',GITHUB_TOKEN:'test',DB:{prepare(){return {bind(body){saved=JSON.parse(body);return {async run(){writes++}}}}}}}
+  let emptyReferrers=false
   const request=async url=>{
     const u=new URL(url),path=u.pathname.replace('/repos/google/elephant-goldfish-model','')
     const page=Number(u.searchParams.get('page')??1)
     let data
-    if(path==='/stargazers') data=Array.from({length:repo.stargazers_count},()=>({starred_at:'2026-10-27T00:00:00Z'})).slice((page-1)*100,page*100)
+    if(path==='/traffic/popular/referrers' && emptyReferrers) data=[]
+    else if(path==='/stargazers') data=Array.from({length:repo.stargazers_count},()=>({starred_at:'2026-10-27T00:00:00Z'})).slice((page-1)*100,page*100)
     else {data=await load(names[path]);if(['issues','pulls','releases','commits'].includes(names[path])) data=data.slice((page-1)*100,page*100)}
     return Response.json(data)
   }
@@ -42,6 +44,10 @@ test('complete refresh reconciles traffic and writes once with fresh provenance'
     if(!seed.queries[id])continue
     assert.deepEqual(staged.snapshot.queries[id].source,seed.queries[id].source,'GitHub must not restamp '+id)
   }
+  emptyReferrers=true
+  const empty=await refreshSnapshot(env,request,async()=>({}),{persist:false})
+  assert.deepEqual(empty.snapshot.queries.referrers.rows,[])
+  assert.equal(empty.snapshot.queries.website.rows[0].referralViews,null)
 })
 
 test('bounded or failed stargazer collection preserves dated history while traffic and total stars refresh',async()=>{

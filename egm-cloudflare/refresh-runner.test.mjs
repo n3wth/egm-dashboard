@@ -109,6 +109,25 @@ test('independent source failures cannot overwrite newly collected GitHub data o
   const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
   assert.equal(saved.queries.traffic.rows[0].views, 20)
   assert.deepEqual(saved.queries.seo_keywords, f.previous.queries.seo_keywords)
+  assert.equal(saved.refreshStatus.collectors.semrush, 'failed')
+  assert.equal(saved.refreshStatus.collectors.mentions, 'failed')
+  assert.equal(saved.refreshStatus.collectors.github, 'refreshed')
+  assert.equal(saved.refreshStatus.checkedAt, new Date(baseTime).toISOString())
+  assert.deepEqual(saved.queries.semrush_status, f.previous.queries.semrush_status)
+})
+
+test('persisted collector outcomes preserve partial and unconfigured states without copying arbitrary values', async () => {
+  const f = fixture()
+  await runRefresh(f.env, noRequest, {
+    now: () => baseTime, github: async () => ({ status: 'refreshed', snapshot: f.previous }),
+    semrush: async () => ({ semrush_status: { rows: [{ status: 'partial' }] } }),
+    mentions: async () => ({ mentions_status: { rows: [{ status: 'unconfigured' }] } }),
+    exa: async () => ({ exa_status: { rows: [{ status: 'private error value' }] } })
+  })
+  const status = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body).refreshStatus.collectors
+  assert.equal(status.semrush, 'partial')
+  assert.equal(status.mentions, 'unconfigured')
+  assert.equal(status.exa, 'unknown')
 })
 
 test('staged GitHub data is never visible before final merge and retains prior source budgets', async () => {

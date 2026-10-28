@@ -1,4 +1,6 @@
 import {percentage} from './percentage.mjs'
+import {dateSpan, ratio} from './metric-safety.mjs'
+import {safeExternalUrl} from './research-mentions.mjs'
 import React, { useEffect, useRef, useState } from 'react'
 import { ChartTooltip, DataComponent, DataTable, EvidenceChart, Icon, MetricSparkline, Section, SortableItem, SortableRegion, useDataApp, useDashboardTabs } from '../../data-app-public.jsx'
 import './egm.css'
@@ -20,7 +22,6 @@ const n = value => value == null ? 'Unavailable' : Number(value).toLocaleString(
 const compact = value => new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value)
 const shortDate = date => new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z'))
 const performanceDate = value => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(value)) : 'Unavailable'
-const dateSpan = rows => rows.length ? `${shortDate(rows[0].date)}–${shortDate(rows.at(-1).date)}` : 'the current window'
 const sum = (rows, field) => rows.reduce((a,r) => a+r[field],0)
 const line = (y,fields=[y]) => ({type:'line',x:'date',y,fields,colors:Object.fromEntries(fields.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),stackable:false,showXAxisLabel:false,showYAxisLabel:false,valueDecimals:0,startAtZero:true})
 const pathLabel = value => {
@@ -72,11 +73,10 @@ function AcrossEgm({queries,reach,web}) {
   const ids=['website','reach','youtube_videos','research_evidence'].filter(id=>queries[id])
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
   const popularVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views).slice(0,3)
-  const discussion=(queries.research_evidence?.rows??[]).find(row=>row.status==='verified'&&row.themes?.length)
+  const discussion=(queries.research_evidence?.rows??[]).find(row=>row.status==='verified'&&row.themes?.length&&safeExternalUrl(row.url))
   const experiment={workflow:'Choose one small repo task. Ask three new users to run EGM on it, then record completion and where they stop.',demo:'Show a short EGM demo to three new users. Ask them to repeat the workflow and record whether they finish.',install:'Ask three new users to install EGM and run its first example. Record installation failures and first successful runs.',friction:'Ask three users to repeat the workflow described by this source. Record the step where each gets stuck.'}[discussion?.themes?.[0]?.theme]
-  // egm.dev referral counts are null when it falls outside GitHub's top ten referrers; a null share must read as unknown, not 0%.
-  const viewShare=Number.isFinite(web?.referralViews)&&reach.views>0?web.referralViews/reach.views:null
-  const visitorShare=Number.isFinite(web?.referralVisitors)&&reach.visitors>0?web.referralVisitors/reach.visitors:null
+  const viewShare=ratio(web.referralViews,reach.views)
+  const visitorShare=ratio(web.referralVisitors,reach.visitors)
   const displayRows=[{signal:'Website referrals',views:web?.referralViews??null,viewShare,visitorShare},...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(discussion?[{signal:'Verified project reference',url:discussion.url,theme:discussion.themes[0].theme}]:[])]
   return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
     <div className="egm-overview-signals" data-reviewed-rows>
@@ -97,8 +97,7 @@ export function DashboardContent() {
   if(activeTabId==='research') return <Research />
   if(activeTabId==='mentions') return <Mentions />
   const rows = id => queries[id]?.rows??[]
-  // A sparse snapshot (first collection still running) must not crash a tab; missing rows read as unavailable.
-  const reach = rows('reach')[0]??{}, daily = rows('traffic'), web = rows('website')[0], queue = rows('maintenance')[0]??{}
+  const reach = rows('reach')[0]??{}, daily = rows('traffic'), web = rows('website')[0]??{}, queue = rows('maintenance')[0]??{}
   const window = `${dateSpan(daily)} UTC`
   const recentDays=daily.slice(-3),recentViews=sum(recentDays,'views'),windowViews=sum(daily,'views')
   const item = (id,span,content,kind='chart') => <SortableItem key={id} id={id} label={id} kind={kind} className={`egm-block egm-block--${kind}`} style={{'--egm-span':span}}>{content}</SortableItem>
@@ -127,7 +126,7 @@ export function DashboardContent() {
     const channels = combinedReferralViews(rows('referrers'))
     const attributed = sum(channels,'count')
     const searchVideoViews=sum(channels.filter(row=>isSearchVideo(row.source)),'count')
-    const channelRows = channels.map(row=>({...row,shareOfRepoViews:reach.views>0?row.count/reach.views:null,shareOfReportedReferrals:attributed>0?row.count/attributed:null}))
+    const channelRows = channels.map(row=>({...row,shareOfRepoViews:ratio(row.count,reach.views),shareOfReportedReferrals:ratio(row.count,attributed)}))
     return <>
       <PageSummary page="acquisition" queries={queries}/>
       <Section id="acquisition-channels-heading" spacing="none">
@@ -204,17 +203,17 @@ export function DashboardContent() {
     ]}>
       {item('open-issues',4,metric('open-issues','maintenance','Open issues',queue.openIssues,'Current count at the last refresh, not limited to the traffic window.'),'metric')}
       {item('open-prs',4,metric('open-prs','maintenance','Open PRs',queue.openPRs,`Current count at the last refresh, including ${n(queue.draftPRs)} draft PRs.`),'metric')}
-      {item('merged-prs',4,metric('merged-prs','activity','Merged PRs',sum(rows('activity'),'mergedPRs'),`Merged ${window}.`),'metric')}
-      {item('pr-activity',6,<Plot id="pr-activity" queryId="activity" title="Daily merged PRs" rows={rows('activity')} spec={{...line('mergedPRs'),type:'bar'}} description={`${window}.`} />)}
-      {item('issue-activity',6,<Plot id="issue-activity" queryId="activity" title="Daily issue activity" rows={rows('activity')} spec={{...line('openedIssues',['openedIssues','closedIssues']),colors:{openedIssues:'var(--chart-1)',closedIssues:'var(--chart-4)'},legend:{labels:{openedIssues:'Opened issues',closedIssues:'Closed issues'}}}} description={`${window}.`} />)}
-      {item('issue-queue',12,<Table id="issue-queue" queryId="issue_queue" title="Open issues by discussion volume" rows={rows('issue_queue')} searchable columns={[{field:'number',label:'#'},{field:'title',label:'Issue',renderCell:(v,r)=><a href={r.url} target="_blank" rel="noreferrer">{v}</a>},{field:'comments',label:'Comments'}]} />,'table')}
+      {item('merged-prs',4,metric('merged-prs','activity','Merged PRs',rows('activity').length ? sum(rows('activity'),'mergedPRs') : null,dateSpan(rows('activity'))),'metric')}
+      {item('pr-activity',6,<Plot id="pr-activity" queryId="activity" title="Daily merged PRs" rows={rows('activity')} spec={{...line('mergedPRs'),type:'bar'}} description={`${dateSpan(rows('activity'))} UTC.`} />)}
+      {item('issue-activity',6,<Plot id="issue-activity" queryId="activity" title="Daily issue activity" rows={rows('activity')} spec={{...line('openedIssues',['openedIssues','closedIssues']),colors:{openedIssues:'var(--chart-1)',closedIssues:'var(--chart-4)'},legend:{labels:{openedIssues:'Opened issues',closedIssues:'Closed issues'}}}} description={`${dateSpan(rows('activity'))} UTC.`} />)}
+      {item('issue-queue',12,<Table id="issue-queue" queryId="issue_queue" title="Open issues by discussion volume" rows={rows('issue_queue')} searchable columns={[{field:'number',label:'#'},{field:'title',label:'Issue',renderCell:(v,r)=>safeExternalUrl(r.url)?<a href={safeExternalUrl(r.url)} target="_blank" rel="noreferrer">{v}</a>:v},{field:'comments',label:'Comments'}]} />,'table')}
     </SortableRegion>
     </Section>
     <p className="egm-note">Comment counts show how much an issue is discussed, not its severity. Release downloads are on the Adoption tab.</p>
   </>
   const starHistory=rows('star_history')
   const historyObservedAt=queries.star_history?.source?.executedAt
-  const observedPacificDate=historyObservedAt?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(historyObservedAt)):null
+  const observedPacificDate=historyObservedAt&&Number.isFinite(Date.parse(historyObservedAt))?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(historyObservedAt)):null
   const partialStarDay=starHistory.at(-1)?.date===observedPacificDate
   const starDisplayRows=starHistory.map((row,index)=>({...row,completedStars:partialStarDay&&index===starHistory.length-1?null:row.stars,partialStars:partialStarDay&&index>=starHistory.length-2?row.stars:null,coverage:partialStarDay&&row.date===observedPacificDate?'Partial day':'Complete day'}))
   const starSpec={...line('completedStars',['completedStars','partialStars']),showLegend:false,colors:{completedStars:'var(--chart-1)',partialStars:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}

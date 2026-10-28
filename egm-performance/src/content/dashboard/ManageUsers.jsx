@@ -10,6 +10,20 @@ function UserAvatar({user}) {
   return <span className="egm-user-avatar" aria-hidden="true">{photo&&!failed?<img src={photo} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:initials}</span>
 }
 
+export function UserAccessActions({user,busy,onDecide}) {
+  const identity=user.name&&user.email&&user.name!==user.email?`${user.name} (${user.email})`:user.name||user.email||'user'
+  return <div className="egm-access-actions"><Button type="button" disabled={busy} aria-label={`Approve ${identity}`} onClick={()=>onDecide(user.id,'approved')}>Approve</Button><Button type="button" disabled={busy} aria-label={`Deny ${identity}`} onClick={()=>onDecide(user.id,'denied')}>Deny</Button></div>
+}
+
+export function InvitationRevokeAction({invitation,busy,onRevoke}) {
+  const label=invitation.email?`Revoke invitation for ${invitation.email}`:'Revoke shareable link invitation'
+  return <Button type="button" disabled={busy} aria-label={label} onClick={()=>onRevoke(invitation.id)}>Revoke</Button>
+}
+
+export function CopyInvitationLink({copied,onCopy}) {
+  return <><Button type="button" onClick={onCopy}>{copied?'Copied':'Copy link'}</Button><span role="status" style={{position:'absolute',width:1,height:1,overflow:'hidden',clipPath:'inset(50%)'}}>{copied?'Invitation link copied.':''}</span></>
+}
+
 export function ManageUsers({open,onClose,accessVersion}) {
   const [record,setRecord]=useState(null)
   const [error,setError]=useState('')
@@ -105,10 +119,10 @@ export function ManageUsers({open,onClose,accessVersion}) {
       <div className="egm-invite-options"><div className="egm-expiry-control"><span>Expires</span><Menu label="Invitation expiration" align="start" portalContainer={dialogElement} trigger={<Button type="button" className="egm-expiry-trigger" aria-label={`Invitation expiration: ${expiresInDays} ${expiresInDays===1?'day':'days'}`} disabled={busy}>{expiresInDays} {expiresInDays===1?'day':'days'}<Icon name="chevronDown" size={14}/></Button>}>{[1,7,30].map(days=><MenuItem key={days} role="menuitemradio" aria-checked={days===expiresInDays} onSelect={()=>setExpiresInDays(days)}>{days} {days===1?'day':'days'}{days===expiresInDays&&<Icon name="check" size={16}/>}</MenuItem>)}</Menu></div><Button type="button" disabled={busy||!invitations} onClick={()=>createInvitation('link')}>Create link</Button></div>
       {emailAvailable===false&&<p>Email invitations are unavailable. You can share a link instead.</p>}
       {notice&&<p className="egm-manage-message" role="status">{notice}</p>}{inviteError&&<p className="egm-manage-message" role="alert">{inviteError}</p>}
-      {createdLink&&<div className="egm-invite-created"><label>Invitation link<input readOnly value={createdLink.url} onFocus={event=>event.target.select()} /></label><Button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(createdLink.url);setCopied(true)}catch{setInviteError('Could not copy the link. Select it to copy manually.')}}}>{copied?'Copied':'Copy link'}</Button><p>Expires {date(createdLink.expiresAt)}. Copy it now; it cannot be shown again.</p></div>}
+      {createdLink&&<div className="egm-invite-created"><label>Invitation link<input readOnly value={createdLink.url} onFocus={event=>event.target.select()} /></label><CopyInvitationLink copied={copied} onCopy={async()=>{try{await navigator.clipboard.writeText(createdLink.url);setInviteError('');setCopied(true)}catch{setCopied(false);setInviteError('Could not copy the link. Select it to copy manually.')}}}/><p>Expires {date(createdLink.expiresAt)}. Copy it now; it cannot be shown again.</p></div>}
     </section>
     <section className="egm-manage-section" aria-labelledby="egm-users-heading"><div className="egm-manage-section-heading"><h3 id="egm-users-heading">Users</h3><span>{pending.length} pending</span></div>
-    <ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}</div></div>{user.status==='pending'&&user.id!==record.ownerId?<div className="egm-access-actions"><Button type="button" disabled={busy} onClick={()=>decide(user.id,'approved')}>Approve</Button><Button type="button" disabled={busy} onClick={()=>decide(user.id,'denied')}>Deny</Button></div>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
-    {invitations?.length>0&&<section className="egm-manage-section" aria-labelledby="egm-invitations-heading"><h3 id="egm-invitations-heading">Invitations</h3><ul aria-label="Invitations">{invitations.map(invitation=>{const expired=new Date(invitation.expiresAt).getTime()<=Date.now(),active=!invitation.redeemedAt&&!invitation.revokedAt&&!expired;const state=invitation.redeemedAt?'Used':invitation.revokedAt?'Revoked':expired?'Expired':invitation.deliveryState==='unknown'||invitation.deliveryState==='sending'?'Email delivery unconfirmed':invitation.deliveryState==='failed'?'Email delivery failed':'Active';return <li key={invitation.id}><div><strong>{invitation.email||'Shareable link'}</strong><span>{state}{active?` · Expires ${date(invitation.expiresAt)}`:''}</span></div>{active&&<Button type="button" disabled={busy} onClick={()=>revokeInvitation(invitation.id)}>Revoke</Button>}</li>})}</ul></section>}</>}
+    <ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}</div></div>{user.status==='pending'&&user.id!==record.ownerId?<UserAccessActions user={user} busy={busy} onDecide={decide}/>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
+    {invitations?.length>0&&<section className="egm-manage-section" aria-labelledby="egm-invitations-heading"><h3 id="egm-invitations-heading">Invitations</h3><ul aria-label="Invitations">{invitations.map(invitation=>{const expired=new Date(invitation.expiresAt).getTime()<=Date.now(),active=!invitation.redeemedAt&&!invitation.revokedAt&&!expired;const state=invitation.redeemedAt?'Used':invitation.revokedAt?'Revoked':expired?'Expired':invitation.deliveryState==='unknown'||invitation.deliveryState==='sending'?'Email delivery unconfirmed':invitation.deliveryState==='failed'?'Email delivery failed':'Active';return <li key={invitation.id}><div><strong>{invitation.email||'Shareable link'}</strong><span>{state}{active?` · Expires ${date(invitation.expiresAt)}`:''}</span></div>{active&&<InvitationRevokeAction invitation={invitation} busy={busy} onRevoke={revokeInvitation}/>}</li>})}</ul></section>}</>}
   </Dialog>
 }

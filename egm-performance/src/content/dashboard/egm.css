@@ -98,7 +98,7 @@
 .egm-research-leads .egm-note { margin-bottom: 0; }
 .egm-research-excerpt { font-size: 13px; line-height: 1.6; margin: 0; padding-left: 12px; border-left: 2px solid var(--border); color: var(--secondary); overflow-wrap: anywhere; }
 .egm-research-excerpt-label { display: block; margin-bottom: 4px; font-size: 11px; }
-.egm-research-excerpt-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; margin: 0; }
+.egm-research-excerpt-text { margin: 0; }
 @media(max-width:700px) { .egm-research-leads article { grid-template-columns: 1fr; gap: 10px; } }
 .egm-evidence-link { display: inline-flex; vertical-align: -3px; align-items: center; justify-content: center; width: 18px; height: 16px; line-height: 1; color: var(--secondary); }
 .egm-research-angles { display: flex; flex-wrap: wrap; gap: 10px; }
