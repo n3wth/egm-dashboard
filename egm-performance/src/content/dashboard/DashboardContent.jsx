@@ -162,6 +162,7 @@ export function DashboardContent() {
   const starDisplayRows=starHistory.map((row,index)=>({...row,completedStars:partialStarDay&&index===starHistory.length-1?null:row.stars,partialStars:partialStarDay&&index>=starHistory.length-2?row.stars:null,coverage:partialStarDay&&row.date===observedPacificDate?'Partial day':'Complete day'}))
   const starSpec={...line('completedStars',['completedStars','partialStars']),showLegend:false,colors:{completedStars:'var(--chart-1)',partialStars:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   return <>
+    <Section title="Overview" id="overview-heading" spacing="none"/>
     <SortableRegion id="reach:canvas" variant="freeform" className="egm-dashboard-grid egm-reach-grid" authoredRevision={3} rows={[
       {id:'reach:metrics',kind:'metrics',items:['unique-visitors','total-views','total-clones','stars']},
       {id:'reach:across',items:['overview-across-egm']},

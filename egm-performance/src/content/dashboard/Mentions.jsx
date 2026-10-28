@@ -23,7 +23,7 @@ function VideoGallery({rows,queries}) {
   const metadata=queries.youtube_videos?.rows??[]
   const queryIds=['mentions',...(queries.youtube_videos?['youtube_videos']:[])]
   const videos=rows.map(row=>{const id=videoId(row.url);const details=metadata.find(item=>item.videoId===id||videoId(item.url)===id);return {...row,...details,title:details?.title||row.title,published:details?.published||row.published,id}}).filter(row=>row.id)
-  return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="Videos" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:rows,...(queries.youtube_videos?{youtube_videos:metadata}:{})}}>
+  return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:rows,...(queries.youtube_videos?{youtube_videos:metadata}:{})}}>
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
       <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${row.id}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><h3 title={row.title}>{row.title}</h3></a>
       {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><span title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</span>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
@@ -75,10 +75,9 @@ function CollectionNote({provider,status}) {
 function SupplementaryMentions({discovery}) {
   const {rows,queryIds,sourceRowsByQuery,providers}=discovery
   if(!rows.length)return null
-  const names=providers.map(([name])=>name).join(' and ')
   return <Section title="Additional discovery" id="mentions-exa">
-    <DataComponent id="mentions-exa-table" queryId={queryIds[0]} queryIds={queryIds} title={`${names} search results`} kind="table" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
-      <MentionRows rows={rows} label={`Additional ${names} discovery results`}/>
+    <DataComponent id="mentions-exa-table" queryId={queryIds[0]} queryIds={queryIds} title="Search results" kind="table" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
+      <MentionRows rows={rows} label="Search results"/>
     </DataComponent>
   </Section>
 }
@@ -94,11 +93,11 @@ export function Mentions() {
   const since=earliest?new Date(earliest).toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):null
   const groups=[['Video','YouTube'],['Social','Social posts'],['Media / web','Media and web'],['Official','Official announcements']]
   return <>
-    <Section title="Public mentions" id="mentions-heading" spacing="none"/>
+    <Section title="Mentions" id="mentions-heading" spacing="none"/>
     {groups.map(([kind,title])=>{
       const selected=rows.filter(row=>row.kind===kind)
       if(!selected.length) return null
-      return <Section key={kind} title={title} id={'mentions-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')}>
+      return <Section key={kind} title={kind==='Video'?undefined:title} id={'mentions-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')}>
         {kind==='Video'?<VideoGallery rows={selected} queries={queries}/>:<DataComponent id={'mentions-table-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')} queryId="mentions" title={`${selected.length} ${selected.length===1?'mention':'mentions'}`} kind="table" variant="card" displayRows={selected} sourceRows={rows}>
           <MentionRows rows={selected} label={`${title} mentions`}/>
         </DataComponent>}

@@ -11,3 +11,5 @@ egm-cloudflare/assets/*
 !egm-cloudflare/assets/favicon.svg
 work/
 *.log
+!egm-cloudflare/assets/fonts/
+!egm-cloudflare/assets/fonts/*.woff2

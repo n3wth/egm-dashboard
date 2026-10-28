@@ -11,20 +11,8 @@ import {
 } from "../runtime-environment.js";
 import { Icon } from "./Icon.jsx";
 import { AskPanel } from "../content/dashboard/AskPanel.jsx";
-import editIcon from "./icons/dashboard-icon-edit.svg?raw";
-import summaryIcon from "./icons/dashboard-icon-summaryBubble.svg?raw";
-import reportIcon from "./icons/dashboard-icon-textDocument.svg?raw";
-import alertIcon from "./icons/dashboard-icon-alertBell.svg?raw";
-import chatIcon from "./icons/dashboard-icon-chatBubble.svg?raw";
-
-const askIconAssets = { edit: editIcon, summaryBubble: summaryIcon, textDocument: reportIcon, alertBell: alertIcon, chatBubble: chatIcon };
-
 export function DashboardAskIcon({ name, size = 16 }) {
-  const svg = Object.hasOwn(askIconAssets, name) ? askIconAssets[name] : null;
-  if (!svg) return <Icon name={name} size={size} />;
-  // Only these bundled, reviewed assets enter the DOM; no prompt or remote SVG.
-  return <span className="dashboard-icon dashboard-ask-icon" aria-hidden="true" data-dashboard-icon={name}
-    style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: svg }} />;
+  return <Icon name={name} size={size} />;
 }
 
 const DashboardAskContext = createContext({

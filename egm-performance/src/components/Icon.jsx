@@ -1,5 +1,6 @@
 import React from "react";
 import { SvgIcon } from "./SvgIcon.jsx";
+import materialSymbols from "../content/dashboard/material-symbols.json";
 
 const dashboardIconAssets = import.meta.glob("./icons/dashboard-icon-*.svg", {
   eager: true,
@@ -20,10 +21,11 @@ export async function prepareDashboardIcons() {
   }));
 }
 
-export const dashboardIconNames = Object.freeze(Object.keys(dashboardIcons));
+export const dashboardIconNames = Object.freeze([...new Set([...Object.keys(dashboardIcons), ...Object.keys(materialSymbols.icons)])]);
 
 export function Icon({ name, size = 16, className = "" }) {
-  const icon = dashboardIcons[name];
+  const symbol = materialSymbols.icons[name];
+  const icon = symbol ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(symbol)}` : dashboardIcons[name];
   if (!icon)
     throw new Error(`Unknown dashboard icon: ${String(name)}. Add a bundled dashboard-icon-${String(name)}.svg asset.`);
   return <SvgIcon name={name} src={icon} size={size} className={className} />;

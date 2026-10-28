@@ -2,7 +2,8 @@
 
 Verified 2026-10-28. Published at https://egm.n3wth.com/overview.
 
-- Source build passed. All 99 backend, live snapshot, and dashboard helper tests passed.
+- Source build passed. All 100 backend, live snapshot, and dashboard helper tests passed.
+- Dashboard and authentication typography use the licensed Suisse Intl and Geist Mono assets from the existing private site. Six font files are self-hosted on exact public font routes; private dashboard data stays authenticated. Navigation icons use the bundled Google SVG set.
 - Browser verified title-to-Overview navigation, compact repo/PR labels, top-aligned tables, Semrush backlinks, and Firecrawl/Exa discovery.
 - Favicon returns HTTP 200 with image/svg+xml. Sign-in page visually inspected at 698px.
 - Actual logout revoked the session. Private snapshot API returned sign_in_required. Google sign-in restored owner access.

@@ -7,9 +7,7 @@ import { Icon } from "./Icon.jsx";
 const tabDragStartDistance = 4;
 
 function PageIcon({id}) {
-  const path={reach:'M4 20V4m0 16h17M9 16v-5m5 5V7m5 9V3',adoption:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M15 3.13a4 4 0 0 1 0 7.75',development:'m8 5-6 7 6 7m8-14 6 7-6 7m-3-15-2 16'}[id];
-  if(path)return <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d={path}/>{id==='adoption'&&<circle cx="9" cy="7" r="4"/>}</svg>;
-  return <Icon name={({acquisition:'arrowUpRight',website:'globe',research:'search',mentions:'chatBubble'})[id]??'textDocument'} size={18}/>;
+  return <Icon name={({reach:'chart',adoption:'users',development:'code',acquisition:'arrowUpRight',website:'globe',research:'search',mentions:'chatBubble'})[id]??'textDocument'} size={18}/>;
 }
 
 function reorderDashboardTabToIndex(tabs, sourceId, targetIndex) {

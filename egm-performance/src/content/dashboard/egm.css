@@ -1,3 +1,11 @@
+/* Same self-hosted families as n3wth's @n3wth/ui/site.css. */
+@font-face { font-family: 'Suisse Intl'; src: url('./fonts/SuisseIntl-Book.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Suisse Intl'; src: url('./fonts/SuisseIntl-Medium.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Suisse Intl'; src: url('./fonts/SuisseIntl-Semibold.woff2') format('woff2'); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Suisse Intl'; src: url('./fonts/SuisseIntl-Bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Geist Mono'; src: url('./fonts/GeistMono-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Geist Mono'; src: url('./fonts/GeistMono-Medium.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
+:root { --font-sans: 'Suisse Intl', system-ui, sans-serif; --font-sans-default: 'Suisse Intl', system-ui, sans-serif; --font-mono: 'Geist Mono', ui-monospace, monospace; }
 .egm-scope { color: var(--secondary); font-size: 13px; margin: 8px 0 24px; line-height: 1.6; }
 .egm-period { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin: 12px 0 24px; font-size: 12px; color: var(--secondary); }
 .egm-period time { color: var(--text); font-weight: 500; }
