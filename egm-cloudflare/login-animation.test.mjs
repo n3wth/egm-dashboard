@@ -8,7 +8,7 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   let frameId = 0
   const reduced = { matches: false, addEventListener: (_, listener) => { listeners.reduced = listener } }
   const portrait = { matches: false, addEventListener: (_, listener) => { listeners.portrait = listener } }
-  const handoff = { classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name) }, querySelector: () => ({}) }
+  const handoff = { classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name) }, querySelector: () => ({ getBoundingClientRect: () => ({ width: 400, height: 600, top: 0 }) }) }
   const window = {
     matchMedia: query => query.includes('prefers-reduced-motion') ? reduced : portrait,
     addEventListener: () => {},
@@ -21,7 +21,7 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
       },
     },
   }
-  const document = { hidden: false, querySelector: () => handoff }
+  const document = { hidden: false, querySelector: selector => selector === '.handoff' ? handoff : { getBoundingClientRect: () => ({ top: 275, bottom: 325 }) } }
   const math = Object.assign(Object.create(Math), { random: () => 0.5 })
   runInNewContext(await readFile(new URL('./login-animation.js', import.meta.url), 'utf8'), { window, document, Math: math, requestAnimationFrame: callback => { frames.set(++frameId, callback); return frameId }, cancelAnimationFrame: id => frames.delete(id) })
   const first = instances[0]
@@ -65,6 +65,11 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   assert.equal(third.options.artboard, 'Portrait')
   assert.equal(third.values.get('elephantX').value, 145)
   assert.equal(third.values.get('goldfishY').value, 445)
+  for (let time = 0; time <= 10000; time += 50) step(time)
+  assert.ok(third.values.get('resolveY').value + 19.2 + 25 <= 263)
+  assert.ok(third.values.get('elephantY').value + 70 <= 263)
+  assert.ok(third.values.get('driftY').value + 19.2 - 25 >= 337)
+  assert.ok(third.values.get('goldfishY').value - 70 >= 337)
   portrait.matches = false
   listeners.portrait()
   assert.equal(instances[3].options.artboard, 'Desktop')
