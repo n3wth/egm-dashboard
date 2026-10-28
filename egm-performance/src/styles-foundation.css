@@ -332,6 +332,8 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
 .dashboard-topbar.egm-single-row[data-mode] .dashboard-tabs { gap: 2px; }
 .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period { margin-top: 0; font-size: 11px; }
 .dashboard-topbar.egm-single-row[data-mode] .dashboard-topbar-mode-controls { flex: 0 0 auto; }
+.dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-ask-button { width: 36px; height: 36px; min-width: 36px; min-height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; }
+.dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-ask-button:hover { background: var(--border); }
 .egm-single-row:has(.egm-ask-inline-host) .dashboard-reporting-period { display: none !important; }
 @media(max-width:650px) {
   .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period > time:first-child { display: none; }

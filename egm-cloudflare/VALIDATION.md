@@ -2,7 +2,7 @@
 
 Verified 2026-10-28. Published at https://egm.n3wth.com/overview.
 
-- Source build passed. All 100 backend, live snapshot, and dashboard helper tests passed.
+- Source build passed. All 102 backend, live snapshot, and dashboard helper tests passed.
 - Dashboard and authentication typography use the licensed Suisse Intl and Geist Mono assets from the existing private site. Six font files are self-hosted on exact public font routes; private dashboard data stays authenticated. Navigation icons use the bundled Google SVG set.
 - Browser verified title-to-Overview navigation, compact repo/PR labels, top-aligned tables, Semrush backlinks, and Firecrawl/Exa discovery.
 - Favicon returns HTTP 200 with image/svg+xml. Sign-in page visually inspected at 698px.
@@ -29,3 +29,5 @@ Latest batch: Workers fetch redirect handling uses manual inspection, fixing fav
 Cloudflare Workers AI Ask is authenticated, same-origin, capped at ten questions per user/hour, and grounded in saved query records with citations. Native inline answer cards contain server-derived values only. Optional live checking calls the fixed GitHub repository endpoint; other providers remain saved evidence. Anonymous Ask returned 401. A real browser question returned the correct 817 website referrals with source evidence.
 
 An authorized initial video backfill checked all ten videos successfully. The integrated live refresh completed at 08:43 UTC with provider statuses available/cached. Ten view counts are present, including the seven previously unattempted videos. The 21-check lifetime cap remains, and future days return to three checks daily.
+
+Latest UI validation: centered option C trunk, a single icon navigation row, Suisse typography and Google SVG icons are included. Ask follow-up prompts remain visible while awaiting a reply. Constant Website observation series hide uninformative trend lines.

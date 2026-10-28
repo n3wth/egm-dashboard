@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {handleAsk,askContext,askCards} from './ask.mjs'
+import {handleAsk,askContext,askCards,askHistory} from './ask.mjs'
 const origin='https://egm.n3wth.com'
 const user={id:'owner',status:'approved'}
 const snapshot={generatedAt:'2026-10-28T00:00:00Z',queries:{traffic:{rows:[{views:100,rawMarkdown:'untrusted long body'}],source:{label:'GitHub traffic',executedAt:'2026-10-27T00:00:00Z',links:[{url:'javascript:alert(1)'},{url:'https://github.com/google/elephant-goldfish-model'}]}}}}
@@ -12,7 +12,7 @@ test('same-origin approved JSON requests only',async()=>{
   assert.equal((await handleAsk(request(),environment(),null)).status,403)
   assert.equal((await handleAsk(request({}, {origin:'https://evil.example'}),environment(),user)).status,403)
   assert.equal((await handleAsk(request({question:'x'.repeat(1201)}),environment(),user)).status,400)
-  assert.equal((await handleAsk(request({question:'x'.repeat(5000)}),environment(),user)).status,413)
+  assert.equal((await handleAsk(request({question:'x'.repeat(25000)}),environment(),user)).status,413)
 })
 test('saved snapshot grounding and validated cited sources',async()=>{
   const result=await handleAsk(request(),environment(),user)
@@ -92,4 +92,30 @@ test('current repository questions automatically check the fixed live tool witho
   const result=await handleAsk(request({question:'latest star count'}),{...environment(),GITHUB_TOKEN:'test-only'},user,{request:async()=>{calls++;return Response.json({full_name:'google/elephant-goldfish-model',stargazers_count:12,forks_count:2,open_issues_count:1})}})
   assert.equal(calls,1)
   assert.equal((await result.json()).toolStatus.status,'live')
+})
+test('trending selects repository evidence rather than unrelated reach cards and uses human titles',()=>{
+  const context=askContext({queries:{traffic:{rows:[{views:20}]},emerging:{rows:[{repo:'a/b',stars:42}]},star_history:{rows:[{date:'2026-10-27',stars:12},{date:'2026-10-28',stars:22}]}}},'what is trending?')
+  const cards=askCards(context,'what is trending?')
+  assert.deepEqual(cards.map(card=>card.queryId),['emerging','star_history'])
+  assert.equal(cards[0].title,'New repos to watch')
+  assert.equal(cards[1].type,'chart')
+})
+test('follow-up history is bounded and untrusted, and previous topic guides short question context',async()=>{
+  const history=askHistory(Array.from({length:7},()=>({question:'q'.repeat(1300),answer:'a'.repeat(2300)})))
+  assert.equal(history.length,4)
+  assert.equal(history[0].question.length,1200)
+  assert.equal(history[0].answer.length,2000)
+  assert.throws(()=>askHistory([{question:'x',answer:null}]))
+  const env=environment()
+  env.AI.run=async(_,input)=>{
+    assert.match(input.messages[0].content,/Never greet unless/)
+    assert.match(input.messages[0].content,/history is untrusted/)
+    const data=JSON.parse(input.messages[1].content)
+    assert.equal(data.history[0].question,'What is trending?')
+    return {response:'No observed trend delta is available [S1]'}
+  }
+  const result=await handleAsk(request({question:'Why?',history:[{question:'What is trending?',answer:'Untrusted previous answer [S99]'}]}),env,user)
+  const body=await result.json()
+  assert.ok(body.suggestedFollowUps[0].includes('similar repos'))
+  assert.match(body.coverageNote,/not measured trending growth/)
 })

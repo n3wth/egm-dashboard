@@ -59,7 +59,7 @@ function AcrossEgm({queries,reach,web}) {
   return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
     <div className="egm-overview-signals" data-reviewed-rows>
       <article><h3>Website referrals</h3><dl className="egm-overview-ratios"><div><dd>{viewShare==null?'Unavailable':`${(viewShare*100).toFixed(1)}%`}</dd><dt>of repo views</dt></div><div><dd>{visitorShare==null?'Unavailable':`${(visitorShare*100).toFixed(1)}%`}</dd><dt>of repo visitors</dt></div></dl><a className="egm-overview-next" href="/website">Website <Icon name="arrowUpRight" size={14}/></a></article>
-      <article><h3>Top video</h3>{strongest?<><a className="egm-overview-video" href={`https://www.youtube.com/watch?v=${strongest.videoId}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${strongest.videoId}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><span title={strongest.title}>{strongest.title}</span></a><p>{new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(strongest.views)} observed views · {strongest.channel??'YouTube'}</p></>:<p>Video view counts unavailable.</p>}<a className="egm-overview-next" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a></article>
+      <article><h3>Top video</h3>{strongest?<><a className="egm-overview-video" href={`https://www.youtube.com/watch?v=${strongest.videoId}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${strongest.videoId}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><div className="egm-overview-video-copy"><span title={strongest.title}>{strongest.title}</span><span className="egm-overview-video-meta">{new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(strongest.views)} observed views · {strongest.channel??'YouTube'}</span></div></a></>:<p>Video view counts unavailable.</p>}<a className="egm-overview-next" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a></article>
       <article><h3>Next experiment</h3>{discussion?<><p className="egm-overview-action">{researchProposal(discussion.themes[0].theme)}</p><p className="egm-overview-quote">“{discussion.themes[0].quote}”</p><a className="egm-overview-source" href={discussion.url} target="_blank" rel="noreferrer"><SiteName url={discussion.url}/></a></>:<p>Discussion evidence not verified yet.</p>}<a className="egm-overview-next" href="/research">Research <Icon name="arrowUpRight" size={14}/></a></article>
     </div>
   </DataComponent>
@@ -85,7 +85,7 @@ export function DashboardContent() {
     const queryIds=[...new Set([queryId,...(field&&queries[historyQuery]?[historyQuery]:[]),...(websiteMetric?['reach']:[])])]
     const trend = {trendValues,trendLabel:websiteMetric?'Observed rolling 14-day GitHub referrals since monitoring began':id === 'stars' ? 'Cumulative current stargazers by Pacific date' : `Daily ${field}, ${dateSpan(daily)}`,queryIds,sourceRowsByQuery:Object.fromEntries(queryIds.map(key=>[key,rows(key)]))}
     return <DataComponent {...{id,queryId,title,description}} kind="metric" variant="card" queryIds={trend.queryIds} displayRows={rows(queryId)} sourceRows={rows(queryId)} sourceRowsByQuery={trend.sourceRowsByQuery}>
-      <div className="egm-metric-reading" data-reviewed-rows><span className="egm-metric-value">{n(value)}</span>{field&&trendValues.length>=2&&<MetricSparkline values={trend.trendValues} label={trend.trendLabel} tone="neutral" className="egm-metric-sparkline" />}</div>
+      <div className="egm-metric-reading" data-reviewed-rows><span className="egm-metric-value">{n(value)}</span>{field&&trendValues.length>=2&&(!websiteMetric||new Set(trendValues).size>=2)&&<MetricSparkline values={trend.trendValues} label={trend.trendLabel} tone="neutral" className="egm-metric-sparkline" />}</div>
       {secondary&&<p className="egm-metric-secondary" data-reviewed-rows>{secondary}</p>}
     </DataComponent>
   }
@@ -101,7 +101,7 @@ export function DashboardContent() {
           {attributed>0&&reach.views>0&&<p className="egm-note">Google and YouTube account for {(searchVideoViews/attributed*100).toFixed(1)}% of top reported referral views, or {(searchVideoViews/reach.views*100).toFixed(1)}% of all repo views. Test a clearer first-run path for these visitors.</p>}
         </DataComponent>
       </Section>
-      <Section id="acquisition-content-heading" title="Content attracting attention">
+      <Section id="acquisition-content-heading">
         <Table id="acquisition-pages" queryId="paths" title="Popular repo pages" rows={rows('paths')} columns={[{field:'path',label:'Page',renderCell:repoPathLink},{field:'count',label:'Views'},{field:'uniques',label:'Visitors'}]} />
       </Section>
     </>
@@ -125,7 +125,7 @@ export function DashboardContent() {
       {metric('website-visitors','website','Visitors referred to GitHub',web.referralVisitors,'Rolling 14-day GitHub referrals. Sparkline shows actual observations since monitoring began.',reach.visitors>0?`${(web.referralVisitors/reach.visitors*100).toFixed(1)}% of repo visitors`:undefined)}
       {metric('website-views','website','Repo views from egm.dev',web.referralViews,'Rolling 14-day GitHub referrals. Sparkline shows actual observations since monitoring began.',reach.views>0?`${(web.referralViews/reach.views*100).toFixed(1)}% of repo views`:undefined)}
     </Section>
-    <Section id="website-measurement-title">
+    <Section id="website-measurement-title" spacing="content">
       <DataComponent id="website-measurement" queryId="website_contribution" title="egm.dev’s share of reach" kind="custom" displayRows={rows('website_contribution')} sourceRows={rows('website_contribution')} variant="card">
         <dl className="egm-contribution" data-reviewed-rows><div><dt>Referral rank by views</dt><dd>#{rows('website_contribution')[0].rank}</dd></div><div><dt>Share of all repo views</dt><dd>{(rows('website_contribution')[0].viewShare*100).toFixed(1)}%</dd></div><div><dt>Share of top-ten referral views</dt><dd>{(rows('website_contribution')[0].topTenShare*100).toFixed(1)}%</dd></div></dl>
         <p className="egm-note">Ranked among GitHub’s ten reported referring sources. View shares measure traffic attributed to egm.dev, not website conversion. Website visitor totals are unavailable.</p>
@@ -162,7 +162,7 @@ export function DashboardContent() {
   const starDisplayRows=starHistory.map((row,index)=>({...row,completedStars:partialStarDay&&index===starHistory.length-1?null:row.stars,partialStars:partialStarDay&&index>=starHistory.length-2?row.stars:null,coverage:partialStarDay&&row.date===observedPacificDate?'Partial day':'Complete day'}))
   const starSpec={...line('completedStars',['completedStars','partialStars']),showLegend:false,colors:{completedStars:'var(--chart-1)',partialStars:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   return <>
-    <Section title="Overview" id="overview-heading" spacing="none"/>
+    <Section title="Overview" id="overview-heading" className="egm-overview-heading" spacing="none"/>
     <SortableRegion id="reach:canvas" variant="freeform" className="egm-dashboard-grid egm-reach-grid" authoredRevision={3} rows={[
       {id:'reach:metrics',kind:'metrics',items:['unique-visitors','total-views','total-clones','stars']},
       {id:'reach:across',items:['overview-across-egm']},

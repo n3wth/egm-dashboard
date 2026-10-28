@@ -480,7 +480,7 @@ function DataAppRefreshControl({ generatedAt, getActionHref, published, schedule
 }
 
 const HeaderActionButton = React.forwardRef(function HeaderActionButton(
-  { label, compactLabel, icon, className = "", ...props },
+  { label, compactLabel, icon, iconOnly = false, className = "", ...props },
   ref,
 ) {
   return (
@@ -492,8 +492,8 @@ const HeaderActionButton = React.forwardRef(function HeaderActionButton(
       className={["dashboard-header-action-button", className].filter(Boolean).join(" ")}
     >
       {icon && <DashboardAskIcon name={icon} size={18} />}
-      <span className="dashboard-header-action-label dashboard-header-action-label-full">{label}</span>
-      {compactLabel && (
+      {!iconOnly&&<span className="dashboard-header-action-label dashboard-header-action-label-full">{label}</span>}
+      {!iconOnly&&compactLabel && (
         <span className="dashboard-header-action-label dashboard-header-action-label-compact">{compactLabel}</span>
       )}
     </button>
@@ -605,6 +605,14 @@ function DataAppOverflowMenu({
         requireTap: true,
       });
   };
+  if(published)return <>
+    <span className="dashboard-custom-overflow"><Menu label="More" align="start" contentClassName="dashboard-header-action-menu" trigger={<HeaderOverflowButton ref={triggerRef}/>}>
+      {canLogOut&&<MenuItem icon="logOut" className="dashboard-action-menu-item" onSelect={logOut}>Log out</MenuItem>}
+      <MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>onAction?.('copy-link')}>Copy link</MenuItem>
+      <MenuItem icon="palette" className="dashboard-action-menu-item" onSelect={onOpenThemes}>Switch theme</MenuItem>
+    </Menu></span>
+    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true"><Icon name="more" size={18}/></span><select ref={nativeSelect} aria-label="More" onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}>{canLogOut&&<option value="logout">Log out</option>}<option value="copy-link">Copy link</option><option value="theme">Switch theme</option></select></span>
+  </>;
   return (
     <>
       <span className="dashboard-custom-overflow">
@@ -1000,7 +1008,7 @@ export function DataAppTopbar({
           <div className="dashboard-topbar-copy">
 <a href="/overview" aria-label="EGM overview" style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
-<path d="M4.1 12H3c-1.5 0-2-1.5-1.5-3.2M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2ZM20 12l3-2.6M20 12l3 2.6" />
+<path d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2ZM20 12l3-2.6M20 12l3 2.6" />
             </svg></a>
             {published && surface !== "report" && verification && (
               <DataAppVerificationBadge
@@ -1192,14 +1200,15 @@ export function DataAppTopbar({
                   aria-describedby={mode !== "edit" && build.active ? askTooltipId : undefined}
                   ref={askButtonRef}
                   label={mode === "edit" ? "Cancel" : "Ask"}
+                  iconOnly={mode !== "edit"}
                   icon={mode === "edit" ? null : "chatBubble"}
                   compactLabel={mode === "edit" ? "Cancel" : "Ask"}
                   className="dashboard-ask-button"
                   onClick={mode === "edit" ? onCancel : () => openAskComposer()}
                 />
-                {build.active && (
+                {mode !== 'edit' && (
                   <Tooltip id={askTooltipId} className="topbar-mode-tooltip">
-                    Available when this {noun} is ready.
+                    {build.active?`Available when this ${noun} is ready.`:'Ask'}
                   </Tooltip>
                 )}
               </span>

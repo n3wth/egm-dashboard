@@ -7,7 +7,7 @@ import { Icon } from "./Icon.jsx";
 const tabDragStartDistance = 4;
 
 function PageIcon({id}) {
-  return <Icon name={({reach:'chart',adoption:'users',development:'code',acquisition:'arrowUpRight',website:'globe',research:'search',mentions:'chatBubble'})[id]??'textDocument'} size={18}/>;
+  return <Icon name={({reach:'chart',adoption:'users',development:'code',acquisition:'arrowUpRight',website:'globe',research:'search',mentions:'campaign'})[id]??'textDocument'} size={['reach','adoption','website'].includes(id)?16:18}/>;
 }
 
 function reorderDashboardTabToIndex(tabs, sourceId, targetIndex) {

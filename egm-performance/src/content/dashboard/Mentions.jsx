@@ -105,7 +105,7 @@ export function Mentions() {
     })}
     <SupplementaryMentions discovery={discovery}/>
     <Section id="mentions-coverage" spacing="none">
-      {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Collection" showHeading={false} className="egm-mentions-summary" kind="custom" variant="plain" displayRows={allRows} sourceRowsByQuery={{mentions:rows,mentions_status:queries.mentions_status?.rows??[],...discovery.sourceRowsByQuery}}>
+      {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Collection" showHeading={false} showActions={false} className="egm-mentions-summary" kind="custom" variant="plain" displayRows={allRows} sourceRowsByQuery={{mentions:rows,mentions_status:queries.mentions_status?.rows??[],...discovery.sourceRowsByQuery}}>
         <div className="egm-mentions-collection-line"><span title={since?`Discovered since ${since}`:undefined}>{allRows.length.toLocaleString('en-US')} discovered links</span>{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
         {status?.status==='stale'&&<p className="egm-note">Latest search failed; showing cached results.</p>}
         {status?.status==='unavailable'&&<p className="egm-note">Search unavailable.</p>}
