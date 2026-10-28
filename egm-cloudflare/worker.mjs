@@ -84,7 +84,7 @@ async function mcpOwner(request,env) {
     const header=JSON.parse(new TextDecoder().decode(un64(h)))
     const claims=JSON.parse(new TextDecoder().decode(un64(p)))
     if(extra.length || header.alg!=='RS256' || claims.iss!==env.WORKOS_AUTHKIT_DOMAIN || ![claims.aud].flat().includes(env.APP_URL+'/mcp') || !Number.isFinite(claims.exp) || claims.exp<=now() || claims.nbf>now()) return false
-    if(env.WORKOS_RBAC_ENABLED==='true' && (!rbacConfigured(env) || claims.org_id!==env.WORKOS_RBAC_ORGANIZATION_ID || !Array.isArray(claims.permissions) || !claims.permissions.includes(env.WORKOS_RBAC_PERMISSION || 'egm:dashboard:admin'))) return false
+    if(env.WORKOS_RBAC_ENABLED==='true' && (!rbacConfigured(env) || claims.org_id!==env.WORKOS_RBAC_ORGANIZATION_ID || !(claims.role==='admin' || (Array.isArray(claims.permissions) && claims.permissions.includes(env.WORKOS_RBAC_PERMISSION || 'egm:dashboard:admin'))))) return false
     if(!jwksCache || jwksCache.expires<Date.now()) {
       const result=await fetch(env.WORKOS_AUTHKIT_DOMAIN+'/oauth2/jwks')
       if(!result.ok) return false

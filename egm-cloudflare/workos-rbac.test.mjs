@@ -25,6 +25,17 @@ test('accepts only correctly signed matching WorkOS session claims', async () =>
   assert.equal(await verifyWorkosPermission(token, { ...options, clientId: 'client_OTHER', request }), null)
 })
 
+test('accepts the default admin role only for a valid signed token in the configured organization', async () => {
+  const admin = { ...base, role: 'admin', permissions: [] }
+  assert.deepEqual(await verifyWorkosPermission(await signed(admin), { ...options, request }), admin)
+  for (const [field, value] of Object.entries({ role: 'member', org_id: 'org_other', client_id: 'client_OTHER', iss: 'https://other.example', sub: 'user_other', exp: now / 1000 })) {
+    assert.equal(await verifyWorkosPermission(await signed({ ...admin, [field]: value }), { ...options, request }), null)
+  }
+  const parts = (await signed({ ...admin, role: 'member' })).split('.')
+  parts[1] = encode(admin)
+  assert.equal(await verifyWorkosPermission(parts.join('.'), { ...options, request }), null)
+})
+
 test('rejects malformed, unsigned, tampered, ambiguous keys and failed JWKS requests', async () => {
   const token = await signed()
   assert.equal(await verifyWorkosPermission(`${token.slice(0, -1)}!`, { ...options, request }), null)
