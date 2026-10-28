@@ -3,15 +3,14 @@ import { createPortal, flushSync } from "react-dom";
 
 import { compact } from "../charting/chart-theme.js";
 import { SelectedChartRegion } from "../charting/SelectedChartRegion.jsx";
-import { chartPointSelection, dashboardAskPrompt, pinnedChartCardPosition } from "../dashboard-ask.js";
+import { chartPointSelection, pinnedChartCardPosition } from "../dashboard-ask.js";
 import { dataAppPromptLinkProps } from "../data-app-handoff.js";
 import {
   codexDataAppPromptUrl,
-  currentDataAppReference,
-  currentDataAppViewUrl,
   isCodexBrowser,
 } from "../runtime-environment.js";
 import { Icon } from "./Icon.jsx";
+import { AskPanel } from "../content/dashboard/AskPanel.jsx";
 import editIcon from "./icons/dashboard-icon-edit.svg?raw";
 import summaryIcon from "./icons/dashboard-icon-summaryBubble.svg?raw";
 import reportIcon from "./icons/dashboard-icon-textDocument.svg?raw";
@@ -61,7 +60,7 @@ export function PinnedChartCard({ hoverCard, actions, canAsk, onAsk, onClose, pa
     style={{ width: hoverCard.width, borderRadius: hoverCard.radius, boxShadow: hoverCard.shadow, background: hoverCard.background }}>
     {(actions.length > 0 || canAsk) && <div className="chart-pinned-actions">
       {actions.map(action => <button key={action.label} type="button" onClick={() => { onClose(); action.onSelect(); }}><span>{action.label}</span><Icon name="arrowUpRight" size={14} /></button>)}
-      {canAsk && <button type="button" onClick={onAsk}>Ask ChatGPT</button>}
+      {canAsk && <button type="button" onClick={onAsk}>Ask</button>}
     </div>}
   </div>;
 }
@@ -342,6 +341,8 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
   const [selection, setSelection] = useState(null);
   const [phase, setPhase] = useState("menu");
   const [question, setQuestion] = useState("");
+  const [nativeAskOpen, setNativeAskOpen] = useState(false);
+  const [nativeAskQuestion, setNativeAskQuestion] = useState("");
   const [composerHeight, setComposerHeight] = useState(ASK_LAYOUT.composer.minHeight);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const [composerReady, setComposerReady] = useState(false);
@@ -354,7 +355,6 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
   const panelRef = useRef(null);
   const anchorRef = useRef(null);
   const composerRef = useRef(null);
-  const submitLinkRef = useRef(null);
   const anchorSourceRef = useRef(null);
   const pinnedChartRef = useRef(null);
   const dismissedChartRef = useRef(null);
@@ -585,57 +585,18 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
     setClosing(false);
   }
 
-  function openDashboardComposer(anchorElement, suggestions = []) {
-    if (!anchorElement?.isConnected) return;
-    const bounds = anchorElement.getBoundingClientRect();
-    const triggerStyle = window.getComputedStyle(anchorElement);
-    const labelBounds = [...anchorElement.querySelectorAll(".dashboard-header-action-label")]
-      .map(label => label.getBoundingClientRect()).find(rect => rect.width > 0);
-    const iconBounds = anchorElement.querySelector('[data-dashboard-icon="chatBubble"]')?.getBoundingClientRect();
-    const triggerBorderWidth = Number.parseFloat(triggerStyle.borderLeftWidth) || 0;
-    const headerMorph = anchorElement.classList.contains("dashboard-ask-button");
-    const triggerLabel = anchorElement.innerText.trim() || anchorElement.getAttribute("aria-label") || "Ask ChatGPT";
-    const anchorSource = {
-      kind: "element",
-      element: anchorElement,
-      xOffset: headerMorph ? bounds.width : undefined,
-      yOffset: headerMorph ? bounds.height / 2 : bounds.height,
-    };
-    const anchor = resolveAnchor(anchorSource);
-    if (!anchor) return;
-    clearSelectionIndicator();
-    anchorSourceRef.current = anchorSource;
-    if (headerMorph) anchorElement.classList.add("dashboard-ask-trigger-morphing");
-    setEntranceKey((current) => current + 1);
-    setSelection({
-      context: { kind: "dashboard", label: "Entire dashboard" },
-      anchor,
-      source: "header",
-      headerMorph,
-      suggestions,
-      triggerWidth: bounds.width,
-      triggerRight: bounds.right,
-      triggerHeight: bounds.height,
-      triggerRadius: triggerStyle.borderRadius,
-      triggerBackground: triggerStyle.backgroundColor,
-      triggerBorderColor: triggerStyle.borderColor,
-      triggerBorderWidth: triggerStyle.borderLeftWidth,
-      triggerBoxShadow: triggerStyle.boxShadow,
-      triggerColor: triggerStyle.color,
-      // The return outline is an inset shadow, so it never shifts these children.
-      triggerLabelInset: `${(labelBounds?.left ?? bounds.left + triggerBorderWidth + Number.parseFloat(triggerStyle.paddingLeft)) - bounds.left}px`,
-      triggerIconInset: iconBounds ? `${iconBounds.left - bounds.left}px` : null,
-      triggerLabel,
-    });
-    setPhase("compose");
-    setComposerHeight(HEADER_COMPOSER_HEIGHT);
-    setComposerExpanded(false);
-    setDiscardVisible(false);
-    setClosing(false);
+  function openDashboardComposer() {
+    openNativeAsk();
   }
 
   function discardComposer() {
     closeComposer();
+  }
+
+  function openNativeAsk(initialQuestion = "") {
+    closeComposer();
+    setNativeAskQuestion(initialQuestion.slice(0, 1200));
+    setNativeAskOpen(true);
   }
 
   function selectChartMark(context, event) {
@@ -915,22 +876,6 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
     return undefined;
   }, [phase, question, composerExpanded, selection?.source]);
 
-  function promptForChatGPT(dataAppReference, viewUrl) {
-    if (!selection || !question.trim()) return null;
-    const { sourceUrl, projectId, htmlPath, root } = dataAppReference;
-    return dashboardAskPrompt({
-      question,
-      dashboardTitle,
-      dashboardUrl: viewUrl ?? (htmlPath ? undefined : sourceUrl),
-      dashboardProjectId: projectId,
-      dashboardProjectRoot: htmlPath ? root : undefined,
-      componentKind: selection.context.componentKind,
-      componentTitle: selection.context.componentTitle,
-      selectedContext: contextLabel(selection.context),
-      selectedContextLabel: selection.context.row ? "Selected point" : "Selected context",
-    });
-  }
-
   const contextValue = useMemo(
     () => ({ openDashboardComposer, selectChartMark, selectChartSection, selectionEnabled, canSelectChartMark: canSelect, dismissChartMark,
       selectedMarkElement: selection ? anchorSourceRef.current?.markElement : null,
@@ -969,15 +914,6 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
         )
       : { x: 0, y: 0 };
   const stageMotion = ASK_MOTION.compose;
-  const dataAppReference = currentDataAppReference();
-  const viewUrl = currentDataAppViewUrl() ?? undefined;
-  const chatGPTPrompt = promptForChatGPT(dataAppReference, viewUrl);
-  const chatGPTLink = dataAppPromptLinkProps(destination => chatGPTPrompt
-    ? codexDataAppPromptUrl(chatGPTPrompt, dataAppReference, undefined, undefined, destination, viewUrl).toString()
-    : undefined, () => {
-      onStatus?.("Opening in ChatGPT.");
-      closeAfterNavigation();
-    });
   const motionStyle = {
     "--dashboard-ask-anchor-gap": `${anchorGap}px`,
     "--dashboard-ask-enter-offset": `${ASK_MOTION.entrance.endGap - ASK_MOTION.entrance.startGap}px`,
@@ -1031,7 +967,7 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
   const panel = pinned ? <div className="dashboard-ask-anchor chart-pinned-anchor" style={{
     left: pinnedPosition.left, top: pinnedPosition.top,
     "--pinned-available-height": `${pinnedPosition.maxHeight}px`,
-  }}><PinnedChartCard {...{ hoverCard, panelRef }} actions={markActions} canAsk={selectionEnabled} onAsk={() => setPhase("compose")} onClose={closeComposer} /></div> : selection && position && (
+  }}><PinnedChartCard {...{ hoverCard, panelRef }} actions={markActions} canAsk={selectionEnabled} onAsk={() => openNativeAsk()} onClose={closeComposer} /></div> : selection && position && (
     <div
       ref={anchorRef}
       className="dashboard-ask-anchor"
@@ -1092,7 +1028,7 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
           inert={phase !== "compose"}
           onSubmit={(event) => {
             event.preventDefault();
-            submitLinkRef.current?.click();
+            openNativeAsk(question);
           }}
         >
           <textarea
@@ -1162,18 +1098,16 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
                 <Icon name="trash" size={16} />
               </button>
             )}
-            <a
-              ref={submitLinkRef}
+            <button type="submit"
               className="dashboard-ask-submit"
-              {...chatGPTLink}
-              aria-disabled={!chatGPTLink.href}
-              aria-label="Send to ChatGPT"
+              disabled={!question.trim()}
+              aria-label="Ask"
             >
-              {question.trim() && <span className="dashboard-ask-submit-label">Send to ChatGPT</span>}
+              {question.trim() && <span className="dashboard-ask-submit-label">Ask</span>}
               <span className="dashboard-ask-primary" aria-hidden="true">
                 <Icon name="sendUp" size={isPhoneViewport ? 20 : 16} />
               </span>
-            </a>
+            </button>
           </footer>
         </form>
       </div>
@@ -1187,6 +1121,7 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
   return (
     <DashboardAskContext.Provider value={contextValue}>
       {children}
+      <AskPanel open={nativeAskOpen} onClose={() => setNativeAskOpen(false)} initialQuestion={nativeAskQuestion} />
       {typeof document !== "undefined" && selectedRegion ? createPortal(selectedRegion, regionSource.element) : null}
       {typeof document !== "undefined" && panel ? createPortal(panel, document.body) : null}
     </DashboardAskContext.Provider>

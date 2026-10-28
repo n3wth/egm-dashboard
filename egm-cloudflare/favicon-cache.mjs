@@ -52,20 +52,21 @@ export async function cachedSiteIcon(request,env,options={}) {
     if(!snapshotSiteHosts(snapshot).has(host))return new Response(null,{status:404,headers:{'cache-control':'no-store'}})
   }
   const cache=options.cache??globalThis.caches?.default
-  const key=new Request(url.origin+'/api/site-icon?v=3&host='+encodeURIComponent(host),{method:'GET'})
+  const key=new Request(url.origin+'/api/site-icon?v=5&host='+encodeURIComponent(host),{method:'GET'})
   let result=cache?await cache.match(key):null
   if(!result) {
     try {
       const upstream=new URL('https://favicon.vemetric.com/'+encodeURIComponent(host))
       upstream.searchParams.set('size','32')
       upstream.searchParams.set('format','png')
-      const response=await (options.request??fetch)(upstream.href,{redirect:'error',signal:AbortSignal.timeout(5000)})
+      const response=await (options.request??fetch)(upstream.href,{redirect:'manual',signal:AbortSignal.timeout(5000)})
+      if(response.status>=300&&response.status<400)throw Error('unexpected_redirect')
       result=await limitedImage(response)
-    }catch {result=new Response(null,{status:204,headers:{'cache-control':`public, max-age=${lifetime}`}})}
+    }catch {result=new Response(null,{status:204,headers:{'cache-control':'public, max-age=300'}})}
     if(cache)await cache.put(key,result.clone())
   }
   const headers=new Headers(result.headers)
-  headers.set('cache-control',`private, max-age=${lifetime}`)
+  headers.set('cache-control',`private, max-age=${result.status===200?lifetime:300}`)
   headers.set('x-content-type-options','nosniff')
   headers.set('vary','Cookie')
   return new Response(request.method==='HEAD'?null:result.body,{status:result.status,headers})

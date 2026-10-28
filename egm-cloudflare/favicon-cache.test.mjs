@@ -13,7 +13,7 @@ test('invalid, private, protocol and unknown hosts are rejected without fetch',a
 })
 test('known icons use fixed redirect-disabled upstream and cached private responses',async()=>{
   let calls=0
-  const options={cache:cache(),request:async(url,init)=>{calls++;assert.equal(new URL(url).origin,'https://favicon.vemetric.com');assert.equal(new URL(url).pathname,'/github.com');assert.equal(new URL(url).searchParams.get('format'),'png');assert.equal(init.redirect,'error');return icon()}}
+  const options={cache:cache(),request:async(url,init)=>{calls++;assert.equal(new URL(url).origin,'https://favicon.vemetric.com');assert.equal(new URL(url).pathname,'/github.com');assert.equal(new URL(url).searchParams.get('format'),'png');assert.equal(init.redirect,'manual');return icon()}}
   const request=new Request(origin+'/api/site-icon?host=github.com')
   const first=await cachedSiteIcon(request,{},options)
   assert.equal(first.status,200)
@@ -27,7 +27,7 @@ test('snapshot URLs permit relevant public publishers',async()=>{
 })
 test('versioned key bypasses previously cached empty provider icons',async()=>{
   const stored=cache()
-  await stored.put(new Request(origin+'/api/site-icon?host=exa.ai'),new Response(null,{status:204}))
+  await stored.put(new Request(origin+'/api/site-icon?v=4&host=exa.ai'),new Response(null,{status:204}))
   let calls=0
   const result=await cachedSiteIcon(new Request(origin+'/api/site-icon?v=3&host=exa.ai'),{}, {cache:stored,request:async()=>{calls++;return icon()}})
   assert.equal(result.status,200)
@@ -38,8 +38,32 @@ test('bad MIME, oversized bodies and upstream failures cache fallback without re
     let calls=0
     const options={cache:cache(),request:async()=>{calls++;return upstream()}}
     const request=new Request(origin+'/api/site-icon?host=google.com')
-    assert.equal((await cachedSiteIcon(request,{},options)).status,204)
+    const fallback=await cachedSiteIcon(request,{},options)
+    assert.equal(fallback.status,204)
+    assert.equal(fallback.headers.get('cache-control'),'private, max-age=300')
+    assert.equal(fallback.headers.get('x-icon-error'),null)
+    assert.equal(fallback.headers.get('x-icon-upstream-status'),null)
     assert.equal((await cachedSiteIcon(request,{},options)).status,204)
     assert.equal(calls,1)
+  }
+})
+
+test('redirects are inspected manually and never followed or cached as success',async()=>{
+  for(const status of [301,302,307,308]) {
+    let calls=0
+    const stored=cache()
+    const result=await cachedSiteIcon(new Request(origin+'/api/site-icon?v=5&host=github.com'),{}, {cache:stored,request:async(url,init)=>{
+      calls++
+      assert.equal(init.redirect,'manual')
+      assert.equal(new URL(url).origin,'https://favicon.vemetric.com')
+      return new Response(null,{status,headers:{location:'https://other.example/icon.png'}})
+    }})
+    assert.equal(calls,1)
+    assert.equal(result.status,204)
+    assert.equal(result.headers.get('cache-control'),'private, max-age=300')
+    const cached=await stored.match(new Request(origin+'/api/site-icon?v=5&host=github.com'))
+    assert.equal(cached.headers.get('cache-control'),'public, max-age=300')
+    assert.equal(result.headers.get('x-icon-error'),null)
+    assert.equal(result.headers.get('x-icon-upstream-status'),null)
   }
 })

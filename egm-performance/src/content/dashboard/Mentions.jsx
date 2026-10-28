@@ -70,7 +70,7 @@ function additionalDiscovery(queries,primaryRows) {
 }
 function CollectionNote({provider,status}) {
   if(!status)return null
-  return <p className="egm-note egm-mentions-collection"><SiteName label={provider}/> {status.status==='stale'?'Latest search failed; showing cached results ':status.status==='expired'?'Scheduled search has ended ':status.status==='unavailable'?'Search unavailable ':''}Last search {dateValue(status.lastSuccessAt)?<ShortDate value={status.lastSuccessAt}/>:<span>not yet collected</span>}</p>
+  return <p className="egm-note egm-mentions-collection"><SiteName label={provider}/> {dateValue(status.lastSuccessAt)?<ShortDate value={status.lastSuccessAt}/>:<span>not yet collected</span>}{status.status==='stale'&&<span>(refresh failed, cached)</span>}{status.status==='unavailable'&&<span>(unavailable)</span>}</p>
 }
 function SupplementaryMentions({discovery}) {
   const {rows,queryIds,sourceRowsByQuery,providers}=discovery
@@ -79,7 +79,6 @@ function SupplementaryMentions({discovery}) {
   return <Section title="Additional discovery" id="mentions-exa">
     <DataComponent id="mentions-exa-table" queryId={queryIds[0]} queryIds={queryIds} title={`${names} search results`} kind="table" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
       <MentionRows rows={rows} label={`Additional ${names} discovery results`}/>
-      <p className="egm-note">Additional indexed leads, including first-party pages. Duplicate URLs are shown once. Each provider’s original records remain in Sources. Not individually verified.</p>
     </DataComponent>
   </Section>
 }
@@ -95,13 +94,7 @@ export function Mentions() {
   const since=earliest?new Date(earliest).toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):null
   const groups=[['Video','YouTube'],['Social','Social posts'],['Media / web','Media and web'],['Official','Official announcements']]
   return <>
-    <Section title="Public mentions" id="mentions-coverage" spacing="none">
-      {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Discovery and coverage" kind="custom" variant="card" displayRows={allRows} sourceRowsByQuery={{mentions:rows,mentions_status:queries.mentions_status?.rows??[],...discovery.sourceRowsByQuery}}>
-        <p className="egm-copy">{allRows.length?`${allRows.length.toLocaleString('en-US')} unique URLs discovered${since?` since ${since}`:''}.`:'No URLs collected yet.'}</p>
-        <p className="egm-note">{status?.status==='stale'?'Latest search failed; showing cached results. ':status?.status==='expired'?'Scheduled search has ended. ':status?.status==='unavailable'?'Search unavailable. ':''}Last search: {stamp(status?.lastSuccessAt)}. Indexed coverage is incomplete.</p>
-        <div className="egm-mentions-provider-notes">{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
-      </DataComponent>:<p className="egm-note">Public mentions have not completed their first collection.</p>}
-    </Section>
+    <Section title="Public mentions" id="mentions-heading" spacing="none"/>
     {groups.map(([kind,title])=>{
       const selected=rows.filter(row=>row.kind===kind)
       if(!selected.length) return null
@@ -112,5 +105,13 @@ export function Mentions() {
       </Section>
     })}
     <SupplementaryMentions discovery={discovery}/>
+    <Section id="mentions-coverage" spacing="none">
+      {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Collection" kind="custom" variant="plain" displayRows={allRows} sourceRowsByQuery={{mentions:rows,mentions_status:queries.mentions_status?.rows??[],...discovery.sourceRowsByQuery}}>
+        <p className="egm-note">{allRows.length?`${allRows.length.toLocaleString('en-US')} unique URLs discovered${since?` since ${since}`:''}.`:'No URLs collected yet.'}</p>
+        {status?.status==='stale'&&<p className="egm-note">Latest search failed; showing cached results.</p>}
+        {status?.status==='unavailable'&&<p className="egm-note">Search unavailable.</p>}
+        <div className="egm-mentions-provider-notes">{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
+      </DataComponent>:<p className="egm-note">Public mentions have not completed their first collection.</p>}
+    </Section>
   </>
 }

@@ -77,3 +77,27 @@ test('statistics rotate through never-checked videos then oldest attempts, inclu
   assert.deepEqual(byDay[2],stableIds.slice(6,9))
   assert.deepEqual(byDay[3],[stableIds[9],stableIds[0],stableIds[1]])
 })
+test('explicit initial backfill fills ten first-day rows then returns to three per day within lifetime cap',async()=>{
+  const stableIds=Array.from({length:10},(_,i)=>'video'+String(i).padStart(6,'0'))
+  const mentions={rows:stableIds.map(id=>({url:'https://www.youtube.com/watch?v='+id,title:'EGM video'}))}
+  let calls=0
+  const request=async(url,init)=>{
+    if(url.startsWith('https://www.youtube.com/oembed'))return Response.json(metadata(new URL(new URL(url).searchParams.get('url')).searchParams.get('v')))
+    calls++
+    return Response.json({data:{alexandria:[provider(JSON.parse(init.body).alexandria.options.video_id)],creditsCost:5}})
+  }
+  const enabled={...env,VIDEO_INITIAL_BACKFILL_LIMIT:'10'}
+  const initial=await collectYouTube(env,request,{mentions},now)
+  const filled=await collectYouTube(enabled,request,{mentions,...initial},now+1000)
+  assert.equal(calls,10)
+  assert.equal(filled.youtube_status.rows[0].totalStatsAttempts,10)
+  assert.equal(filled.youtube_status.rows[0].statsDailyLimit,10)
+  assert.ok(filled.youtube_videos.rows.every(row=>row.views===123))
+  await collectYouTube(enabled,async()=>assert.fail('cached'),{mentions,...filled},now+2000)
+  const next=await collectYouTube(enabled,request,{mentions,...filled},now+86401000)
+  assert.equal(next.youtube_status.rows[0].statsDailyLimit,3)
+  assert.equal(next.youtube_status.rows[0].totalStatsAttempts,13)
+  const almost={...next,youtube_status:{rows:[{...next.youtube_status.rows[0],collectionDay:'2026-10-28',totalStatsAttempts:20,statsAttempts:0}]}}
+  const capped=await collectYouTube(enabled,request,{mentions,...almost},now+2*86401000)
+  assert.equal(capped.youtube_status.rows[0].totalStatsAttempts,21)
+})

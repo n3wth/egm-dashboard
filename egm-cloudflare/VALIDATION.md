@@ -2,7 +2,7 @@
 
 Verified 2026-10-28. Published at https://egm.n3wth.com/overview.
 
-- Source build passed. All 84 backend and live snapshot tests passed.
+- Source build passed. All 99 backend, live snapshot, and dashboard helper tests passed.
 - Browser verified title-to-Overview navigation, compact repo/PR labels, top-aligned tables, Semrush backlinks, and Firecrawl/Exa discovery.
 - Favicon returns HTTP 200 with image/svg+xml. Sign-in page visually inspected at 698px.
 - Actual logout revoked the session. Private snapshot API returned sign_in_required. Google sign-in restored owner access.
@@ -22,3 +22,9 @@ Parallel live collection succeeded with two bounded requests and eight retained 
 WorkOS EGM application-specific branding was saved with all six light/dark icon, logo, and favicon uploads. The editor was reloaded and asset paths plus the rendered icon were verified. EGM's default sign-out destination is https://egm.n3wth.com/. Shared environment authentication methods and Cineplex branding were not changed.
 
 Approval event methods are deployed at /mcp. Dot still needs an authenticated EGM connection and successful webhook subscription. No supported connection-creation tool was available, so active Dot notifications are not claimed.
+
+Latest batch: Workers fetch redirect handling uses manual inspection, fixing favicon and provider requests without following credential-bearing redirects. Authenticated live favicon delivery returned HTTP 200 PNG; known brands use bundled theme-colored SVGs. Missing-icon fallback caches five minutes; successful images cache seven days.
+
+Cloudflare Workers AI Ask is authenticated, same-origin, capped at ten questions per user/hour, and grounded in saved query records with citations. Native inline answer cards contain server-derived values only. Optional live checking calls the fixed GitHub repository endpoint; other providers remain saved evidence. Anonymous Ask returned 401. A real browser question returned the correct 817 website referrals with source evidence.
+
+An authorized initial video backfill checked all ten videos successfully. The integrated live refresh completed at 08:43 UTC with provider statuses available/cached. Ten view counts are present, including the seven previously unattempted videos. The 21-check lifetime cap remains, and future days return to three checks daily.

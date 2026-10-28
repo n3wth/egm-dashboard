@@ -158,3 +158,42 @@ test('every collector checks deadline before consuming source attempt budgets', 
     assert.deepEqual(saved.queries.exa_research_status, budget)
   }
 })
+
+test('Workers adapter normalizes redirect error to manual and rejects provider redirects without following', async () => {
+  for (const code of [200, 302, 307]) {
+    const f = fixture()
+    let calls = 0
+    let redirectRejected = false
+    const result = await runRefresh(f.env, async (url, init) => {
+      calls++
+      assert.equal(url, 'https://api.provider.example/search')
+      assert.equal(init.redirect, 'manual')
+      assert.equal(init.headers.authorization, 'Bearer fixture-token')
+      return new Response(null, { status: code, ...(code >= 300 ? { headers: { location: 'https://different.example/collect' } } : {}) })
+    }, {
+      now: () => baseTime,
+      github: async () => { throw Error('retain last good GitHub') },
+      semrush: async (env, request) => {
+        const pending = request('https://api.provider.example/search', { redirect: 'error', headers: { authorization: 'Bearer fixture-token' } })
+        if (code >= 300) {
+          await assert.rejects(pending, { message: 'unexpected_redirect' })
+          redirectRejected = true
+          throw Error('unexpected_redirect')
+        }
+        const response = await pending
+        assert.equal(response.status, 200)
+        return { seo_keywords: { rows: [{ keyword: 'new' }] } }
+      },
+      mentions: async () => ({}), exa: async () => ({}), exaResearch: async () => ({}), contentResearch: async () => ({}), youtube: async () => ({}), tavily: async () => ({}), parallel: async () => ({})
+    })
+    assert.equal(calls, 1)
+    assert.equal(redirectRejected, code >= 300)
+    const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+    if (code === 200) assert.equal(saved.queries.seo_keywords.rows[0].keyword, 'new')
+    else {
+      assert.equal(result.semrush, 'failed')
+      assert.deepEqual(saved.queries.seo_keywords, f.previous.queries.seo_keywords)
+      assert.deepEqual(saved.queries.traffic, f.previous.queries.traffic)
+    }
+  }
+})

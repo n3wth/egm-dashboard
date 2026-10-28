@@ -23,11 +23,16 @@ export async function runRefresh(env, request = fetch, services = {}) {
   if (!acquired) return { status: 'skipped', reason: 'running_or_cooldown' }
   const state = { status: 'failed', github: 'failed', semrush: 'failed', mentions: 'failed', exa: 'failed' }
   const deadline = Math.min(cutoff, start + 10 * 60000)
-  const boundedRequest = (url, init = {}) => {
+  const boundedRequest = async (url, init = {}) => {
     const remaining = deadline - clock()
     if (remaining <= 0) throw Error('refresh_deadline')
     const timeout = AbortSignal.timeout(Math.min(20000, remaining))
-    return request(url, { ...init, signal: init.signal ? AbortSignal.any([init.signal, timeout]) : timeout })
+    // Workers supports manual/follow, not Fetch's redirect:error. Inspect the
+    // manual response instead so no provider credential follows a redirect.
+    const rejectRedirect = init.redirect === 'error'
+    const response = await request(url, { ...init, ...(rejectRedirect ? { redirect: 'manual' } : {}), signal: init.signal ? AbortSignal.any([init.signal, timeout]) : timeout })
+    if (rejectRedirect && response.status >= 300 && response.status < 400) throw Error('unexpected_redirect')
+    return response
   }
   try {
     const original = await env.DB.prepare('SELECT body FROM snapshots WHERE id=1').first()

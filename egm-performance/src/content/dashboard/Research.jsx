@@ -1,6 +1,7 @@
 import React,{useState} from 'react'
-import {DataComponent,DataTable,Icon,MenuItem,Section,useDataApp} from '../../data-app-public.jsx'
+import {DataComponent,DataTable,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
 import {researchProposal} from './research-insights.js'
+import {backlinkPages} from './backlink-pages.js'
 
 const repoLink=(value,row)=><a className="egm-research-repo" href={row.url} target="_blank" rel="noreferrer">{value}</a>
 const wrappedText=value=><span className="egm-research-description">{value??'—'}</span>
@@ -32,7 +33,7 @@ function SearchVisibility({queries}) {
   const coverageRows=Object.fromEntries(coverageIds.map(id=>[id,queries[id]?.rows??[]]))
   const unavailableCopy=status?.reason==='no_api_units'?'The connected Semrush account has no MCP API units. Activate MCP access on the trial account, then reconnect Semrush with that account.':status?.status==='expired'?'The configured Semrush collection window has ended. Previously collected evidence remains available below.':'Semrush has not returned a successful collection. Its current status and collection details are available in Sources.'
   return <Section title="Search visibility" id="research-semrush">
-    {reports.map(([id,title])=>{const sourceRows=queries[id].rows;const isBacklinks=id==='seo_backlinks'&&sourceRows.length===1;const rows=isBacklinks?Object.entries(sourceRows[0]).map(([field,value])=>({metric:backlinkLabels[field]??field,value})):sourceRows;return <DataComponent key={id} id={`research-${id.replaceAll('_','-')}`} queryId={id} title={title} kind="table" variant="card" displayRows={rows} sourceRows={sourceRows}>
+    {reports.map(([id,title])=>{const sourceRows=queries[id].rows;const isBacklinks=id==='seo_backlinks'&&sourceRows.length===1;const rows=isBacklinks?Object.entries(sourceRows[0]).map(([field,value])=>({metric:backlinkLabels[field]??field,value})):id==='seo_top_backlinks'?backlinkPages(sourceRows):sourceRows;return <DataComponent key={id} id={`research-${id.replaceAll('_','-')}`} queryId={id} title={title} kind="table" variant="card" displayRows={rows} sourceRows={sourceRows}>
       {status?.reportStates?.[id]==='no_data'?<p className="egm-copy">Semrush returned no matching records for egm.dev with these report parameters. This does not establish zero traffic, keywords, or competitors.</p>:<DataTable rows={rows} label={`Semrush ${title.toLowerCase()}`} searchable={rows.length>8&&!isBacklinks} columns={isBacklinks?[{field:'metric',label:'Measure'},{field:'value',label:'Value'}]:seoColumns(id,rows)} />}
     </DataComponent>})}
     {statusQuery&&<DataComponent id="research-semrush-status" queryId="semrush_status" queryIds={coverageIds} title="Semrush coverage" kind="custom" variant="card" displayRows={statusQuery.rows} sourceRowsByQuery={coverageRows}>
@@ -55,12 +56,11 @@ function DiscussionSignals({queries}) {
     <DataComponent id="research-discussion-evidence" queryId="research_evidence" queryIds={queryIds} title="Source checks and experiment proposals" kind="custom" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
       <div className="egm-discussion-list" data-reviewed-rows>{verified.map(row=>{const signal=row.themes?.[0];const quote=signal?.quote?.trim().split(/\s+/).slice(0,24).join(' ');return <article key={row.url}>
         <h3><a href={row.url} target="_blank" rel="noreferrer">{row.title||new URL(row.url).hostname}</a></h3>
-        <span className="egm-signal-status">Verified reference</span>
+        <span className="egm-signal-status history-tooltip-trigger" tabIndex={0} aria-label="Verified reference. A reference to EGM was found in the retrieved page. This does not verify every claim."><Icon name="check" size={14}/> Verified reference<Tooltip>A reference to EGM was found in the retrieved page. This does not verify every claim.</Tooltip></span>
         {quote&&<><p className="egm-signal-quote"><q>{quote}{signal.quote.trim().split(/\s+/).length>24?'…':''}</q></p><p>Suggested test: {researchProposal(signal.theme)}</p></>}
       </article>})}</div>
-      {unchecked.length>0&&<details className="egm-unverified-sources"><summary>{unchecked.length} sources not verified</summary>{unchecked.map(row=><p key={row.url}><a href={row.url} target="_blank" rel="noreferrer">{row.title||row.url}</a> · {row.status==='inaccessible'?'Could not retrieve':'Project reference not confirmed'}</p>)}</details>}
-      <p className="egm-note">Verified means a project reference was found, not that every claim was validated.</p>
-      {statusQuery&&statusQuery.rows?.[0]?.status!=='available'&&<p className="egm-note">Collection: {statusQuery.rows?.[0]?.status??'unknown'}.</p>}
+      {unchecked.length>0&&<details className="egm-unverified-sources"><summary>{unchecked.length} unverified {unchecked.length===1?'source':'sources'}</summary>{unchecked.map(row=><p key={row.url}><a href={row.url} target="_blank" rel="noreferrer">{row.title||row.url}</a> · {row.status==='inaccessible'?'Could not retrieve':'Project reference not confirmed'}</p>)}</details>}
+      {['stale','unavailable','failed','error'].includes(statusQuery?.rows?.[0]?.status)&&<p className="egm-note">Collection: {statusQuery.rows[0].status}.</p>}
     </DataComponent>
   </Section>
 }
@@ -86,10 +86,10 @@ function ResearchCandidates({queries}) {
   const languageActions=<><MenuItem role="menuitemradio" aria-checked={language==='english'} leading={<span className="egm-filter-check">{language==='english'&&<Icon name="check" size={16}/>}</span>} onSelect={()=>setLanguage('english')}>English only{estimated?' (estimated)':''}</MenuItem><MenuItem role="menuitemradio" aria-checked={language==='all'} leading={<span className="egm-filter-check">{language==='all'&&<Icon name="check" size={16}/>}</span>} onSelect={()=>setLanguage('all')}>All languages</MenuItem></>
   return <Section title="Research leads" id="research-candidates">
     <DataComponent id="research-candidate-table" queryId="exa_research" queryIds={queryIds} title="Discussion, tutorial, and workflow candidates" kind="custom" variant="card" className="egm-research-candidates" headerControls={controls} additionalActions={languageActions} displayRows={selected} sourceRowsByQuery={sourceRowsByQuery}>
-      <div className="egm-research-leads" data-reviewed-rows>{selected.map(row=><article key={row.url}><div><h3><a href={row.url} target="_blank" rel="noreferrer">{row.title}</a></h3><p className="egm-note">{(row.queryAngles??[]).join(' · ')}</p></div><p className="egm-research-excerpt">{plainExcerpt(row.evidence)}</p></article>)}</div>
+      <div className="egm-research-leads" data-reviewed-rows>{selected.map(row=><article key={row.url}><div><h3><a href={row.url} target="_blank" rel="noreferrer">{row.title}</a></h3><p className="egm-note egm-research-angles">{(row.queryAngles??[]).map(angle=>{const item=angle==='Friction and discussions'?['Discussion','chatBubble']:angle==='Tutorials and first run'?['Tutorial','monitor']:angle==='Comparable workflow candidates'?['Workflow','textDocument']:[angle,'link'];return <span key={angle}><Icon name={item[1]} size={14}/>{item[0]}</span>})}</p></div><p className="egm-research-excerpt">{plainExcerpt(row.evidence)}</p></article>)}</div>
       {!selected.length&&<p className="egm-note">No leads match these filters.</p>}
-      <p className="egm-note">{selected.length} of {rows.length} leads. Unverified results may include first-party posts and mirrors.{estimated&&language==='english'?' English is estimated from indexed text; choose All languages to review every result.':''}</p>
-      {statusQuery&&statusQuery.rows?.[0]?.status!=='available'&&<p className="egm-note">Collection: {statusQuery.rows?.[0]?.status??'unknown'}.</p>}
+      <p className="egm-note">{selected.length} of {rows.length} leads{estimated&&language==='english'?' · English estimated':''}.</p>
+      {['stale','unavailable','failed','error'].includes(statusQuery?.rows?.[0]?.status)&&<p className="egm-note">Collection: {statusQuery.rows[0].status}.</p>}
     </DataComponent>
   </Section>
 }
@@ -120,7 +120,7 @@ export function Research() {
     <Section title="Comparable repos" id="research-peers" spacing="none">
       <DataComponent id="research-peer-table" queryId="peers" title="Reach and first-run discovery" kind="table" variant="card" displayRows={peers} sourceRows={peers}>
         <DataTable rows={peers} searchable={false} label="Comparable repo signals" columns={[{field:'repo',label:'Repo',renderCell:repoLink},{field:'stars',label:'Stars',renderCell:starCount},{field:'observedDelta',label:'Since monitoring',renderCell:observedGrowth},{field:'quickStart',label:'Quick start',renderCell:readmeMatch},{field:'demo',label:'Demo',renderCell:readmeMatch}]} />
-        <p className="egm-note">Peers differ in age and scope. Growth uses the first recorded observation; README checks are text matches.</p>
+        <p className="egm-note">Growth since monitoring began.</p>
       </DataComponent>
     </Section>
     <Section title="Gaps and experiments" id="research-opportunities">

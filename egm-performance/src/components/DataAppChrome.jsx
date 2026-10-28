@@ -76,6 +76,23 @@ function ReviewedFreshness({ generatedAt }) {
   );
 }
 
+function RelativeFreshness({ generatedAt }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const timestamp = Date.parse(generatedAt);
+  if (!Number.isFinite(timestamp)) return null;
+  const minutes = Math.max(0, Math.floor((now - timestamp) / 60000));
+  const age = minutes < 1 ? "just now" : minutes < 60
+    ? `${minutes}m ago`
+    : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago`
+      : `${Math.floor(minutes / 1440)}d ago`;
+  const exact = new Date(timestamp).toLocaleString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" });
+  return <time dateTime={generatedAt} title={`Updated ${exact}`} aria-label={`Updated ${exact}`} style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon name="refresh" size={12}/>{age}</time>;
+}
+
 function DataAppVerificationBadge({
   verification,
   pendingAction,
@@ -299,7 +316,7 @@ function DataAppPublishButton({
   );
 }
 
-function DataAppRefreshControl({ generatedAt, getActionHref, published, scheduleOpen, onScheduleOpenChange }) {
+function DataAppRefreshControl({ generatedAt, getActionHref, published, scheduleOpen, onScheduleOpenChange, showTrigger = true }) {
   const trigger = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const open = scheduleOpen;
@@ -339,7 +356,7 @@ function DataAppRefreshControl({ generatedAt, getActionHref, published, schedule
 
   return (
     <>
-      <Menu
+      {showTrigger && <Menu
         label="Refresh data"
         align="start"
         contentClassName="dashboard-refresh-menu"
@@ -367,8 +384,8 @@ function DataAppRefreshControl({ generatedAt, getActionHref, published, schedule
         <MenuItem icon="calendar" onSelect={openSchedule}>
           Schedule refresh
         </MenuItem>
-      </Menu>
-      <RefreshSetupCoachmark published={published} blocked={open || menuOpen} anchor={trigger} />
+      </Menu>}
+      {showTrigger && <RefreshSetupCoachmark published={published} blocked={open || menuOpen} anchor={trigger} />}
       {/* Focusing a native select opens its picker on iOS. Start on the
             heading so Repeat opens only after an intentional tap. */}
       <Dialog
@@ -1057,6 +1074,7 @@ export function DataAppTopbar({
             ) : null}
             {!build.label && mode !== "edit" && generatedAt && canEdit && surface !== "report" && (
               <DataAppRefreshControl
+                showTrigger={false}
                 generatedAt={generatedAt}
                 getActionHref={getActionHref}
                 published={published}
@@ -1066,11 +1084,6 @@ export function DataAppTopbar({
             )}
             {!build.label && mode !== "edit" && surface === "report" && (
               <ReportDateLabel asOf={reportAsOf} generatedAt={generatedAt} />
-            )}
-            {!build.label && generatedAt && !canEdit && surface !== "report" && (
-              <span className="freshness freshness-label">
-                <ReviewedFreshness generatedAt={generatedAt} />
-              </span>
             )}
           </div>
 
@@ -1212,7 +1225,7 @@ export function DataAppTopbar({
         >
           <div className="dashboard-tabs-collapse-inner">
             <DashboardTabs
-              trailing={reportingDates.length ? <time className="dashboard-reporting-period" dateTime={reportingDates[0]} title="Traffic reporting period, Pacific time">{new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'America/Los_Angeles'}).formatRange(new Date(reportingDates[0]+'T00:00:00Z'),new Date(new Date(reportingDates.at(-1)+'T00:00:00Z').valueOf()+86400000))} · PT</time> : null}
+              trailing={reportingDates.length ? <span className="dashboard-reporting-period" style={{display:'inline-flex',alignItems:'center',gap:4,lineHeight:1}}><time dateTime={reportingDates[0]} title="Traffic reporting period, Pacific time">{new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'America/Los_Angeles'}).formatRange(new Date(reportingDates[0]+'T00:00:00Z'),new Date(new Date(reportingDates.at(-1)+'T00:00:00Z').valueOf()+86400000))} · PT</time>{generatedAt && <> · <RelativeFreshness generatedAt={generatedAt}/></>}</span> : null}
               tabs={tabs}
               activeTabId={activeTabId}
               editMode={mode === "edit" && !saving && !editingBlocked}
