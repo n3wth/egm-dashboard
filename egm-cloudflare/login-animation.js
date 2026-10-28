@@ -69,6 +69,7 @@ function stop() {
 
 function start() {
   if (!active || !canvas || reducedMotion.matches || animation || loading) return
+  handoff.classList.remove('fallback')
   const initialize = () => {
     loading = false
     if (!active || reducedMotion.matches || !window.rive) return
@@ -88,15 +89,19 @@ function start() {
             instance.resizeDrawingSurfaceToCanvas()
             move(instance)
             handoff.classList.add('ready')
-          } catch { stop() }
+          } catch { stop(); handoff.classList.add('fallback') }
         },
         onLoadError() {
-          if (animation === instance) handoff.classList.remove('ready')
+          if (animation === instance) {
+            stop()
+            handoff.classList.add('fallback')
+          }
         },
       })
       animation = instance
     } catch {
-      handoff.classList.remove('ready')
+      stop()
+      handoff.classList.add('fallback')
     }
   }
   if (window.rive) return initialize()
@@ -104,7 +109,7 @@ function start() {
   const script = document.createElement('script')
   script.src = '/rive/rive.js'
   script.onload = initialize
-  script.onerror = () => { loading = false }
+  script.onerror = () => { loading = false; handoff.classList.add('fallback') }
   document.head.append(script)
 }
 
