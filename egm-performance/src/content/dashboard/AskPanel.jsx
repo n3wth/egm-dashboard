@@ -3,6 +3,7 @@ import {createPortal} from 'react-dom'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
 import {consumeAskStream} from './ask-stream.mjs'
+import {trackAskOutcome} from './usage-analytics.js'
 
 const errorMessage=status=>status===401?'Your session expired. Sign in again to ask a question.':status===403?'Your account does not have access to Ask.':status===429?'You have reached the hourly question limit. Try again later.':status===400||status===413?'Use a question between 1 and 1,200 characters.':status===504?'The answer took too long. Try a shorter question.':'Ask is temporarily unavailable. Try again shortly.'
 const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
@@ -40,6 +41,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
     const active=request.current
     if(!active)return
     active.stopped=true
+    trackAskOutcome('stopped')
     active.controller.abort()
     updateTurn(active.id,{status:'stopped'})
     setLoading(false)
@@ -79,6 +81,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   async function send(submitted,retryId) {
     submitted=submitted.trim()
     if(!submitted||submitted.length>1200||loading)return
+    trackAskOutcome('submitted')
     request.current?.controller.abort()
     const id=retryId??++sequence.current
     const controller=new AbortController()
@@ -89,7 +92,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
     setTurns(previous=>retryId?previous.map(turn=>turn.id===retryId?pending:turn):[...previous,pending])
     setQuestion('');setLoading(true)
     const timeout=setTimeout(()=>{active.timedOut=true;controller.abort()},60000)
-    const complete=result=>updateTurn(id,{text:result.answer,status:'complete',result:{...result,sources:Array.isArray(result.sources)?result.sources:[],cards:Array.isArray(result.cards)?result.cards.slice(0,3):[]}})
+    const complete=result=>{trackAskOutcome('completed');updateTurn(id,{text:result.answer,status:'complete',result:{...result,sources:Array.isArray(result.sources)?result.sources:[],cards:Array.isArray(result.cards)?result.cards.slice(0,3):[]}})}
     try {
       const history=turns.filter(turn=>turn.status==='complete'&&turn.id!==id).slice(-4).map(turn=>({question:turn.question,answer:turn.text.slice(0,2000)}))
       const response=await fetch('/api/ask',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','accept':'application/x-ndjson'},body:JSON.stringify({question:submitted,history,stream:true}),signal:controller.signal})
@@ -107,7 +110,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
       }
     } catch(failure) {
       if(active.stopped)updateTurn(id,{status:'stopped'})
-      else updateTurn(id,{status:'error',error:active.timedOut?'The answer took too long. Try again.':failure.message||'Could not reach Ask. Try again.'})
+      else {trackAskOutcome('failed');updateTurn(id,{status:'error',error:active.timedOut?'The answer took too long. Try again.':failure.message||'Could not reach Ask. Try again.'})}
     } finally {
       clearTimeout(timeout)
       if(request.current===active){request.current=null;setLoading(false)}
