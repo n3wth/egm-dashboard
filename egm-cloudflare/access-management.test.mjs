@@ -41,3 +41,26 @@ test('RBAC mode requires verified dashboard administration permission, including
   assert.equal((await (await manageAccess(read,env,otherAdmin)).json()).ownerId,owner.id)
   assert.equal((await manageAccess(request({id:owner.id,decision:'denied'}),env,otherAdmin)).status,409)
 })
+test('user photos are bounded, limited to dashboard identities and validated',async()=>{
+  const env={...environment(),WORKOS_API_KEY:'test-key'}
+  env.db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?,?)').run('user_owner','Owner',owner.email,'approved','2026-10-28',null,null)
+  const calls=[]
+  const fetcher=async(url,options)=>{
+    calls.push({url,options})
+    return Response.json({data:[{id:'user_owner',profile_picture_url:'https://workoscdn.com/images/owner'},{id:'pending',profile_picture_url:'https://workoscdn.com.evil.example/p'},{id:'user_other',profile_picture_url:'https://workoscdn.com/images/other'}],list_metadata:{after:'another-page'}})
+  }
+  const result=await (await manageAccess(new Request(env.APP_URL+'/api/access'),env,{...owner,id:'user_owner'},fetcher)).json()
+  assert.equal(calls.length,2)
+  assert.equal(calls[0].options.redirect,'error')
+  assert.equal(result.users.find(user=>user.id==='user_owner').profilePictureUrl,'https://workoscdn.com/images/owner')
+  assert.equal(result.users.find(user=>user.id==='pending').profilePictureUrl,null)
+  assert.equal(result.users.some(user=>user.id==='user_other'),false)
+})
+test('provider outage preserves dashboard users and verified viewer photo',async()=>{
+  const env={...environment(),WORKOS_API_KEY:'test-key'}
+  env.db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?,?)').run('user_owner','Owner',owner.email,'approved','2026-10-28',null,null)
+  const response=await manageAccess(new Request(env.APP_URL+'/api/access'),env,{...owner,id:'user_owner',profilePictureUrl:'https://workoscdn.com/images/owner'},async()=>{throw Error('unavailable')})
+  assert.equal(response.status,200)
+  const result=await response.json()
+  assert.equal(result.users.find(user=>user.id==='user_owner').profilePictureUrl,'https://workoscdn.com/images/owner')
+})

@@ -2,6 +2,14 @@ import React,{useEffect,useRef,useState} from 'react'
 import {Button,Dialog,Icon,Menu,MenuItem} from '../../data-app-public.jsx'
 import './manage-users.css'
 
+function UserAvatar({user}) {
+  const [failed,setFailed]=useState(false)
+  let photo=null
+  try {const url=new URL(user.profilePictureUrl);if(url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.username&&!url.password&&!url.port)photo=url.href}catch{}
+  const initials=(user.name||user.email||'?').trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()||'').join('')||'?'
+  return <span className="egm-user-avatar" aria-hidden="true">{photo&&!failed?<img src={photo} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:initials}</span>
+}
+
 export function ManageUsers({open,onClose}) {
   const [record,setRecord]=useState(null)
   const [error,setError]=useState('')
@@ -97,7 +105,7 @@ export function ManageUsers({open,onClose}) {
       {createdLink&&<div className="egm-invite-created"><label>Invitation link<input readOnly value={createdLink.url} onFocus={event=>event.target.select()} /></label><Button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(createdLink.url);setCopied(true)}catch{setInviteError('Could not copy the link. Select it to copy manually.')}}}>{copied?'Copied':'Copy link'}</Button><p>Expires {date(createdLink.expiresAt)}. Copy it now; it cannot be shown again.</p></div>}
     </section>
     <section className="egm-manage-section" aria-labelledby="egm-users-heading"><div className="egm-manage-section-heading"><h3 id="egm-users-heading">Users</h3><span>{pending.length} pending</span></div>
-    <ul aria-label="Users">{record.users.map(user=><li key={user.id}><div><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}</div>{user.status==='pending'&&user.id!==record.ownerId?<div className="egm-access-actions"><Button type="button" disabled={busy} onClick={()=>decide(user.id,'approved')}>Approve</Button><Button type="button" disabled={busy} onClick={()=>decide(user.id,'denied')}>Deny</Button></div>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Has access':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
+    <ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}</div></div>{user.status==='pending'&&user.id!==record.ownerId?<div className="egm-access-actions"><Button type="button" disabled={busy} onClick={()=>decide(user.id,'approved')}>Approve</Button><Button type="button" disabled={busy} onClick={()=>decide(user.id,'denied')}>Deny</Button></div>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
     {invitations?.length>0&&<section className="egm-manage-section" aria-labelledby="egm-invitations-heading"><h3 id="egm-invitations-heading">Invitations</h3><ul aria-label="Invitations">{invitations.map(invitation=>{const expired=new Date(invitation.expiresAt).getTime()<=Date.now(),active=!invitation.redeemedAt&&!invitation.revokedAt&&!expired;const state=invitation.redeemedAt?'Used':invitation.revokedAt?'Revoked':expired?'Expired':invitation.deliveryState==='unknown'||invitation.deliveryState==='sending'?'Email delivery unconfirmed':invitation.deliveryState==='failed'?'Email delivery failed':'Active';return <li key={invitation.id}><div><strong>{invitation.email||'Shareable link'}</strong><span>{state}{active?` · Expires ${date(invitation.expiresAt)}`:''}</span></div>{active&&<Button type="button" disabled={busy} onClick={()=>revokeInvitation(invitation.id)}>Revoke</Button>}</li>})}</ul></section>}</>}
   </Dialog>
 }
