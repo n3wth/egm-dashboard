@@ -6,6 +6,8 @@
   "workers_dev": false,
   "preview_urls": false,
   "ai": {"binding": "AI"},
+  "durable_objects": {"bindings": [{"name": "ACCESS_LIVE", "class_name": "AccessLive"}]},
+  "migrations": [{"tag": "access-live-v1", "new_sqlite_classes": ["AccessLive"]}],
   "triggers": {"crons": ["*/30 * * * *"]},
   "routes": [{"pattern": "egm.n3wth.com", "custom_domain": true}],
   "assets": {"directory": "assets", "binding": "ASSETS", "run_worker_first": true},

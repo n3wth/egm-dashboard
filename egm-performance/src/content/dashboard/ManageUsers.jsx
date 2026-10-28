@@ -10,7 +10,7 @@ function UserAvatar({user}) {
   return <span className="egm-user-avatar" aria-hidden="true">{photo&&!failed?<img src={photo} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:initials}</span>
 }
 
-export function ManageUsers({open,onClose}) {
+export function ManageUsers({open,onClose,accessVersion}) {
   const [record,setRecord]=useState(null)
   const [error,setError]=useState('')
   const [busy,setBusy]=useState(false)
@@ -45,6 +45,9 @@ export function ManageUsers({open,onClose}) {
     loadInvitations(controller.signal).catch(failure=>{if(!controller.signal.aborted)setInviteError(failure.message)})
     return ()=>controller.abort()
   },[open])
+  useEffect(()=>{
+    if(open&&active.current)load(active.current.signal).catch(()=>{})
+  },[accessVersion])
   async function decide(id,decision) {
     if(busy)return
     const signal=active.current.signal
