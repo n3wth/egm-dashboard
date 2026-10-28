@@ -7,7 +7,6 @@ import {EngagementSignals} from './EngagementSignals.jsx'
 import {PageSummary} from './PageSummary.jsx'
 import {VideoThumbnail} from './VideoThumbnail.jsx'
 
-const stamp=value=>!value?'Unknown':/^\d{4}-\d{2}-\d{2}$/.test(value)?new Date(value+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):new Date(value).toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' PT'
 const mentionLink=(value,row)=><a className="egm-mention-link" href={row.url} target="_blank" rel="noreferrer nofollow">{value}</a>
 const dateValue=value=>{if(!value)return null;const date=new Date(/^\d{4}-\d{2}-\d{2}$/.test(value)?value+'T12:00:00Z':value);return Number.isFinite(date.getTime())?date:null}
 function ShortDate({value}) {
@@ -31,7 +30,7 @@ function VideoGallery({rows,queries}) {
   const measured=videos.filter(row=>Number.isFinite(row.views)&&row.views>=0).sort((a,b)=>b.views-a.views)
   const observedViews=measured.reduce((total,row)=>total+row.views,0)
   return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:queries.mentions?.rows??[],...(queries.youtube_videos?{youtube_videos:metadata}:{}),...(queries.youtube_comments?{youtube_comments:comments}:{})}}>
-    {measured.length>=2&&observedViews>0&&<InsightCallout action="Test a short first-run guide alongside the most-viewed video.">The most-viewed measured video accounts for {percentage(measured[0].views/observedViews)} of observed views across {measured.length} videos with available counts.</InsightCallout>}
+    {measured.length>=2&&observedViews>0&&<InsightCallout>The most-viewed video accounts for {percentage(measured[0].views/observedViews)} of YouTube view counts across the {measured.length} videos that have one.</InsightCallout>}
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
       <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><VideoThumbnail id={row.id} sizes="(max-width: 550px) 100vw, (max-width: 1000px) 50vw, 33vw"/><h3 title={row.title}>{row.title}</h3></a>
       {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><span title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</span>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
@@ -100,7 +99,8 @@ export function Mentions() {
   const {queries}=useDataApp()
   const query=queries.mentions
   const engagement=queries.mention_engagement?.rows??[]
-  const enrich=row=>({...row,...engagement.find(item=>canonicalUrl(item.url)===canonicalUrl(row.url))})
+  // Copy only the engagement counts; the engagement row's own url, status and timestamps must not overwrite the mention's.
+  const enrich=row=>{const {hnPoints,comments,engagementObservedAt,engagementSource}=engagement.find(item=>canonicalUrl(item.url)===canonicalUrl(row.url))??{};return {...row,...(hnPoints!=null&&{hnPoints}),...(comments!=null&&{comments}),...(engagementObservedAt&&{engagementObservedAt}),...(engagementSource&&{engagementSource})}}
   const rows=(query?.rows??[]).map(enrich)
   const discovery=additionalDiscovery(queries,rows)
   discovery.rows=discovery.rows.map(enrich)

@@ -7,8 +7,10 @@ export async function collectEngagement(env,request=fetch,previousQueries={},tim
   const at=new Date(time).toISOString(),collectionDay=at.slice(0,10)
   const old=previousQueries.mention_engagement
   const prior=previousQueries.mention_engagement_status?.rows?.[0]
-  const ids=[...new Set(['mentions','exa_mentions','tavily_mentions','parallel_mentions'].flatMap(key=>(previousQueries[key]?.rows??[]).map(row=>hnId(row.url))).filter(Boolean))].slice(0,5)
   const rows=new Map((old?.rows??[]).map(row=>[row.hnId,{...row}]))
+  // Every discovered story is eligible; the daily attempt cap below bounds requests. Never-checked stories go first, then the least recently attempted, so a long list rotates instead of stalling on the first five.
+  const lastAttempt=id=>Date.parse(rows.get(id)?.lastAttemptAt??'')||0
+  const ids=[...new Set(['mentions','exa_mentions','tavily_mentions','parallel_mentions'].flatMap(key=>(previousQueries[key]?.rows??[]).map(row=>hnId(row.url))).filter(Boolean))].sort((a,b)=>lastAttempt(a)-lastAttempt(b))
   let dailyAttempts=prior?.collectionDay===collectionDay?prior.dailyAttempts??0:0
   let attempts=0
   const cutoff=Date.parse(env.REFRESH_UNTIL)
@@ -29,6 +31,6 @@ export async function collectEngagement(env,request=fetch,previousQueries={},tim
     rows.set(id,row)
   }
   const output=[...rows.values()]
-  const source={label:'Hacker News · observed engagement',provider:'Hacker News',executedAt:at,links:output.map(row=>({label:'HN discussion',url:row.url})),metricDefinitions:[{label:'HN points',definition:'Official Hacker News story score, not views or unique users.'},{label:'Comments',definition:'Official descendants count including nested comments.'}],caveats:['Only discovered Hacker News story URLs are checked. Maximum five requests per UTC day, with 24-hour success and failure caching.','Old observed counts are retained on a failed refresh and keep their original observation date. Unknown counts remain unknown.']}
+  const source={label:'Hacker News · observed engagement',provider:'Hacker News',executedAt:at,links:output.map(row=>({label:'HN discussion',url:row.url})),metricDefinitions:[{label:'HN points',definition:'Official Hacker News story score, not views or unique users.'},{label:'Comments',definition:'Official descendants count including nested comments.'}],caveats:['Only discovered Hacker News story URLs are checked. Maximum five requests per UTC day, rotating through the least recently checked stories, with 24-hour success and failure caching.','Old observed counts are retained on a failed refresh and keep their original observation date. Unknown counts remain unknown.']}
   return {mention_engagement:{rows:output,source:attempts===0&&old?.source?old.source:source},mention_engagement_status:{rows:[{status:!active?'expired':attempts?'checked':'cached',collectionDay,dailyAttempts,attempts,lastAttemptAt:at}],source:{...source,label:'Hacker News · collection status'}}}
 }

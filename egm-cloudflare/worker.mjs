@@ -44,9 +44,6 @@ const escape = value => String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 export function profilePhoto(value) {
   try {const url=new URL(value);return typeof value==='string'&&value.length<=2048&&url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.port&&!url.username&&!url.password?url.href:null}catch{return null}
 }
-function page(title,body,status=200) {
-  return new Response(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} · EGM</title><style>html{color-scheme:light dark}body{font:16px system-ui;margin:0;background:light-dark(#fff,#181818);color:light-dark(#202124,#fff)}main{max-width:440px;margin:12vh auto;padding:32px}h1{font-size:26px}p{line-height:1.65;color:light-dark(#555,#aaa)}a,button{display:inline-block;padding:12px 18px;border:0;border-radius:9px;background:#1b6ef3;color:#fff;text-decoration:none;font:inherit}small{display:block;margin-top:32px;color:#888}</style></head><body><main><h1>${escape(title)}</h1>${body}<small>EGM Growth Dashboard · Private access</small></main></body></html>`,{status,headers:{'content-type':'text/html;charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'same-origin','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'"}})
-}
 async function identity(request,env) {
   const session=await open(cookieValue(request,'__Host-egm_session'),env.SESSION_SECRET,'session')
   if(!session || typeof session.sid!=='string') return null
@@ -89,7 +86,7 @@ async function mcpOwner(request,env) {
     if(extra.length || header.alg!=='RS256' || claims.iss!==env.WORKOS_AUTHKIT_DOMAIN || ![claims.aud].flat().includes(env.APP_URL+'/mcp') || !Number.isFinite(claims.exp) || claims.exp<=now() || claims.nbf>now()) return false
     if(env.WORKOS_RBAC_ENABLED==='true' && (!rbacConfigured(env) || claims.org_id!==env.WORKOS_RBAC_ORGANIZATION_ID || !(claims.role==='admin' || (Array.isArray(claims.permissions) && claims.permissions.includes(env.WORKOS_RBAC_PERMISSION || 'egm:dashboard:admin'))))) return false
     if(!jwksCache || jwksCache.expires<Date.now()) {
-      const result=await fetch(env.WORKOS_AUTHKIT_DOMAIN+'/oauth2/jwks')
+      const result=await fetch(env.WORKOS_AUTHKIT_DOMAIN+'/oauth2/jwks',{signal:AbortSignal.timeout(10000)})
       if(!result.ok) return false
       jwksCache={keys:(await result.json()).keys,expires:Date.now()+300000}
     }
@@ -119,7 +116,7 @@ async function mcp(request,env,ctx) {
     const value=await approvalEventsRpc(rpc,owner,env)
     if(!value) return error(-32601,'Method not found')
     if(value.error) return error(value.error.code,value.error.message)
-    if(rpc.method==='events/subscribe') ctx?.waitUntil(flushApprovalEvents(env))
+    if(rpc.method==='events/subscribe') ctx?.waitUntil(flushApprovalEvents(env).catch(error=>console.error('Approval event flush failed',error?.message)))
     return reply(value.result)
   }
   if(rpc.method==='ping') return reply({})
@@ -204,7 +201,7 @@ export async function handle(request,env,ctx) {
     const flow=await open(cookieValue(request,'__Host-egm_flow'),env.SESSION_SECRET,'login')
     const clear=cookie('__Host-egm_flow','',0)
     if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return new Response('Invalid sign-in state',{status:400,headers:{'set-cookie':clear,'cache-control':'no-store'}})
-    const auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,grant_type:'authorization_code',code:url.searchParams.get('code'),code_verifier:flow.verifier})})
+    const auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,grant_type:'authorization_code',code:url.searchParams.get('code'),code_verifier:flow.verifier}),signal:AbortSignal.timeout(10000)})
     if(!auth.ok) return renderAccessPage('error')
     const {user,access_token:accessToken,refresh_token:refreshToken}=await auth.json()
     if(!user?.id || !user.email_verified || typeof user.email!=='string') return renderAccessPage('verify')
@@ -220,7 +217,7 @@ export async function handle(request,env,ctx) {
     }
     if(!existing && !invited) {
       await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,[user.first_name,user.last_name].filter(Boolean).join(' ')||email,isOwner?'approved':'pending',new Date().toISOString()).run()
-      if(!isOwner) ctx?.waitUntil(flushApprovalEvents(env))
+      if(!isOwner) ctx?.waitUntil(flushApprovalEvents(env).catch(error=>console.error('Approval event flush failed',error?.message)))
       if(!isOwner) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     }
     const sid=random()
@@ -331,7 +328,7 @@ export async function handle(request,env,ctx) {
     : response
 }
 export default {
-  async fetch(request,env,ctx) {try {return await handle(request,env,ctx)} catch {return new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})}},
+  async fetch(request,env,ctx) {try {return await handle(request,env,ctx)} catch(error) {console.error('Request failed',new URL(request.url).pathname,error?.message);return new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})}},
   async scheduled(controller,env) {
     if(env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true') {
       try { await env.DB.prepare('DELETE FROM workos_sessions WHERE NOT EXISTS (SELECT 1 FROM sessions WHERE sessions.id=workos_sessions.session_id AND sessions.expires_at>?)').bind(now()).run() }
