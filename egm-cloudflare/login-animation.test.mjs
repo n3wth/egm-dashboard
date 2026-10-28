@@ -5,11 +5,10 @@ import { runInNewContext } from 'node:vm'
 
 test('stale Rive callbacks cannot replace the active artwork', async () => {
   const classes = new Set(), listeners = {}, instances = []
-  const media = matches => ({ matches, addEventListener: (_, listener) => { listeners[matches ? 'unused' : Object.keys(listeners).length ? 'compact' : 'reduced'] = listener } })
-  const reduced = media(false), compact = media(false)
+  const reduced = { matches: false, addEventListener: (_, listener) => { listeners.reduced = listener } }
   const handoff = { classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name) }, querySelector: () => ({}) }
   const window = {
-    matchMedia: query => query.includes('reduced-motion') ? reduced : compact,
+    matchMedia: () => reduced,
     addEventListener: () => {},
     rive: {
       RuntimeLoader: { setWasmUrl() {}, setWasmFallbackUrl() {} },
@@ -22,8 +21,10 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   }
   runInNewContext(await readFile(new URL('./login-animation.js', import.meta.url), 'utf8'), { window, document: { querySelector: () => handoff } })
   const first = instances[0]
-  compact.matches = true
-  listeners.compact()
+  reduced.matches = true
+  listeners.reduced()
+  reduced.matches = false
+  listeners.reduced()
   const second = instances[1]
   second.options.onLoad()
   first.options.onLoadError()
