@@ -67,6 +67,20 @@ test('pending request delivery is signed, deduplicated, and does not approve any
   assert.equal(calls[0].headers['webhook-signature'],await webhookSignature(secret,calls[0].headers['webhook-id'],calls[0].headers['webhook-timestamp'],calls[0].body))
   assert.equal(env.sql.prepare('SELECT status FROM users WHERE id=?').get('friend').status,'pending')
 })
+test('a pinned owner retains notifications after a verified email change',async()=>{
+  const env = environment()
+  const pinnedId='user_owner'
+  env.sql.prepare('UPDATE users SET id=? WHERE id=?').run(pinnedId,owner.id)
+  env.WORKOS_OWNER_USER_ID=pinnedId
+  const changed={...owner,id:pinnedId,email:'new@example.org'}
+  env.sql.prepare('UPDATE users SET email=? WHERE id=?').run(changed.email,pinnedId)
+  assert.ok((await approvalEventsRpc(subscription,changed,env,challengeEcho)).result)
+  assert.equal((await approvalEventsRpc(subscription,{...changed,id:'someone-else'},env,challengeEcho)).error.code,-32001)
+  env.sql.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run('friend','friend@example.com','Friend',1,'pending',new Date().toISOString())
+  let delivered=0
+  await flushApprovalEvents(env,async()=>{delivered++;return new Response('ok')})
+  assert.equal(delivered,1)
+})
 test('delivery failures retain bounded retry state, 410 unsubscribes, owner revocation blocks delivery',async()=>{
   const env = environment()
   await approvalEventsRpc(subscription,owner,env,challengeEcho)

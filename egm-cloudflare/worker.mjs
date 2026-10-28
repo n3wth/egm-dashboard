@@ -5,6 +5,12 @@ import {renderAccessPage} from './auth-pages.mjs'
 import {cachedSiteIcon} from './favicon-cache.mjs'
 import {handleAsk} from './ask.mjs'
 import {manageAccess} from './access-management.mjs'
+import {manageInvitations,redeemInvitation,validInvitationToken} from './invitations.mjs'
+import {rbacConfigured,workosSessionConfigured,storeWorkosSession,validatedWorkosSession,workosAdminPermission} from './workos-session.mjs'
+import {syncWorkosMember,syncWorkosMemberships} from './workos-membership.mjs'
+import {isDashboardOwner} from './owner-identity.mjs'
+import {readVerifiedWorkosEmail,reconcileVerifiedEmail} from './workos-identity.mjs'
+import {issueUserSessionsWidgetToken} from './workos-widgets.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 const enc = new TextEncoder()
 const b64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')
@@ -42,7 +48,32 @@ async function identity(request,env) {
   const session=await open(cookieValue(request,'__Host-egm_session'),env.SESSION_SECRET,'session')
   if(!session || typeof session.sid!=='string') return null
   const user=await env.DB.prepare('SELECT users.* FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id=? AND sessions.expires_at>?').bind(session.sid,now()).first()
-  return user?{...user,profilePictureUrl:profilePhoto(session.profilePictureUrl)}:null
+  if(!user) return null
+  const identity={...user,sessionId:session.sid,profilePictureUrl:profilePhoto(session.profilePictureUrl)}
+  if(env.WORKOS_WIDGETS_ENABLED==='true') {
+    const current=await validatedWorkosSession(env,session.sid,user.id)
+    if(current.status==='revoked') {
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM workos_sessions WHERE session_id=? AND user_id=?').bind(session.sid,user.id),
+        env.DB.prepare('DELETE FROM sessions WHERE id=? AND user_id=?').bind(session.sid,user.id)
+      ])
+      return null
+    }
+    if(current.status==='reauthenticate') return null
+    if(current.status!=='active') return {sessionUnavailable:true}
+    const email=await readVerifiedWorkosEmail(env,user.id)
+    if(!email) return {sessionUnavailable:true}
+    if(await reconcileVerifiedEmail(env,user,email)==='conflict') return {identityConflict:true}
+    identity.email=email
+    identity.workosAccessToken=current.accessToken
+  }
+  return identity
+}
+async function accessManager(user,env) {
+  if (!user || user.status!=='approved' || user.verified!==1) return false
+  if (env.WORKOS_RBAC_ENABLED!=='true') return isDashboardOwner(user,env)
+  if (!rbacConfigured(env)) return false
+  try { return (await workosAdminPermission(env,user.sessionId,user.id)).status==='allowed' } catch { return false }
 }
 let jwksCache
 async function mcpOwner(request,env) {
@@ -53,6 +84,7 @@ async function mcpOwner(request,env) {
     const header=JSON.parse(new TextDecoder().decode(un64(h)))
     const claims=JSON.parse(new TextDecoder().decode(un64(p)))
     if(extra.length || header.alg!=='RS256' || claims.iss!==env.WORKOS_AUTHKIT_DOMAIN || ![claims.aud].flat().includes(env.APP_URL+'/mcp') || !Number.isFinite(claims.exp) || claims.exp<=now() || claims.nbf>now()) return false
+    if(env.WORKOS_RBAC_ENABLED==='true' && (!rbacConfigured(env) || claims.org_id!==env.WORKOS_RBAC_ORGANIZATION_ID || !Array.isArray(claims.permissions) || !claims.permissions.includes(env.WORKOS_RBAC_PERMISSION || 'egm:dashboard:admin'))) return false
     if(!jwksCache || jwksCache.expires<Date.now()) {
       const result=await fetch(env.WORKOS_AUTHKIT_DOMAIN+'/oauth2/jwks')
       if(!result.ok) return false
@@ -63,7 +95,7 @@ async function mcpOwner(request,env) {
     const publicKey=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify'])
     if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',publicKey,un64(s),enc.encode(`${h}.${p}`))) return false
     const user=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(claims.sub).first()
-    return user?.email===env.OWNER_EMAIL && user.verified===1 && user.status==='approved' ? user : false
+    return isDashboardOwner(user,env) && user.verified===1 && user.status==='approved' ? user : false
   } catch { return false }
 }
 async function mcp(request,env,ctx) {
@@ -124,18 +156,21 @@ export async function handle(request,env,ctx) {
     if(request.method!=='POST') return new Response('Use POST',{status:405})
     if(request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
     const session=await open(cookieValue(request,'__Host-egm_session'),env.SESSION_SECRET,'session')
+    if(session?.sid && (env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true')) try { await env.DB.prepare('DELETE FROM workos_sessions WHERE session_id=?').bind(session.sid).run() } catch {}
     if(session?.sid) await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(session.sid).run()
     const headers=new Headers({location:'/', 'cache-control':'private, no-store'})
     headers.append('set-cookie',cookie('__Host-egm_session','',0))
     headers.append('set-cookie',cookie('__Host-egm_flow','',0))
     return new Response(null,{status:303,headers})
   }
-  if(url.pathname==='/auth/login' && request.method==='GET') {
+  if((url.pathname==='/auth/login' || url.pathname==='/auth/invite') && request.method==='GET') {
+    const invitationToken=url.pathname==='/auth/invite'?url.searchParams.get('invitation_token'):null
+    if(url.pathname==='/auth/invite' && !validInvitationToken(invitationToken)) return renderAccessPage('invite_invalid')
     const verifier=random(),state=random()
     const challenge=b64(await crypto.subtle.digest('SHA-256',enc.encode(verifier)))
     const auth=new URL('https://api.workos.com/user_management/authorize')
     for(const [k,v] of Object.entries({client_id:env.WORKOS_CLIENT_ID,provider:'GoogleOAuth',redirect_uri:env.APP_URL+'/auth/callback',response_type:'code',state,code_challenge:challenge,code_challenge_method:'S256'})) auth.searchParams.set(k,v)
-    return new Response(null,{status:302,headers:{location:auth.href,'set-cookie':cookie('__Host-egm_flow',await seal({verifier,state},env.SESSION_SECRET,'login',600),600),'cache-control':'no-store'}})
+    return new Response(null,{status:302,headers:{location:auth.href,'set-cookie':cookie('__Host-egm_flow',await seal({verifier,state,invitationToken},env.SESSION_SECRET,'login',600),600),'cache-control':'no-store','referrer-policy':'no-referrer'}})
   }
   if(url.pathname==='/auth/callback' && request.method==='GET') {
     const flow=await open(cookieValue(request,'__Host-egm_flow'),env.SESSION_SECRET,'login')
@@ -143,46 +178,78 @@ export async function handle(request,env,ctx) {
     if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return new Response('Invalid sign-in state',{status:400,headers:{'set-cookie':clear,'cache-control':'no-store'}})
     const auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,grant_type:'authorization_code',code:url.searchParams.get('code'),code_verifier:flow.verifier})})
     if(!auth.ok) return renderAccessPage('error')
-    const {user}=await auth.json()
+    const {user,access_token:accessToken,refresh_token:refreshToken}=await auth.json()
     if(!user?.id || !user.email_verified || typeof user.email!=='string') return renderAccessPage('verify')
     const email=user.email.trim().toLowerCase()
     const existing=await env.DB.prepare('SELECT * FROM users WHERE id=? OR email=?').bind(user.id,email).first()
-    if(existing && (existing.id!==user.id || existing.email!==email)) return renderAccessPage('review')
-    const isOwner=email===env.OWNER_EMAIL
-    if(!existing) {
+    if(existing && existing.id!==user.id) return renderAccessPage('review')
+    if(existing && await reconcileVerifiedEmail(env,existing,email)==='conflict') return renderAccessPage('review')
+    const isOwner=isDashboardOwner({id:user.id,email},env)
+    let invited=false
+    if(flow.invitationToken) {
+      try { invited=await redeemInvitation(env,flow.invitationToken,user) } catch { return renderAccessPage('error') }
+      if(!invited) return renderAccessPage('invite_invalid')
+    }
+    if(!existing && !invited) {
       await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,[user.first_name,user.last_name].filter(Boolean).join(' ')||email,isOwner?'approved':'pending',new Date().toISOString()).run()
       if(!isOwner) ctx?.waitUntil(flushApprovalEvents(env))
     }
     const sid=random()
     await env.DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(sid,user.id,now()+3600).run()
+    if((env.WORKOS_RBAC_ENABLED==='true' && rbacConfigured(env)) || workosSessionConfigured(env)) {
+      // Migration or provider failures do not prevent ordinary sign-in; they
+      // leave privileged operations unavailable until a fresh valid session.
+      let stored=false
+      try { stored=await storeWorkosSession(env,sid,user.id,accessToken,refreshToken) } catch {}
+      if(env.WORKOS_WIDGETS_ENABLED==='true' && !stored) {
+        await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sid).run()
+        return renderAccessPage('error')
+      }
+      if(rbacConfigured(env) && ctx?.waitUntil) ctx.waitUntil(syncWorkosMember(env,user.id).catch(()=>{}))
+    } else if(env.WORKOS_WIDGETS_ENABLED==='true') {
+      await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sid).run()
+      return renderAccessPage('error')
+    }
     const headers=new Headers({location:'/overview','cache-control':'private, no-store'})
     headers.append('set-cookie',clear)
     headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid,profilePictureUrl:profilePhoto(user.profile_picture_url)},env.SESSION_SECRET,'session')))
     return new Response(null,{status:302,headers})
   }
   const user=await identity(request,env)
+  if(user?.sessionUnavailable) {
+    const document=request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
+    return document?renderAccessPage('session_unavailable'):json({error:'session_verification_unavailable'},503)
+  }
+  if(user?.identityConflict) return url.pathname.startsWith('/api/')?json({error:'identity_review_required'},403):renderAccessPage('review')
   if(!user) {
     if((url.pathname!=='/' && !pagePaths.includes(url.pathname.slice(1))) || request.method!=='GET') return json({error:'sign_in_required'},401)
     return renderAccessPage('signin')
   }
   if(user.status!=='approved') return renderAccessPage(user.status==='pending'?'pending':'denied')
+  if(url.pathname==='/api/workos-widget-token') return issueUserSessionsWidgetToken(request,env,user,user.workosAccessToken)
   if(url.pathname==='/api/site-icon') return cachedSiteIcon(request,env)
   if(url.pathname==='/api/ask') return handleAsk(request,env,user)
-  if(url.pathname==='/api/access') return manageAccess(request,env,user)
+  if(url.pathname==='/api/access' || url.pathname==='/api/invitations' || url.pathname==='/api/invitations/revoke') {
+    if(request.method==='POST' && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
+    user.canManageAccess=await accessManager(user,env)
+    return url.pathname==='/api/access'?manageAccess(request,env,user):manageInvitations(request,env,user)
+  }
   if(url.pathname==='/api/refresh' && request.method==='POST') {
-    if(user.email!==env.OWNER_EMAIL || user.verified!==1 || request.headers.get('origin')!==env.APP_URL) return json({error:'owner_required'},403)
+    if(request.headers.get('origin')!==env.APP_URL || !await accessManager(user,env)) return json({error:'owner_required'},403)
     return json(await runRefresh(env))
   }
   if(url.pathname==='/api/presentation') {
-    const canEdit=user.email===env.OWNER_EMAIL && user.verified===1
+    if(request.method==='PUT' && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
+    const canManageAccess=await accessManager(user,env)
+    const canEdit=canManageAccess
     const read=async()=>{
       const record=await env.DB.prepare('SELECT body,revision FROM presentation WHERE id=1').first()
-      return {presentation:JSON.parse(record.body),revision:record.revision,canEdit,viewer:{name:user.name??'',email:user.email,profilePictureUrl:user.profilePictureUrl}}
+      const widgetsEnabled=workosSessionConfigured(env)
+      return {presentation:JSON.parse(record.body),revision:record.revision,canEdit,canManageAccess,widgetsEnabled,profileEnabled:widgetsEnabled,viewer:{name:user.name??'',email:user.email,profilePictureUrl:user.profilePictureUrl}}
     }
     if(request.method==='GET') return json(await read())
     if(request.method!=='PUT') return json({error:'method_not_allowed'},405)
     if(!canEdit) return json({error:'owner_required'},403)
-    if(request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
     if(!request.headers.get('content-type')?.startsWith('application/json')) return json({error:'json_required'},415)
     const text=await request.text()
     if(text.length>130000) return json({error:'too_large'},413)
@@ -223,6 +290,11 @@ export async function handle(request,env,ctx) {
 export default {
   async fetch(request,env,ctx) {try {return await handle(request,env,ctx)} catch {return new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})}},
   async scheduled(controller,env) {
+    if(env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true') {
+      try { await env.DB.prepare('DELETE FROM workos_sessions WHERE NOT EXISTS (SELECT 1 FROM sessions WHERE sessions.id=workos_sessions.session_id AND sessions.expires_at>?)').bind(now()).run() }
+      catch { console.error('Expired WorkOS session cleanup deferred') }
+      if(env.WORKOS_RBAC_ENABLED==='true') try { await syncWorkosMemberships(env) } catch { console.error('WorkOS membership reconciliation deferred') }
+    }
     try {await flushApprovalEvents(env)} catch {console.error('Approval notification delivery deferred')}
     try {console.log(JSON.stringify(await runRefresh(env)))}
     catch {console.error('EGM refresh failed; previous complete snapshot retained');throw Error('EGM refresh failed')}

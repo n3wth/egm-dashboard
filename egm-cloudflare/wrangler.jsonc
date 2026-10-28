@@ -17,6 +17,13 @@
     "APPROVAL_WEBHOOK_HOSTS": "connectors.api.openai.com",
     "REFRESH_UNTIL": "2026-11-04T06:33:01Z",
     "WORKOS_CLIENT_ID": "client_01M60K01HRESAKEPD135F3KAMM",
-    "WORKOS_AUTHKIT_DOMAIN": "https://striking-ripple-85.authkit.app"
+    "WORKOS_AUTHKIT_DOMAIN": "https://striking-ripple-85.authkit.app",
+    "INVITATION_EMAIL_ENABLED": "true",
+    "WORKOS_RBAC_ENABLED": "true",
+    "WORKOS_RBAC_ORGANIZATION_ID": "org_01M616GHNTAA6GW7ER7RAXDSR0",
+    "WORKOS_RBAC_ISSUER": "https://api.workos.com/user_management/client_01KT21TBYTKHENW4172A587X7Q",
+    "WORKOS_RBAC_PERMISSION": "egm:dashboard:admin",
+    "WORKOS_WIDGETS_ENABLED": "true",
+    "WORKOS_OWNER_USER_ID": "user_01M5SCP5F3JTK0NFFBMS0NFJAB"
   }
 }

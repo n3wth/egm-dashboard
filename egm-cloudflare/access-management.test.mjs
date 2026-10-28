@@ -28,3 +28,16 @@ test('pending approval is audited once, cannot be repeated or mutate owner; invi
   assert.equal(env.db.prepare('SELECT status FROM users').get().status,'approved')
   assert.equal((await manageAccess(request({id:'owner',decision:'denied'}),env,owner)).status,400)
 })
+test('RBAC mode requires verified dashboard administration permission, including for the owner',async()=>{
+  const env={...environment(),WORKOS_RBAC_ENABLED:'true'}
+  env.db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?,?)').run(owner.id,'Owner',owner.email,'approved','2026-10-28',null,null)
+  const read=new Request(env.APP_URL+'/api/access')
+  assert.equal((await manageAccess(read,env,owner)).status,403)
+  assert.equal((await manageAccess(read,env,{...owner,canManageAccess:true})).status,200)
+  assert.equal((await manageAccess(read,env,{...owner,email:'other@example.org',canManageAccess:true})).status,200)
+  assert.equal((await manageAccess(read,env,{...owner,verified:0,canManageAccess:true})).status,403)
+  assert.equal((await manageAccess(read,env,{...owner,status:'pending',canManageAccess:true})).status,403)
+  const otherAdmin={...owner,id:'admin',email:'admin@example.org',canManageAccess:true}
+  assert.equal((await (await manageAccess(read,env,otherAdmin)).json()).ownerId,owner.id)
+  assert.equal((await manageAccess(request({id:owner.id,decision:'denied'}),env,otherAdmin)).status,409)
+})

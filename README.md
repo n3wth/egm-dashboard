@@ -34,6 +34,15 @@ For Codex Cloud, use **Settings > Codex Cloud > Environments** and keep **Who ca
 
 See the [official Codex Cloud environment documentation](https://learn.chatgpt.com/docs/environments/cloud-environments) for variable, network-secret and prepared-filesystem behavior. Production deployment continues through GitHub Actions and Cloudflare runtime secrets, independently of development configuration.
 
+## Optional integrations
+
+- `GOOGLE_WEB_PERFORMANCE_API_KEY` enables PageSpeed Insights and Chrome UX Report collection for egm.dev. Collection follows the existing refresh window and cache; missing or stale provider data is identified in the dashboard.
+- Apply `egm-cloudflare/invitations-schema.sql` to the target D1 database before using invitations. Link invitations expire and can be revoked; email invitations require `INVITATION_EMAIL_ENABLED=true` and a `RESEND_API_KEY` for a verified n3wth.com sender. A provider accepting an email does not guarantee delivery.
+- WorkOS administration requires the session schema in `egm-cloudflare/workos-session-schema.sql`, a dashboard organization and admin permission, a pinned `WORKOS_OWNER_USER_ID`, `WORKOS_API_KEY`, and the settings shown in `.env.example`. Verify the issuer from the target environment before enabling `WORKOS_RBAC_ENABLED`. With RBAC enabled, administration and presentation edits require the dashboard admin permission.
+- Set `WORKOS_WIDGETS_ENABLED=true` only after configuring the WorkOS application's allowed web origin and the session schema, owner ID, API key, client ID, and issuer. Profile and security changes apply to the WorkOS account across connected applications. WorkOS session and profile availability are checked on authenticated requests; provider outages temporarily prevent access rather than accepting a revoked session.
+
+Use a separate WorkOS application and database for local testing. The WorkOS organization membership widget does not replace this dashboard's invitation and pending-approval flow.
+
 ## Deploy
 
 Production updates deploy automatically through `.github/workflows/deploy.yml` when changes reach `main`. Work on a feature branch, validate locally, then merge through the repository's normal review process. The workflow installs locked dependencies, runs backend and application tests, verifies the protected runtime, builds assets, and deploys the existing `egm-growth` Worker. Failed checks prevent deployment. Manual workflow dispatch is also limited to `main`.

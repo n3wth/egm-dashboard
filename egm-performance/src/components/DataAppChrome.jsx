@@ -22,6 +22,7 @@ import convertSpreadsheetIcon from "./icons/convert-icon-spreadsheet.svg";
 import convertWordIcon from "./icons/convert-icon-word.svg";
 import { DashboardAskIcon, useDashboardAsk } from "./DashboardAsk.jsx";
 import { ManageUsers } from "../content/dashboard/ManageUsers.jsx";
+import { WorkosSessions } from "../content/dashboard/WorkosSessions.jsx";
 import { DashboardTabs } from "./DashboardTabs.jsx";
 import { RefreshSetupCoachmark } from "./RefreshSetupCoachmark.jsx";
 import { PublishReviewDialog } from "./PublishReviewDialog.jsx";
@@ -574,13 +575,15 @@ function DataAppOverflowMenu({
   const canLogOut = published && globalThis.location?.hostname === 'egm.n3wth.com';
   const [viewer,setViewer]=useState(null);
   const [manageUsersOpen,setManageUsersOpen]=useState(false);
+  const [accountSecurityOpen,setAccountSecurityOpen]=useState(false);
   const [failedPhoto,setFailedPhoto]=useState(null);
   React.useEffect(()=>{
     if(!canLogOut)return;
     const controller=new AbortController();
-    fetch('/api/presentation',{credentials:'same-origin',signal:controller.signal}).then(response=>response.ok?response.json():null).then(data=>{if(!controller.signal.aborted)setViewer(data?.viewer??null)}).catch(()=>{});
+    fetch('/api/presentation',{credentials:'same-origin',signal:controller.signal}).then(response=>response.ok?response.json():null).then(data=>{if(!controller.signal.aborted)setViewer(data?.viewer?{...data.viewer,canManageAccess:data.canManageAccess,widgetsEnabled:data.widgetsEnabled,profileEnabled:data.profileEnabled}:null)}).catch(()=>{});
     return ()=>controller.abort();
   },[canLogOut]);
+  const canManageUsers=canLogOut&&(viewer?.canManageAccess===true||(viewer?.canManageAccess==null&&canEdit));
   const initial=String(viewer?.name??viewer?.email??'').trim().slice(0,1).toUpperCase();
   const photo=(()=>{try{const url=new URL(viewer?.profilePictureUrl);return url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.username&&!url.password&&!url.port?url.href:null}catch{return null}})();
   const avatar=<span className="egm-account-avatar" aria-hidden="true">{photo&&failedPhoto!==photo?<img src={photo} alt="" width="28" height="28" referrerPolicy="no-referrer" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={()=>setFailedPhoto(photo)}/>:initial||<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>}</span>;
@@ -606,7 +609,8 @@ function DataAppOverflowMenu({
     else if (action === "schedule") openView(onScheduleRefresh);
     else if (action === "theme") openView(onOpenThemes);
     else if (action === "copy-link") onAction?.("copy-link");
-    else if (action === "manage-users" && canEdit) setManageUsersOpen(true);
+    else if (action === "manage-users" && canManageUsers) setManageUsersOpen(true);
+    else if (action === "account-security" && viewer?.widgetsEnabled === true) setAccountSecurityOpen(true);
     else if (action === "handoff-settings") openView(onOpenHandoffSettings);
     else if (action === "restore") onRestoreHidden?.();
     else if (action === "logout" && canLogOut) logOut();
@@ -623,12 +627,14 @@ function DataAppOverflowMenu({
     <span className="dashboard-custom-overflow"><Menu label="Account" align="end" contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label="Account" title={viewer?.name?`Account: ${viewer.name}`:'Account'}>{avatar}</button>}>
       <MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>onAction?.('copy-link')}>Copy link</MenuItem>
       <MenuItem icon="palette" className="dashboard-action-menu-item" onSelect={onOpenThemes}>Switch theme</MenuItem>
-      {canEdit&&canLogOut&&<MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Invite</MenuItem>}
-      {canEdit&&canLogOut&&<MenuItem icon="users" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Manage users</MenuItem>}
+      {canManageUsers&&<MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Invite</MenuItem>}
+      {canManageUsers&&<MenuItem icon="users" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Manage users</MenuItem>}
+      {canLogOut&&viewer?.widgetsEnabled===true&&<MenuItem icon="users" className="dashboard-action-menu-item" onSelect={()=>setAccountSecurityOpen(true)}>Profile and sessions</MenuItem>}
       {canLogOut&&<MenuItem icon="logOut" className="dashboard-action-menu-item" onSelect={logOut}>Log out</MenuItem>}
     </Menu></span>
-    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true">{avatar}</span><select ref={nativeSelect} aria-label="Account" onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}><option value="copy-link">Copy link</option><option value="theme">Switch theme</option>{canEdit&&canLogOut&&<option value="manage-users">Manage users and invite</option>}{canLogOut&&<option value="logout">Log out</option>}</select></span>
-    {canEdit&&canLogOut&&<ManageUsers open={manageUsersOpen} onClose={()=>setManageUsersOpen(false)}/>}
+    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true">{avatar}</span><select ref={nativeSelect} aria-label="Account" onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}><option value="copy-link">Copy link</option><option value="theme">Switch theme</option>{canManageUsers&&<option value="manage-users">Manage users and invite</option>}{canLogOut&&viewer?.widgetsEnabled===true&&<option value="account-security">Profile and sessions</option>}{canLogOut&&<option value="logout">Log out</option>}</select></span>
+    {canManageUsers&&<ManageUsers open={manageUsersOpen} onClose={()=>setManageUsersOpen(false)}/>}
+    {canLogOut&&viewer?.widgetsEnabled===true&&<WorkosSessions open={accountSecurityOpen} onClose={()=>setAccountSecurityOpen(false)} profileEnabled={viewer?.profileEnabled===true}/>}
   </>;
   return (
     <>

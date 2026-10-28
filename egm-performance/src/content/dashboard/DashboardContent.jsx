@@ -14,6 +14,7 @@ import {PageSummary} from './PageSummary.jsx'
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = value => value == null ? 'Unavailable' : Number(value).toLocaleString('en-US')
 const shortDate = date => new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z'))
+const performanceDate = value => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(value)) : 'Unavailable'
 const dateSpan = rows => `${shortDate(rows[0].date)}–${shortDate(rows.at(-1).date)}`
 const sum = (rows, field) => rows.reduce((a,r) => a+r[field],0)
 const line = (y,fields=[y]) => ({type:'line',x:'date',y,fields,colors:Object.fromEntries(fields.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),stackable:false,showXAxisLabel:false,showYAxisLabel:false,valueDecimals:0,startAtZero:true})
@@ -137,6 +138,29 @@ export function DashboardContent() {
       {metric('website-views','website','GitHub views',web.referralViews,'Repo views referred from egm.dev over GitHub’s rolling 14-day window. Sparkline shows actual observations.',reach.views>0?`${percentage(web.referralViews/reach.views)} of repo views`:undefined)}
     </Section>
     <Section id="website-measurement-title" spacing="content">
+      {['pagespeed','crux'].map(name=>{
+        const id=`web_${name}`, data=rows(id), status=rows(`${id}_status`)[0], title=name==='pagespeed'?'Mobile lab performance':'Real-user experience'
+        const legacy=rows('site_performance').find(row=>row.kind===(name==='pagespeed'?'Lab':'Field') && row.observedAt)
+        if (!data.length && legacy) return <DataComponent key={id} id={`website-${id}`} queryId="site_performance" title={title} kind="custom" variant="card" displayRows={[legacy]} sourceRowsByQuery={{site_performance:rows('site_performance')}}>
+          <div data-reviewed-rows><p>{name==='pagespeed'?`Performance score: ${legacy.score} / 100`:`LCP: ${legacy.lcp == null ? 'Unavailable' : `${legacy.lcp} ms`} · INP: ${legacy.inp == null ? 'Unavailable' : `${legacy.inp} ms`} · CLS: ${legacy.cls == null ? 'Unavailable' : legacy.cls}`}</p>
+          <p className="egm-note">Previous {name==='pagespeed'?'mobile lab test':'phone-only Chrome user data'} observed {performanceDate(legacy.observedAt)} UTC. {name==='crux' && legacy.periodStart && legacy.periodEnd ? `Period: ${legacy.periodStart}–${legacy.periodEnd}. ` : ''}A newer collection is unavailable.</p></div>
+        </DataComponent>
+        if (!queries[id]) return <div key={id}><h3>{title}</h3><p>Unavailable until the first collection.</p></div>
+        const due=status?.nextAttemptAt && Date.parse(status.nextAttemptAt)<Date.now()
+        const ended=status?.status==='expired'||(status?.collectionEndsAt && Date.parse(status.collectionEndsAt)<=Date.now())
+        const fieldRows=['largest_contentful_paint','interaction_to_next_paint','cumulative_layout_shift'].map(metric=>data.find(row=>row.metric===metric)??{metric})
+        const period=fieldRows.find(row=>row.startDate&&row.endDate)
+        const labels={largest_contentful_paint:'LCP',interaction_to_next_paint:'INP',cumulative_layout_shift:'CLS'}
+        const displayMetric=(value,unit)=>Number.isFinite(value)?`${unit==='ms'?Math.round(value).toLocaleString('en-US'):value.toFixed(2)}${unit==='ms'?' ms':''}`:'Unavailable'
+        return <DataComponent key={id} id={`website-${id}`} queryId={id} queryIds={[id,`${id}_status`].filter(key=>queries[key])} title={title} kind="custom" variant="card" displayRows={data} sourceRowsByQuery={{[id]:data,[`${id}_status`]:rows(`${id}_status`)}}>
+          <div data-reviewed-rows>
+            {status?.status==='stale'&&<p className="egm-note">Last successful result is stale. The latest collection was unavailable.</p>}
+            {ended&&<p className="egm-note">Collection window ended. This result will not refresh until collection is re-enabled.</p>}
+            {status?.status==='available'&&due&&!ended&&<p className="egm-note">This result is due for refresh.</p>}
+            {!data.length?<p>Unavailable{status?.reason?`: ${status.reason.replaceAll('_',' ')}`:'.'}</p>:name==='pagespeed'?<><p>Performance score: {data[0].score} / 100</p><p>LCP: {displayMetric(data[0].lcpMs,'ms')} · CLS: {displayMetric(data[0].cls)} · Blocking time: {displayMetric(data[0].totalBlockingTimeMs,'ms')}</p><p className="egm-note">Simulated mobile home page test, {performanceDate(data[0].fetchedAt)} UTC. Results can vary between runs.</p></>:<><p>{fieldRows.map(row=>`${labels[row.metric]}: ${displayMetric(row.p75,row.metric==='cumulative_layout_shift'?null:'ms')}`).join(' · ')}</p><p>{fieldRows.map(row=>`${labels[row.metric]} good: ${Number.isFinite(row.goodFraction)?percentage(row.goodFraction):'Unavailable'}`).join(' · ')}</p><p className="egm-note">75th percentile and share of eligible Chrome experiences rated good across the origin, all device types. {period?`${performanceDate(period.startDate)}–${performanceDate(period.endDate)}.`:'Collection period unavailable.'}</p></>}
+          </div>
+        </DataComponent>
+      })}
       <DataComponent id="website-measurement" queryId="website_contribution" queryIds={['website_contribution','website','reach']} title="Referral contribution" kind="custom" displayRows={rows('website_contribution')} sourceRowsByQuery={{website_contribution:rows('website_contribution'),website:rows('website'),reach:rows('reach')}} variant="card">
         {rows('website_contribution')[0]&&<InsightCallout action="Tag website-to-GitHub links to compare which first-run content attracts repo visits.">egm.dev ranks #{rows('website_contribution')[0].rank} among reported referrers and contributes {percentage(rows('website_contribution')[0].topTenShare)} of their repo views.</InsightCallout>}
         <p className="egm-note">Ranked among GitHub’s ten reported referring sources. View shares measure traffic attributed to egm.dev, not website conversion. Website visitor totals are unavailable.</p>

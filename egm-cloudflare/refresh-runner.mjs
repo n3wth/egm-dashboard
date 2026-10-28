@@ -5,9 +5,11 @@ import { collectExa } from './exa.mjs'
 import { collectExaResearch } from './exa-research.mjs'
 import { collectContentResearch } from './content-research.mjs'
 import { collectYouTube } from './youtube.mjs'
+import { collectYouTubeComments } from './youtube-comments.mjs'
 import { collectTavily } from './tavily.mjs'
 import { collectParallel } from './parallel.mjs'
 import { collectEngagement } from './engagement.mjs'
+import { collectWebPerformance } from './web-performance.mjs'
 
 // Cron Workers have a 15-minute wall-time limit. The longer lease cannot expire
 // while a scheduled invocation is still running and spending provider units.
@@ -24,10 +26,10 @@ export async function runRefresh(env, request = fetch, services = {}) {
   if (!acquired) return { status: 'skipped', reason: 'running_or_cooldown' }
   const state = { status: 'failed', github: 'failed', semrush: 'failed', mentions: 'failed', exa: 'failed' }
   const deadline = Math.min(cutoff, start + 10 * 60000)
-  const boundedRequest = async (url, init = {}) => {
+  const boundedRequest = async (url, init = {}, timeoutMs = 20000) => {
     const remaining = deadline - clock()
     if (remaining <= 0) throw Error('refresh_deadline')
-    const timeout = AbortSignal.timeout(Math.min(20000, remaining))
+    const timeout = AbortSignal.timeout(Math.min(Number.isFinite(timeoutMs) ? Math.max(1, Math.min(timeoutMs, 60000)) : 20000, remaining))
     // Workers supports manual/follow, not Fetch's redirect:error. Inspect the
     // manual response instead so no provider credential follows a redirect.
     const rejectRedirect = init.redirect === 'error'
@@ -49,7 +51,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
       state.github = 'failed'
     }
     if (typeof latest.generatedAt !== 'string' || !Number.isFinite(Date.parse(latest.generatedAt))) {
-      for (const name of ['semrush', 'mentions', 'exa', 'exaResearch', 'contentResearch', 'youtube', 'tavily', 'parallel', 'engagement']) state[name] = 'skipped_no_snapshot'
+      for (const name of ['semrush', 'mentions', 'exa', 'exaResearch', 'contentResearch', 'youtube', 'youtubeComments', 'tavily', 'parallel', 'engagement', 'webPerformance']) state[name] = 'skipped_no_snapshot'
       return { ...state, reason: 'no_base_snapshot' }
     }
     const merged = { ...latest, queries: { ...previous.queries, ...latest.queries } }
@@ -57,7 +59,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
     // GitHub rebuilds from a seed that may contain old placeholders for these
     // providers. Only the independent collector may replace their saved records.
     for (const [key, value] of Object.entries(oldQueries)) {
-      if (/^(seo_|semrush_|mentions(?:_|$)|mention_engagement|exa_|research_|youtube_|tavily_|parallel_)/.test(key)) merged.queries[key] = value
+      if (/^(seo_|semrush_|mentions(?:_|$)|mention_engagement|exa_|research_|youtube_|tavily_|parallel_|web_pagespeed|web_crux|site_performance)/.test(key)) merged.queries[key] = value
     }
     if (clock() >= deadline) state.semrush = 'skipped_deadline'
     else try {
@@ -95,6 +97,12 @@ export async function runRefresh(env, request = fetch, services = {}) {
       Object.assign(merged.queries, queries)
       state.youtube = queries.youtube_status?.rows?.[0]?.status ?? 'refreshed'
     } catch { state.youtube = 'failed' }
+    if (clock() >= deadline) state.youtubeComments = 'skipped_deadline'
+    else try {
+      const queries = await (services.youtubeComments ?? collectYouTubeComments)(env, boundedRequest, merged.queries, clock())
+      Object.assign(merged.queries, queries)
+      state.youtubeComments = queries.youtube_comments_status?.rows?.[0]?.status ?? 'refreshed'
+    } catch { state.youtubeComments = 'failed' }
     if (clock() >= deadline) state.tavily = 'skipped_deadline'
     else try {
       const queries = await (services.tavily ?? collectTavily)(env, boundedRequest, oldQueries, clock())
@@ -113,6 +121,24 @@ export async function runRefresh(env, request = fetch, services = {}) {
       Object.assign(merged.queries, queries)
       state.engagement = queries.mention_engagement_status?.rows?.[0]?.status ?? 'refreshed'
     } catch { state.engagement = 'failed' }
+    if (clock() >= deadline) state.webPerformance = 'skipped_deadline'
+    else try {
+      const prior = { ...oldQueries }
+      // Respect a recent attempt by the older collector while transitioning to
+      // the single origin-level collector. Do not relabel phone data as all-device data.
+      for (const [name, kind] of [['pagespeed', 'Lab'], ['crux', 'Field']]) {
+        const key = `web_${name}_status`
+        const legacy = oldQueries.site_performance?.rows?.find(row => row.kind === kind)
+        const attempted = Date.parse(legacy?.lastAttemptAt)
+        if (!prior[key] && Number.isFinite(attempted) && attempted <= clock() && clock() - attempted < 86400000) {
+          prior[key] = { rows: [{ status: 'unavailable', reason: 'previous_collection_cached', attemptedAt: legacy.lastAttemptAt, nextAttemptAt: new Date(attempted + 86400000).toISOString() }], source: oldQueries.site_performance.source }
+        }
+      }
+      const performanceEnv = { ...env, GOOGLE_WEB_PERFORMANCE_API_KEY: env.GOOGLE_WEB_PERFORMANCE_API_KEY || env.GOOGLE_PERFORMANCE_API_KEY }
+      const queries = await (services.webPerformance ?? collectWebPerformance)(performanceEnv, boundedRequest, prior, clock())
+      Object.assign(merged.queries, queries)
+      state.webPerformance = 'checked'
+    } catch { state.webPerformance = 'failed' }
     // GitHub collection is 30 minutes; search discovery uses provider caches.
     // Recheck the cutoff and fencing token before publishing any merged result.
     const finished = clock()
