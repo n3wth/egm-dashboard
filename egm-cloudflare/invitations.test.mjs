@@ -16,6 +16,13 @@ function setup() {
 }
 const post = (path, data, origin = 'https://dashboard.example') => new Request('https://dashboard.example'+path, { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(data) })
 const person = (id = 'guest', email = 'guest@example.org') => ({ id, email, email_verified: true, first_name: 'Guest' })
+test('oversized invitation requests do not create records', async () => {
+  const { db, env } = setup()
+  const body = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(2049)); controller.close() } })
+  const req = new Request(env.APP_URL+'/api/invitations', { method: 'POST', headers: { origin: env.APP_URL, 'content-type': 'application/json' }, body, duplex: 'half' })
+  assert.equal((await manageInvitations(req, env, owner)).status, 413)
+  assert.equal(db.prepare('SELECT count(*) AS n FROM invitations').get().n, 0)
+})
 async function create(env, extra = {}) {
   const response = await manageInvitations(post('/api/invitations', { kind: 'link', expiresInDays: 7, ...extra }), env, owner)
   assert.equal(response.status, 201)

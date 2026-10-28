@@ -12,6 +12,7 @@ import {isDashboardOwner} from './owner-identity.mjs'
 import {readVerifiedWorkosEmail,reconcileVerifiedEmail} from './workos-identity.mjs'
 import {issueUserSessionsWidgetToken} from './workos-widgets.mjs'
 import {accessLive,accessChanged} from './access-live.mjs'
+import {readBody} from './request-body.mjs'
 export {AccessLive} from './access-live.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 const enc = new TextEncoder()
@@ -104,8 +105,8 @@ async function mcp(request,env,ctx) {
   const owner=await mcpOwner(request,env)
   if(!owner) return json({error:'unauthorized'},401,{'WWW-Authenticate':`Bearer resource_metadata="${env.APP_URL}/.well-known/oauth-protected-resource"`})
   if(request.method!=='POST') return new Response('Use POST',{status:405})
-  const text=await request.text()
-  if(text.length>16384) return json({error:'too_large'},413)
+  const text=await readBody(request,16384)
+  if(text===null) return json({error:'too_large'},413)
   let rpc
   try {rpc=JSON.parse(text)} catch {return json({error:'invalid_json'},400)}
   const reply=result=>json({jsonrpc:'2.0',id:rpc.id??null,result})
@@ -293,8 +294,8 @@ export async function handle(request,env,ctx) {
     if(request.method!=='PUT') return json({error:'method_not_allowed'},405)
     if(!canEdit) return json({error:'owner_required'},403)
     if(!request.headers.get('content-type')?.startsWith('application/json')) return json({error:'json_required'},415)
-    const text=await request.text()
-    if(text.length>130000) return json({error:'too_large'},413)
+    const text=await readBody(request,130000)
+    if(text===null) return json({error:'too_large'},413)
     let input,presentation
     try {
       input=JSON.parse(text)

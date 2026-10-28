@@ -2,6 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {seal,open,handle,profilePhoto} from './worker.mjs'
 const secret='a'.repeat(64)
+test('oversized presentation requests are rejected before a write',async()=>{
+  const token=await seal({sid:'owner'},secret,'session')
+  const env={APP_URL:'https://egm.n3wth.com',OWNER_EMAIL:'owner@example.org',SESSION_SECRET:secret,DB:{prepare(sql){assert.match(sql,/SELECT users/);return {bind(){return {first:async()=>({id:'owner',email:'owner@example.org',verified:1,status:'approved'})}}}}}}
+  const body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array(130001));controller.close()}})
+  const request=new Request(env.APP_URL+'/api/presentation',{method:'PUT',headers:{cookie:'__Host-egm_session='+token,origin:env.APP_URL,'content-type':'application/json'},body,duplex:'half'})
+  assert.equal((await handle(request,env)).status,413)
+})
 test('pending badge endpoint and live connection require an approved admin and same origin',async()=>{
   const env={APP_URL:'https://egm.n3wth.com',OWNER_EMAIL:'oliver@newth.ai',SESSION_SECRET:secret}
   let user={id:'owner',email:env.OWNER_EMAIL,verified:1,status:'approved'}
