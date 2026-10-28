@@ -130,6 +130,8 @@
 .egm-video-comments { margin-top: 12px; font-size: 12px; overflow-wrap: anywhere; }
 .egm-video-comments ul { padding-left: 18px; margin: 0; }
 .egm-video-comments li { margin-bottom: 6px; }
+.egm-video-comments summary { cursor: pointer; }
+.egm-video-comments li a { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .egm-video-checked { min-height: 1.5em; margin-top: 4px; }
 @media(max-width:1000px) { .egm-video-gallery { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media(max-width:550px) { .egm-video-gallery { grid-template-columns: 1fr; } }

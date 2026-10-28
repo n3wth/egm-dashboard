@@ -5,10 +5,10 @@ const sections = new Set(['reach', 'acquisition', 'adoption', 'website', 'develo
 let initialized = false
 let lastSection
 
-export function trackDashboardSection(section) {
+function initialize() {
   const token = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN
   const host = import.meta.env.VITE_POSTHOG_HOST
-  if (!token || !host || !sections.has(section) || globalThis.location?.hostname !== 'egm.n3wth.com') return
+  if (!token || !host || globalThis.location?.hostname !== 'egm.n3wth.com') return false
   if (!initialized) {
     posthog.init(token, {
       api_host: host,
@@ -25,7 +25,17 @@ export function trackDashboardSection(section) {
     })
     initialized = true
   }
+  return true
+}
+
+export function trackDashboardSection(section) {
+  if (!sections.has(section) || !initialize()) return
   if (lastSection === section) return
   lastSection = section
   posthog.capture('dashboard_section_viewed', { section })
+}
+
+export function trackAskOutcome(outcome) {
+  if (!['submitted', 'completed', 'failed', 'stopped'].includes(outcome) || !initialize()) return
+  posthog.capture('dashboard_ask', { outcome })
 }
