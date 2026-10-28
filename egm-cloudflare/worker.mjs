@@ -1,6 +1,7 @@
 import {validatePresentation} from '../egm-performance/src/presentation-state.js'
 import {runRefresh} from './refresh-runner.mjs'
 import {approvalEventsRpc,flushApprovalEvents} from './approval-events.mjs'
+import {feedbackEventsRpc,feedbackSubmittedEvent,flushFeedbackEvents,flushFeedbackToPosthog,loadFeedbackSurvey,recordFeedbackActivity,submitFeedback} from './feedback-events.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
 import {cachedSiteIcon} from './favicon-cache.mjs'
 import {handleAsk} from './ask.mjs'
@@ -113,6 +114,17 @@ async function mcp(request,env,ctx) {
   if(rpc.method==='initialize') return reply({protocolVersion:'2025-11-25',capabilities:{tools:{},events:{}},serverInfo:{name:'egm-approvals',version:'1.1.0'}})
   if(rpc.method==='server/discover') return reply({resultType:'complete',supportedVersions:['2026-07-28'],capabilities:{tools:{},events:{}},serverInfo:{name:'egm-approvals',version:'1.1.0'}})
   if(rpc.method.startsWith('events/')) {
+    if(rpc.method==='events/list') {
+      const value=await approvalEventsRpc(rpc,owner,env)
+      if(value?.error) return error(value.error.code,value.error.message)
+      return reply({events:[...value.result.events,feedbackSubmittedEvent]})
+    }
+    if(rpc.params?.name===feedbackSubmittedEvent.name) {
+      const value=await feedbackEventsRpc(rpc,owner,env)
+      if(value.error) return error(value.error.code,value.error.message)
+      if(rpc.method==='events/subscribe') ctx?.waitUntil(flushFeedbackEvents(env))
+      return reply(value.result)
+    }
     const value=await approvalEventsRpc(rpc,owner,env)
     if(!value) return error(-32601,'Method not found')
     if(value.error) return error(value.error.code,value.error.message)
@@ -252,6 +264,17 @@ export async function handle(request,env,ctx) {
     return renderAccessPage('signin')
   }
   if(user.status!=='approved') return renderAccessPage(user.status==='pending'?'pending':'denied')
+  if(url.pathname==='/api/feedback') {
+    if(request.method==='GET') return loadFeedbackSurvey(env)
+    const response=await submitFeedback(request,env,user)
+    if(response.ok) ctx?.waitUntil(Promise.allSettled([flushFeedbackEvents(env),flushFeedbackToPosthog(env)]))
+    return response
+  }
+  if(url.pathname==='/api/feedback/activity') {
+    const response=await recordFeedbackActivity(request,env,user)
+    if(response.ok) ctx?.waitUntil(flushFeedbackToPosthog(env))
+    return response
+  }
   if(url.pathname==='/api/access-live') {
     if(request.method!=='GET' || request.headers.get('upgrade')?.toLowerCase()!=='websocket' || request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_request'},400)
     if(!await accessManager(user,env)) return json({error:'owner_required'},403)
@@ -336,6 +359,8 @@ export default {
       if(env.WORKOS_RBAC_ENABLED==='true') try { await syncWorkosMemberships(env) } catch { console.error('WorkOS membership reconciliation deferred') }
     }
     try {await flushApprovalEvents(env)} catch {console.error('Approval notification delivery deferred')}
+    try {await flushFeedbackEvents(env)} catch {console.error('Feedback notification delivery deferred')}
+    try {await flushFeedbackToPosthog(env)} catch {console.error('Feedback survey delivery deferred')}
     try {console.log(JSON.stringify(await runRefresh(env)))}
     catch {console.error('EGM refresh failed; previous complete snapshot retained');throw Error('EGM refresh failed')}
   }
