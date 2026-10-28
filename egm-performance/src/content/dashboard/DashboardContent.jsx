@@ -137,6 +137,13 @@ export function DashboardContent() {
       {metric('website-views','website','GitHub views',web.referralViews,'Repo views referred from egm.dev over GitHub’s rolling 14-day window. Sparkline shows actual observations.',reach.views>0?`${percentage(web.referralViews/reach.views)} of repo views`:undefined)}
     </Section>
     <Section id="website-measurement-title" spacing="content">
+      {queries.site_performance && <DataComponent id="website-performance" queryId="site_performance" title="Site performance" kind="custom" variant="card" displayRows={rows('site_performance')} sourceRowsByQuery={{site_performance:rows('site_performance')}}>
+        {rows('site_performance').map(row=><div key={row.kind} className="egm-site-performance-row">
+          <h3>{row.kind === 'Lab' ? 'Mobile lab test' : 'Real users on mobile'}</h3>
+          {row.observedAt ? <><p>{row.kind === 'Lab' ? `Performance score: ${row.score} / 100` : `LCP: ${row.lcp == null ? 'Unavailable' : `${(row.lcp/1000).toFixed(1)} s`} · INP: ${row.inp == null ? 'Unavailable' : `${row.inp} ms`} · CLS: ${row.cls == null ? 'Unavailable' : row.cls}`}</p><p className="egm-note">{row.kind === 'Field' && row.periodStart && row.periodEnd ? `Chrome data: ${row.periodStart} to ${row.periodEnd} · ` : ''}Checked {new Date(row.observedAt).toLocaleDateString()}{row.status === 'unavailable' ? ' · Latest refresh failed; showing previous result' : ''}</p></> : <p className="egm-note">Data unavailable.</p>}
+        </div>)}
+        <p className="egm-note">Lab score is a single Lighthouse test of the homepage. Field metrics are the 75th percentile for eligible Chrome users across egm.dev.</p>
+      </DataComponent>}
       <DataComponent id="website-measurement" queryId="website_contribution" queryIds={['website_contribution','website','reach']} title="Referral contribution" kind="custom" displayRows={rows('website_contribution')} sourceRowsByQuery={{website_contribution:rows('website_contribution'),website:rows('website'),reach:rows('reach')}} variant="card">
         {rows('website_contribution')[0]&&<InsightCallout action="Tag website-to-GitHub links to compare which first-run content attracts repo visits.">egm.dev ranks #{rows('website_contribution')[0].rank} among reported referrers and contributes {percentage(rows('website_contribution')[0].topTenShare)} of their repo views.</InsightCallout>}
         <p className="egm-note">Ranked among GitHub’s ten reported referring sources. View shares measure traffic attributed to egm.dev, not website conversion. Website visitor totals are unavailable.</p>

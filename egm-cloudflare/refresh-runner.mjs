@@ -9,6 +9,7 @@ import { collectYouTubeComments } from './youtube-comments.mjs'
 import { collectTavily } from './tavily.mjs'
 import { collectParallel } from './parallel.mjs'
 import { collectEngagement } from './engagement.mjs'
+import { collectSitePerformance } from './site-performance.mjs'
 
 // Cron Workers have a 15-minute wall-time limit. The longer lease cannot expire
 // while a scheduled invocation is still running and spending provider units.
@@ -28,7 +29,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
   const boundedRequest = async (url, init = {}) => {
     const remaining = deadline - clock()
     if (remaining <= 0) throw Error('refresh_deadline')
-    const timeout = AbortSignal.timeout(Math.min(20000, remaining))
+    const timeout = AbortSignal.timeout(Math.min(url.startsWith('https://www.googleapis.com/pagespeedonline/') ? 60000 : 20000, remaining))
     // Workers supports manual/follow, not Fetch's redirect:error. Inspect the
     // manual response instead so no provider credential follows a redirect.
     const rejectRedirect = init.redirect === 'error'
@@ -58,7 +59,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
     // GitHub rebuilds from a seed that may contain old placeholders for these
     // providers. Only the independent collector may replace their saved records.
     for (const [key, value] of Object.entries(oldQueries)) {
-      if (/^(seo_|semrush_|mentions(?:_|$)|mention_engagement|exa_|research_|youtube_|tavily_|parallel_)/.test(key)) merged.queries[key] = value
+      if (/^(seo_|semrush_|mentions(?:_|$)|mention_engagement|exa_|research_|youtube_|tavily_|parallel_|site_performance)/.test(key)) merged.queries[key] = value
     }
     if (clock() >= deadline) state.semrush = 'skipped_deadline'
     else try {
@@ -120,6 +121,12 @@ export async function runRefresh(env, request = fetch, services = {}) {
       Object.assign(merged.queries, queries)
       state.engagement = queries.mention_engagement_status?.rows?.[0]?.status ?? 'refreshed'
     } catch { state.engagement = 'failed' }
+    if (clock() >= deadline) state.sitePerformance = 'skipped_deadline'
+    else try {
+      const queries = await (services.sitePerformance ?? collectSitePerformance)(env, boundedRequest, oldQueries, clock())
+      Object.assign(merged.queries, queries)
+      state.sitePerformance = 'checked'
+    } catch { state.sitePerformance = 'failed' }
     // GitHub collection is 30 minutes; search discovery uses provider caches.
     // Recheck the cutoff and fencing token before publishing any merged result.
     const finished = clock()
