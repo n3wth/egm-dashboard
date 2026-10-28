@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import {DatabaseSync} from 'node:sqlite'
 import {handleAsk,askContext,askCards,askHistory} from './ask.mjs'
 const origin='https://egm.n3wth.com'
 const user={id:'owner',status:'approved'}
@@ -38,6 +39,21 @@ test('atomic quota rejects before inference',async()=>{
   const env=environment(0)
   env.AI.run=()=>assert.fail('must not infer')
   assert.equal((await handleAsk(request(),env,user)).status,429)
+})
+test('allows 200 questions per user per rolling hour',async()=>{
+  const db=new DatabaseSync(':memory:')
+  db.exec('CREATE TABLE audit (id TEXT, user_id TEXT, action TEXT, actor TEXT, created_at TEXT)')
+  const env=environment()
+  const prepare=env.DB.prepare
+  env.DB.prepare=sql=>sql.startsWith('INSERT')?{bind(...args){return {async run(){return {meta:{changes:db.prepare(sql).run(...args).changes}}}}}}:prepare(sql)
+  const now=Date.parse('2026-10-28T12:00:00Z')
+  const insert=db.prepare("INSERT INTO audit VALUES (?,?,'ask.request',?,?)")
+  for(let i=0;i<199;i++)insert.run(String(i),user.id,user.id,new Date(now-1000).toISOString())
+  insert.run('other','another-user','another-user',new Date(now-1000).toISOString())
+  insert.run('old',user.id,user.id,new Date(now-3600001).toISOString())
+  assert.equal((await handleAsk(request(),env,user,{now})).status,200)
+  assert.equal((await handleAsk(request(),env,user,{now})).status,429)
+  db.close()
 })
 test('combined citation IDs retain all corresponding validated sources',async()=>{
   const env=environment()
