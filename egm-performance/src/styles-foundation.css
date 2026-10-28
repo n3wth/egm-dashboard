@@ -862,6 +862,19 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
 .dashboard-ask-menu-prompt {
   color: transparent;
 }
+.dashboard-ask-panel[data-phase="menu"]:not([data-exploration="true"]):not(.chart-pinned-card) {
+  left: -32px;
+  width: 64px;
+}
+.dashboard-ask-panel[data-phase="menu"]:not([data-exploration="true"]):not(.chart-pinned-card) .dashboard-ask-menu {
+  width: 64px;
+}
+.dashboard-ask-panel[data-phase="menu"]:not([data-exploration="true"]):not(.chart-pinned-card) .dashboard-ask-shared-prompt {
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: var(--text);
+}
 .dashboard-ask-compose {
   box-sizing: border-box;
   top: 0;
@@ -1065,7 +1078,8 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
 }
 @media (hover: hover) and (pointer: fine) {
   .dashboard-ask-menu button:hover {
-    background: #f9f9f9;
+    background: var(--interaction-hover);
+    color: var(--text);
   }
   .dashboard-ask-zero-state > :is(a, button):hover {
     background: var(--interaction-active);
