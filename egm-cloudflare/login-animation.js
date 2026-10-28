@@ -1,19 +1,22 @@
 const handoff = document.querySelector('.handoff')
 const canvas = handoff?.querySelector('canvas')
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+const portrait = window.matchMedia('(max-aspect-ratio: 4/5)')
 let animation
 let loading = false
 let active = true
 let frame
 
-function move(instance) {
+function move(instance, isPortrait) {
   const names = ['bootstrap', 'brainstorm', 'draft', 'resolve', 'drift', 'review', 'loop', 'elephant', 'goldfish']
+  const portraitPositions = [[45, 35], [250, 65], [25, 225], [220, 250], [40, 355], [300, 395], [240, 530], [145, 145], [170, 445]]
   const model = instance.viewModelInstance
   const bodies = names.map((name, index) => {
     const x = model?.number(`${name}X`), y = model?.number(`${name}Y`), rotation = model?.number(`${name}Rotation`)
     if (!x || !y || !rotation) throw new Error('Missing Rive motion binding')
+    if (isPortrait) { x.value = portraitPositions[index][0]; y.value = portraitPositions[index][1]; rotation.value = 0 }
     const mark = index >= 7
-    return { x, y, rotation, homeX: x.value, homeY: y.value, px: x.value, py: y.value, vx: 0, vy: 0, angle: 0, spin: 0, targetX: 0, targetY: 0, targetAngle: 0, next: 0, anchor: index < 4 ? 7 : index < 7 ? 8 : null, radius: mark ? 70 : 25, centerOffset: mark ? 0 : 19.2, minX: mark ? 85 : 4, maxX: mark ? 515 : 556, minY: mark ? 85 : 4, maxY: mark ? 315 : 356 }
+    return { x, y, rotation, homeX: x.value, homeY: y.value, px: x.value, py: y.value, vx: 0, vy: 0, angle: 0, spin: 0, targetX: 0, targetY: 0, targetAngle: 0, next: 0, anchor: index < 4 ? 7 : index < 7 ? 8 : null, radius: mark ? 70 : 25, centerOffset: mark ? 0 : 19.2, minX: mark ? 85 : 4, maxX: (isPortrait ? 400 : 600) - (mark ? 85 : 44), minY: mark ? 85 : 4, maxY: (isPortrait ? 600 : 400) - (mark ? 85 : 44) }
   })
   let last
   function tick(time) {
@@ -74,12 +77,13 @@ function start() {
     loading = false
     if (!active || reducedMotion.matches || !window.rive) return
     try {
+      const isPortrait = portrait.matches
       window.rive.RuntimeLoader.setWasmUrl('/rive/rive.wasm')
       window.rive.RuntimeLoader.setWasmFallbackUrl(null)
       const instance = new window.rive.Rive({
         src: '/rive/egm-handoff.riv',
         canvas,
-        artboard: 'Desktop',
+        artboard: isPortrait ? 'Portrait' : 'Desktop',
         stateMachine: 'Handoff',
         autoBind: true,
         autoplay: true,
@@ -87,7 +91,7 @@ function start() {
           if (!active || reducedMotion.matches || animation !== instance) return
           try {
             instance.resizeDrawingSurfaceToCanvas()
-            move(instance)
+            move(instance, isPortrait)
             handoff.classList.add('ready')
           } catch { stop(); handoff.classList.add('fallback') }
         },
@@ -118,6 +122,7 @@ reducedMotion.addEventListener('change', () => {
     stop()
   } else start()
 })
+portrait.addEventListener('change', () => { stop(); start() })
 window.addEventListener('resize', () => { if (handoff?.classList.contains('ready')) animation?.resizeDrawingSurfaceToCanvas() })
 window.addEventListener('pagehide', () => {
   active = false
