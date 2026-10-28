@@ -210,7 +210,7 @@ export async function handle(request,env,ctx) {
   headers.set('referrer-policy','same-origin')
   const response=new Response(asset.body,{status:asset.status,headers})
   return headers.get('content-type')?.includes('text/html')
-? new HTMLRewriter().on('head',{element(element){element.append('<meta name="data-app-snapshot-storage" content="external-v1"><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=mono">',{html:true})}}).transform(response)
+? new HTMLRewriter().on('head',{element(element){element.append('<meta name="data-app-snapshot-storage" content="external-v1"><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=trunk-c">',{html:true})}}).transform(response)
     : response
 }
 export default {

@@ -70,7 +70,7 @@ function additionalDiscovery(queries,primaryRows) {
 }
 function CollectionNote({provider,status}) {
   if(!status)return null
-  return <p className="egm-note egm-mentions-collection"><SiteName label={provider}/> {dateValue(status.lastSuccessAt)?<ShortDate value={status.lastSuccessAt}/>:<span>not yet collected</span>}{status.status==='stale'&&<span>(refresh failed, cached)</span>}{status.status==='unavailable'&&<span>(unavailable)</span>}</p>
+  return <span className="egm-mentions-collection"><SiteName label={provider}/> {dateValue(status.lastSuccessAt)?<ShortDate value={status.lastSuccessAt}/>:<span>not yet collected</span>}{status.status==='stale'&&<span>(refresh failed, cached)</span>}{status.status==='unavailable'&&<span>(unavailable)</span>}</span>
 }
 function SupplementaryMentions({discovery}) {
   const {rows,queryIds,sourceRowsByQuery,providers}=discovery
@@ -106,11 +106,10 @@ export function Mentions() {
     })}
     <SupplementaryMentions discovery={discovery}/>
     <Section id="mentions-coverage" spacing="none">
-      {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Collection" kind="custom" variant="plain" displayRows={allRows} sourceRowsByQuery={{mentions:rows,mentions_status:queries.mentions_status?.rows??[],...discovery.sourceRowsByQuery}}>
-        <p className="egm-note">{allRows.length?`${allRows.length.toLocaleString('en-US')} unique URLs discovered${since?` since ${since}`:''}.`:'No URLs collected yet.'}</p>
+      {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Collection" showHeading={false} className="egm-mentions-summary" kind="custom" variant="plain" displayRows={allRows} sourceRowsByQuery={{mentions:rows,mentions_status:queries.mentions_status?.rows??[],...discovery.sourceRowsByQuery}}>
+        <div className="egm-mentions-collection-line"><span title={since?`Discovered since ${since}`:undefined}>{allRows.length.toLocaleString('en-US')} discovered links</span>{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
         {status?.status==='stale'&&<p className="egm-note">Latest search failed; showing cached results.</p>}
         {status?.status==='unavailable'&&<p className="egm-note">Search unavailable.</p>}
-        <div className="egm-mentions-provider-notes">{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
       </DataComponent>:<p className="egm-note">Public mentions have not completed their first collection.</p>}
     </Section>
   </>

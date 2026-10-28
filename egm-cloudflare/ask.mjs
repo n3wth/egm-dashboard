@@ -101,7 +101,7 @@ export async function handleAsk(request,env,user,options={}) {
     const quota=await env.DB.prepare("INSERT INTO audit(id,user_id,action,actor,created_at) SELECT ?,?,'ask.request',?,? WHERE (SELECT COUNT(*) FROM audit WHERE user_id=? AND action='ask.request' AND created_at>?)<10").bind(crypto.randomUUID(),user.id,user.id,at,user.id,new Date(now-3600000).toISOString()).run()
     if(!quota.meta?.changes)return reply({error:'rate_limited'},429)
     let toolStatus={name:'GitHub repository',status:'cached'}
-    if(payload.live===true) {
+    if(payload.live===true||/\b(?:current|latest|now|stars?|forks?|issues?)\b/i.test(question)) {
       const live=await liveGitHub(env,options.request??fetch,at)
       const {query,...status}=live
       toolStatus=status

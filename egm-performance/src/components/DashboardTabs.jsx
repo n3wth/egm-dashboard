@@ -1,14 +1,14 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { Tooltip, TruncatedText, useTabOverflow } from "./ui.jsx";
+import { Tooltip, useTabOverflow } from "./ui.jsx";
 import { Icon } from "./Icon.jsx";
 
 const tabDragStartDistance = 4;
 
 function PageIcon({id}) {
-  const path={reach:'M3 10.5 12 3l9 7.5M5 9v12h5v-7h4v7h5V9',adoption:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M15 3.13a4 4 0 0 1 0 7.75',development:'m8 5-6 7 6 7m8-14 6 7-6 7m-3-15-2 16'}[id];
-  if(path)return <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d={path}/>{id==='adoption'&&<circle cx="9" cy="7" r="4"/>}</svg>;
+  const path={reach:'M4 20V4m0 16h17M9 16v-5m5 5V7m5 9V3',adoption:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M15 3.13a4 4 0 0 1 0 7.75',development:'m8 5-6 7 6 7m8-14 6 7-6 7m-3-15-2 16'}[id];
+  if(path)return <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d={path}/>{id==='adoption'&&<circle cx="9" cy="7" r="4"/>}</svg>;
   return <Icon name={({acquisition:'arrowUpRight',website:'globe',research:'search',mentions:'chatBubble'})[id]??'textDocument'} size={18}/>;
 }
 
@@ -25,13 +25,12 @@ export function DashboardTabs({
   tabs, activeTabId, editMode = false, onChange, onReorder, trailing,
 }) {
   const [dragPreview, setDragPreview] = useState(null);
-  const [animateSelection, setAnimateSelection] = useState(false);
+  const [hoveredTab, setHoveredTab] = useState(null);
   const [pressedTabId, setPressedTabId] = useState(null);
   const drag = useRef({ id: null, moved: false });
   const navRef = useRef(null);
   const scrollRef = useRef(null);
   const tabRefs = useRef(new Map());
-  const labelRefs = useRef(new Map());
   const previousPositions = useRef(new Map());
   const tabsRef = useRef(tabs);
   const onReorderRef = useRef(onReorder);
@@ -82,11 +81,6 @@ export function DashboardTabs({
     previousPositions.current.clear();
   }, [tabs]);
 
-  useLayoutEffect(() => {
-    for (const label of labelRefs.current.values()) {
-      label.dataset.overflowing = String(label.scrollWidth > label.clientWidth + 1);
-    }
-  }, [tabs]);
 
   useEffect(() => {
     function move(event) {
@@ -128,7 +122,7 @@ export function DashboardTabs({
 
   return <div className="dashboard-tabs-row">
     <div ref={scrollRef} className="dashboard-chrome-inner dashboard-tabs-inner">
-      <nav ref={navRef} className={`dashboard-tabs egm-icon-tabs${animateSelection ? " has-user-selection" : ""}${pressedTabId ? " is-pressed" : ""}${dragPreview ? " is-dragging" : ""}`}
+      <nav ref={navRef} className={`dashboard-tabs egm-icon-tabs${pressedTabId ? " is-pressed" : ""}${dragPreview ? " is-dragging" : ""}`}
         role="tablist" aria-label="Dashboard pages">
         {tabs.map((tab) => <span className="dashboard-tab-item history-tooltip-trigger" role="presentation" key={tab.id}>
           <button type="button" role="tab"
@@ -139,14 +133,19 @@ export function DashboardTabs({
           className={`dashboard-tab${dragPreview?.id === tab.id ? " is-dragging" : ""}`}
           data-dashboard-tab-id={tab.id}
           aria-label={tab.label}
+          aria-describedby={hoveredTab?.id===tab.id?"egm-page-tab-tooltip":undefined}
           aria-selected={activeTabId === tab.id} tabIndex={activeTabId === tab.id ? 0 : -1}
+          onPointerEnter={event=>{{const bounds=event.currentTarget.getBoundingClientRect();setHoveredTab({id:tab.id,label:tab.label,left:bounds.left+bounds.width/2,top:bounds.bottom+6});}}}
+          onPointerLeave={()=>setHoveredTab(null)}
+          onFocus={event=>{{const bounds=event.currentTarget.getBoundingClientRect();setHoveredTab({id:tab.id,label:tab.label,left:bounds.left+bounds.width/2,top:bounds.bottom+6});}}}
+          onBlur={()=>setHoveredTab(null)}
           onClick={(event) => {
             if (drag.current.moved) {
               drag.current.moved = false;
               event.preventDefault();
               return;
             }
-            setAnimateSelection(true);
+            setHoveredTab(null);
             onChange?.(tab.id);
           }}
           onMouseDown={editMode ? (event) => {
@@ -175,22 +174,17 @@ export function DashboardTabs({
             const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
               : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
             const nextTab = tabs[nextIndex];
-            setAnimateSelection(true);
             onChange?.(nextTab.id);
             tabRefs.current.get(nextTab.id)?.focus();
           }}>
           <PageIcon id={tab.id}/>
-          <span className="egm-tab-label-wrap"><TruncatedText className="dashboard-tab-label" focusOnParent
-            anchorRef={(element) => {
-              if (element) labelRefs.current.set(tab.id, element);
-              else labelRefs.current.delete(tab.id);
-            }}>{tab.label}</TruncatedText></span>
+
           </button>
-          {activeTabId!==tab.id&&<Tooltip className="topbar-mode-tooltip">{tab.label}</Tooltip>}
         </span>)}
       </nav>
       {trailing}
     </div>
+    {hoveredTab&&<Tooltip portal id="egm-page-tab-tooltip" style={{position:'fixed',zIndex:'var(--layer-tooltip)',left:hoveredTab.left,top:hoveredTab.top,transform:'translateX(-50%)',opacity:1}}>{hoveredTab.label}</Tooltip>}
     {dragPreview && typeof document !== "undefined" && createPortal(
       <div className="dashboard-tab-drag-preview" aria-hidden="true"
         data-drag-direction={dragPreview.direction} style={{

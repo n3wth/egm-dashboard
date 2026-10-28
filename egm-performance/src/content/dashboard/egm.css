@@ -137,14 +137,13 @@
   .egm-mentions-table .table :is(th,td):first-child { padding-inline-end: 12px; }
   .egm-mentions-detail { gap: 3px 10px; }
 }
-.egm-icon-tabs[role="tablist"] .dashboard-tab { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; height: 36px; min-height: 36px; }
+.egm-icon-tabs[role="tablist"] .dashboard-tab { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; width: 36px; height: 36px; min-height: 36px; padding: 0; }
+.egm-icon-tabs[role="tablist"] { padding-left: 8px; }
 .egm-icon-tabs .dashboard-tab-item { display: inline-flex; align-items: center; height: 36px; }
-.egm-icon-tabs .egm-tab-label-wrap { display: block; max-width: 0; overflow: hidden; opacity: 0; margin-left: 0; }
-.egm-icon-tabs .dashboard-tab-label { min-width: 0; overflow: hidden; max-width: none; }
-.egm-icon-tabs .dashboard-tab-label[data-overflowing="true"] { mask-image: none; -webkit-mask-image: none; }
 .egm-icon-tabs .dashboard-tab[aria-selected="true"] { border-radius: 8px; background: var(--border); color: var(--text); padding-bottom: 0; }
 .egm-icon-tabs .dashboard-tab[aria-selected="false"] { padding-bottom: 0; }
 .egm-icon-tabs .dashboard-tab::after { display: none; }
-.egm-icon-tabs .dashboard-tab[aria-selected="true"] .egm-tab-label-wrap { max-width: 150px; opacity: 1; margin-left: 7px; }
-.egm-icon-tabs.has-user-selection .egm-tab-label-wrap { transition: max-width 180ms ease, opacity 180ms ease, margin-left 180ms ease; }
-@media(prefers-reduced-motion:reduce) { .egm-icon-tabs.has-user-selection .egm-tab-label-wrap { transition: none; } }
+.egm-mentions-summary { border-top: 1px solid var(--border); padding: 16px 20px 0; }
+.egm-mentions-summary .component-header { float: right; margin: 0 0 0 12px; }
+.egm-mentions-collection-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; color: var(--secondary); font-size: 12px; line-height: 1.6; }
+.egm-mentions-collection-line .egm-mentions-collection { display: inline-flex; align-items: center; gap: 6px; margin: 0; }

@@ -87,3 +87,9 @@ test('live tool rejects redirects without following or forwarding credentials',a
   assert.equal(body.toolStatus.status,'unavailable')
   assert.ok(!body.cards.some(card=>card.queryId==='live_github'))
 })
+test('current repository questions automatically check the fixed live tool without a checkbox',async()=>{
+  let calls=0
+  const result=await handleAsk(request({question:'latest star count'}),{...environment(),GITHUB_TOKEN:'test-only'},user,{request:async()=>{calls++;return Response.json({full_name:'google/elephant-goldfish-model',stargazers_count:12,forks_count:2,open_issues_count:1})}})
+  assert.equal(calls,1)
+  assert.equal((await result.json()).toolStatus.status,'live')
+})

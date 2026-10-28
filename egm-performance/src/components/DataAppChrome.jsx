@@ -992,7 +992,7 @@ export function DataAppTopbar({
       <header
         ref={topbar}
         style={{ ...chromeColors, ...chromeLayout }}
-        className={["dashboard-topbar", className].filter(Boolean).join(" ")}
+        className={["dashboard-topbar", "egm-single-row", className].filter(Boolean).join(" ")}
         data-data-app-chrome="topbar"
         data-mode={mode}
       >
@@ -1000,7 +1000,7 @@ export function DataAppTopbar({
           <div className="dashboard-topbar-copy">
 <a href="/overview" aria-label="EGM overview" style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
-<path d="M4.1 12H3c-1.3 0-1.7-1.1-.7-2.6M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2ZM20 12l3-2.6M20 12l3 2.6" />
+<path d="M4.1 12H3c-1.5 0-2-1.5-1.5-3.2M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2ZM20 12l3-2.6M20 12l3 2.6" />
             </svg></a>
             {published && surface !== "report" && verification && (
               <DataAppVerificationBadge
@@ -1087,6 +1087,22 @@ export function DataAppTopbar({
             )}
           </div>
 
+        <div
+          className={`dashboard-tabs-collapse${showTabs ? " is-open" : ""}`}
+          aria-hidden={!showTabs}
+          inert={!showTabs}
+        >
+          <div className="dashboard-tabs-collapse-inner">
+            <DashboardTabs
+              trailing={reportingDates.length ? <span className="dashboard-reporting-period" aria-label={`Reporting period ${reportingDates[0]} through ${reportingDates.at(-1)}, Pacific time`} title={`Reporting period ${reportingDates[0]} through ${reportingDates.at(-1)}, Pacific time`} style={{display:'inline-flex',alignItems:'center',gap:4,lineHeight:1}}><time dateTime={reportingDates[0]} title="Traffic reporting period, Pacific time">{new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'America/Los_Angeles'}).formatRange(new Date(reportingDates[0]+'T00:00:00Z'),new Date(new Date(reportingDates.at(-1)+'T00:00:00Z').valueOf()+86400000))}</time>{generatedAt && <> · <RelativeFreshness generatedAt={generatedAt}/></>}</span> : null}
+              tabs={tabs}
+              activeTabId={activeTabId}
+              editMode={mode === "edit" && !saving && !editingBlocked}
+              onChange={onTabChange}
+              onReorder={onReorderTabs}
+            />
+          </div>
+        </div>
           <div className="dashboard-topbar-mode-controls" ref={modeControls}>
             {canEdit && mode === "edit" && (
               <div className="dashboard-topbar-edit-controls">
@@ -1166,23 +1182,7 @@ export function DataAppTopbar({
                     published={published}
                     surface={surface}
                   />
-                  {canEdit && (
-                    <span className="history-tooltip-trigger" data-delayed-tooltip>
-                      <button
-                        type="button"
-                        className="dashboard-header-action-button dashboard-header-edit-button"
-                        aria-describedby={editTooltipId}
-                        aria-label="Edit text and layout"
-                        disabled={editingBlocked || saveStatus === "saving"}
-                        onClick={() => onModeChange?.("edit")}
-                      >
-                        <Icon name="edit" size={18} />
-                      </button>
-                      <Tooltip id={editTooltipId} className="topbar-mode-tooltip">
-                        {editingBlocked ? `Available when this ${noun} is ready.` : "Edit text and layout"}
-                      </Tooltip>
-                    </span>
-                  )}
+
                 </>
               )}
               <span className="history-tooltip-trigger" data-delayed-tooltip>
@@ -1218,22 +1218,7 @@ export function DataAppTopbar({
             </div>
           </div>
         </div>
-        <div
-          className={`dashboard-tabs-collapse${showTabs ? " is-open" : ""}`}
-          aria-hidden={!showTabs}
-          inert={!showTabs}
-        >
-          <div className="dashboard-tabs-collapse-inner">
-            <DashboardTabs
-              trailing={reportingDates.length ? <span className="dashboard-reporting-period" style={{display:'inline-flex',alignItems:'center',gap:4,lineHeight:1}}><time dateTime={reportingDates[0]} title="Traffic reporting period, Pacific time">{new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'America/Los_Angeles'}).formatRange(new Date(reportingDates[0]+'T00:00:00Z'),new Date(new Date(reportingDates.at(-1)+'T00:00:00Z').valueOf()+86400000))} · PT</time>{generatedAt && <> · <RelativeFreshness generatedAt={generatedAt}/></>}</span> : null}
-              tabs={tabs}
-              activeTabId={activeTabId}
-              editMode={mode === "edit" && !saving && !editingBlocked}
-              onChange={onTabChange}
-              onReorder={onReorderTabs}
-            />
-          </div>
-        </div>
+
       </header>
       {surface === "report" && mode !== "edit" && (reportAsOf || generatedAt) && (
         <div className="dashboard-mobile-report-date">

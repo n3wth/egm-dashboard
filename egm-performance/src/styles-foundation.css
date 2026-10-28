@@ -323,6 +323,21 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
   justify-content: space-between;
   gap: var(--space-3);
 }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-topbar-inner { gap: 12px; }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-topbar-copy { display: flex; flex: 0 0 28px; min-width: 28px; }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-topbar-copy .dashboard-topbar-title { display: none; }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-tabs-collapse { display: block; flex: 1 1 auto; min-width: 0; overflow: visible; height: 36px; }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-tabs-collapse-inner { transform: none; height: 36px; }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-tabs-inner { width: 100%; margin: 0; padding: 0; height: 36px; overflow: visible; gap: 12px; }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-tabs { gap: 2px; }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period { margin-top: 0; font-size: 11px; }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-topbar-mode-controls { flex: 0 0 auto; }
+.egm-single-row:has(.egm-ask-inline-host) .dashboard-reporting-period { display: none !important; }
+@media(max-width:650px) {
+  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period > time:first-child { display: none; }
+  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period { font-size: 0; gap: 0 !important; }
+  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period > time:last-child { font-size: 11px; }
+}
 .dashboard-mobile-report-date { display: none; }
 .dashboard-mobile-menu-group { display: none; }
 
@@ -350,6 +365,13 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
 .dashboard-reporting-period { margin-left: auto; margin-top: -6px; color: var(--secondary); font-size: 12px; white-space: nowrap; flex-shrink: 0; align-self: center; }
 .dashboard-tabs-inner::-webkit-scrollbar {
   display: none;
+}
+.dashboard-tabs-inner:has(.egm-icon-tabs) {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  height: 36px;
 }
 .dashboard-tabs {
   position: relative;
