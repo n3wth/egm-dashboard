@@ -1,0 +1,7 @@
+import React from 'react'
+
+export function VideoThumbnail({id, sizes}) {
+  const original=`https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`
+  const transformed=width=>`/cdn-cgi/image/width=${width},quality=80,format=auto/${original}`
+  return <img src={transformed(320)} srcSet={[160,320,480].map(width=>`${transformed(width)} ${width}w`).join(', ')} sizes={sizes} loading="lazy" decoding="async" alt="" width="480" height="360" onError={event=>{const image=event.currentTarget; if(image.getAttribute('src')!==original){image.removeAttribute('srcset'); image.src=original}}}/>
+}
