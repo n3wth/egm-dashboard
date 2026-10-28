@@ -5,7 +5,7 @@ import {renderAccessPage} from './auth-pages.mjs'
 import {cachedSiteIcon} from './favicon-cache.mjs'
 import {handleAsk} from './ask.mjs'
 import {manageAccess} from './access-management.mjs'
-import {manageInvitations,redeemInvitation,validInvitationToken} from './invitations.mjs'
+import {invitationHash,manageInvitations,redeemInvitation,validInvitationToken} from './invitations.mjs'
 import {rbacConfigured,workosSessionConfigured,storeWorkosSession,validatedWorkosSession,workosAdminPermission} from './workos-session.mjs'
 import {syncWorkosMember,syncWorkosMemberships} from './workos-membership.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
@@ -161,16 +161,39 @@ export async function handle(request,env,ctx) {
     const headers=new Headers({location:'/', 'cache-control':'private, no-store'})
     headers.append('set-cookie',cookie('__Host-egm_session','',0))
     headers.append('set-cookie',cookie('__Host-egm_flow','',0))
+    headers.append('set-cookie',cookie('__Host-egm_invite','',0))
     return new Response(null,{status:303,headers})
   }
-  if((url.pathname==='/auth/login' || url.pathname==='/auth/invite') && request.method==='GET') {
-    const invitationToken=url.pathname==='/auth/invite'?url.searchParams.get('invitation_token'):null
-    if(url.pathname==='/auth/invite' && !validInvitationToken(invitationToken)) return renderAccessPage('invite_invalid')
+  if(url.pathname==='/auth/invite' && request.method==='GET') {
+    const supplied=url.searchParams.get('invitation_token')
+    const invitation=supplied ? {token:supplied} : await open(cookieValue(request,'__Host-egm_invite'),env.SESSION_SECRET,'invitation')
+    if(!validInvitationToken(invitation?.token)) return renderAccessPage('invite_invalid')
+    try {
+      const active=await env.DB.prepare('SELECT id FROM invitations WHERE token_hash=? AND expires_at>? AND redeemed_at IS NULL AND revoked_at IS NULL').bind(await invitationHash(invitation.token),Date.now()).first()
+      if(!active) return renderAccessPage('invite_invalid')
+    } catch { return renderAccessPage('session_unavailable') }
+    if(supplied) return new Response(null,{status:303,headers:{location:'/auth/invite','set-cookie':cookie('__Host-egm_invite',await seal({token:invitation.token},env.SESSION_SECRET,'invitation',600),600),'cache-control':'private, no-store','referrer-policy':'no-referrer'}})
+    return renderAccessPage('invite')
+  }
+  if((url.pathname==='/auth/login' && request.method==='GET') || (url.pathname==='/auth/invite/continue' && request.method==='POST')) {
+    const continuing=url.pathname==='/auth/invite/continue'
+    if(continuing && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
+    const invitationToken=continuing?(await open(cookieValue(request,'__Host-egm_invite'),env.SESSION_SECRET,'invitation'))?.token:null
+    if(continuing) {
+      if(!validInvitationToken(invitationToken)) return renderAccessPage('invite_invalid')
+      try {
+        const active=await env.DB.prepare('SELECT id FROM invitations WHERE token_hash=? AND expires_at>? AND redeemed_at IS NULL AND revoked_at IS NULL').bind(await invitationHash(invitationToken),Date.now()).first()
+        if(!active) return renderAccessPage('invite_invalid')
+      } catch { return renderAccessPage('session_unavailable') }
+    }
     const verifier=random(),state=random()
     const challenge=b64(await crypto.subtle.digest('SHA-256',enc.encode(verifier)))
     const auth=new URL('https://api.workos.com/user_management/authorize')
     for(const [k,v] of Object.entries({client_id:env.WORKOS_CLIENT_ID,provider:'GoogleOAuth',redirect_uri:env.APP_URL+'/auth/callback',response_type:'code',state,code_challenge:challenge,code_challenge_method:'S256'})) auth.searchParams.set(k,v)
-    return new Response(null,{status:302,headers:{location:auth.href,'set-cookie':cookie('__Host-egm_flow',await seal({verifier,state,invitationToken},env.SESSION_SECRET,'login',600),600),'cache-control':'no-store','referrer-policy':'no-referrer'}})
+    const headers=new Headers({location:auth.href,'cache-control':'no-store','referrer-policy':'no-referrer'})
+    headers.append('set-cookie',cookie('__Host-egm_flow',await seal({verifier,state,invitationToken},env.SESSION_SECRET,'login',600),600))
+    if(continuing) headers.append('set-cookie',cookie('__Host-egm_invite','',0))
+    return new Response(null,{status:302,headers})
   }
   if(url.pathname==='/auth/callback' && request.method==='GET') {
     const flow=await open(cookieValue(request,'__Host-egm_flow'),env.SESSION_SECRET,'login')

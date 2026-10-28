@@ -22,6 +22,17 @@ async function create(env, extra = {}) {
   const data = await response.json()
   return { ...data, token: new URL(data.url).searchParams.get('invitation_token') }
 }
+async function startInvitation(env, invitationUrl) {
+  const initial = await handle(new Request(invitationUrl), env)
+  assert.equal(initial.status, 303)
+  const inviteCookie = initial.headers.get('set-cookie').match(/__Host-egm_invite=([^;]+)/)[1]
+  const landing = await handle(new Request(env.APP_URL+'/auth/invite', { headers: { cookie: `__Host-egm_invite=${inviteCookie}` } }), env)
+  assert.equal(landing.status, 200)
+  const continued = await handle(new Request(env.APP_URL+'/auth/invite/continue', { method: 'POST', headers: { origin: env.APP_URL, cookie: `__Host-egm_invite=${inviteCookie}` } }), env)
+  assert.equal(continued.status, 302)
+  const flowCookie = continued.headers.get('set-cookie').match(/__Host-egm_flow=([^;]+)/)[1]
+  return { initial, landing, continued, inviteCookie, flowCookie }
+}
 test('only owner can create links and token is not stored in plaintext or list responses', async () => {
   const { db, env } = setup()
   assert.equal((await manageInvitations(post('/api/invitations', { kind: 'link', expiresInDays: 7 }), env, person())).status, 403)
@@ -132,8 +143,7 @@ test('email invitation completes WorkOS sign-in only for the specified email', a
   const priorFetch = globalThis.fetch
   try {
     const callback = async user => {
-      const initial = await handle(new Request(invitationUrl), env)
-      const flowCookie = initial.headers.get('set-cookie').match(/__Host-egm_flow=([^;]+)/)[1]
+      const { flowCookie } = await startInvitation(env, invitationUrl)
       const flow = await open(flowCookie, env.SESSION_SECRET, 'login')
       globalThis.fetch = async () => Response.json({ user })
       return handle(new Request(`${env.APP_URL}/auth/callback?state=${encodeURIComponent(flow.state)}&code=test`, { headers: { cookie: `__Host-egm_flow=${flowCookie}` } }), env)
@@ -141,7 +151,7 @@ test('email invitation completes WorkOS sign-in only for the specified email', a
     assert.notEqual((await callback(person('other','other@example.org'))).status, 302)
     assert.equal((await callback(person())).status, 302)
     assert.equal(db.prepare("SELECT status FROM users WHERE id='guest'").get().status, 'approved')
-    assert.notEqual((await callback(person())).status, 302)
+    assert.equal((await handle(new Request(invitationUrl), env)).status, 403)
   } finally { globalThis.fetch = priorFetch }
 })
 test('RBAC mode rejects email-owner fallback and accepts explicit manage permission', async () => {
@@ -155,14 +165,19 @@ test('stable owner subject is required after the owner pin is configured', async
   assert.equal((await manageInvitations(request(), env, { ...owner, id: 'user_other' })).status, 403)
   assert.equal((await manageInvitations(request(), env, { ...owner, id: 'user_owner', email: 'new@example.org' })).status, 201)
 })
-test('invite link stores token in state-bound HTTP-only login cookie and omits it from redirect', async () => {
+test('invite landing hides token and requires explicit same-origin continuation', async () => {
   const { env } = setup(), invite = await create(env)
-  const response = await handle(new Request(invite.url), env)
-  assert.equal(response.status, 302)
-  assert.equal(response.headers.get('location').includes(invite.token), false)
-  assert.match(response.headers.get('set-cookie'), /HttpOnly/)
-  const cookie = response.headers.get('set-cookie').match(/__Host-egm_flow=([^;]+)/)[1]
-  assert.equal((await open(cookie, env.SESSION_SECRET, 'login')).invitationToken, invite.token)
+  const { initial, landing, continued, flowCookie } = await startInvitation(env, invite.url)
+  assert.equal(initial.headers.get('location'), '/auth/invite')
+  assert.match(initial.headers.get('set-cookie'), /HttpOnly/)
+  assert.equal(initial.headers.get('referrer-policy'), 'no-referrer')
+  const html = await landing.text()
+  assert.match(html, /You’re invited/)
+  assert.match(html, /Continue with Google/)
+  assert.doesNotMatch(html, new RegExp(invite.token))
+  assert.equal(continued.headers.get('location').includes(invite.token), false)
+  assert.equal((await open(flowCookie, env.SESSION_SECRET, 'login')).invitationToken, invite.token)
+  assert.equal((await handle(new Request(env.APP_URL+'/auth/invite/continue', { method:'POST', headers:{ origin:'https://evil.example' } }), env)).status,403)
   const invalid = await handle(new Request(env.APP_URL+'/auth/invite?invitation_token=bad'), env)
   assert.equal(invalid.status, 403)
   assert.equal(invalid.headers.get('referrer-policy'), 'no-referrer')
@@ -170,8 +185,7 @@ test('invite link stores token in state-bound HTTP-only login cookie and omits i
 })
 test('callback redeems only after verified sign-in and replay does not grant another account', async () => {
   const { db, env } = setup(), invite = await create(env)
-  const initial = await handle(new Request(invite.url), env)
-  const flowCookie = initial.headers.get('set-cookie').match(/__Host-egm_flow=([^;]+)/)[1]
+  const { flowCookie } = await startInvitation(env, invite.url)
   const flow = await open(flowCookie, env.SESSION_SECRET, 'login')
   const priorFetch = globalThis.fetch
   try {
@@ -183,4 +197,14 @@ test('callback redeems only after verified sign-in and replay does not grant ano
     assert.notEqual((await handle(callback(), env)).status, 302)
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM users WHERE id='other'").get().n, 0)
   } finally { globalThis.fetch = priorFetch }
+})
+test('expired or revoked invitation is rejected before and after the landing page', async () => {
+  const { db, env } = setup(), expired = await create(env), revoked = await create(env)
+  db.prepare('UPDATE invitations SET expires_at=? WHERE id=?').run(Date.now()-1, expired.id)
+  assert.equal((await handle(new Request(expired.url), env)).status,403)
+  const initial = await handle(new Request(revoked.url), env)
+  const inviteCookie=initial.headers.get('set-cookie').match(/__Host-egm_invite=([^;]+)/)[1]
+  db.prepare('UPDATE invitations SET revoked_at=? WHERE id=?').run(Date.now(),revoked.id)
+  assert.equal((await handle(new Request(env.APP_URL+'/auth/invite',{headers:{cookie:`__Host-egm_invite=${inviteCookie}`}}),env)).status,403)
+  assert.equal((await handle(new Request(env.APP_URL+'/auth/invite/continue',{method:'POST',headers:{origin:env.APP_URL,cookie:`__Host-egm_invite=${inviteCookie}`}}),env)).status,403)
 })

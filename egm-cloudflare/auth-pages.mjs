@@ -3,6 +3,7 @@ const mark = `<svg aria-hidden="true" viewBox="0.5 5.5 23.5 13" width="36" heigh
 const google = `<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21.8 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.5a4.7 4.7 0 0 1-2 3.1v2.6h3.3c1.9-1.8 3-4.4 3-7.6ZM12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.6c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3v2.7A10 10 0 0 0 12 22ZM6.4 13.9a6 6 0 0 1 0-3.8V7.4H3a10 10 0 0 0 0 9.2l3.4-2.7ZM12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9 5.4l3.4 2.7C7.2 7.8 9.4 6 12 6Z"/></svg>`
 const views = {
   signin: {title:'Sign in',description:'Sign in with Google to open the dashboard or request access.',action:'Continue with Google',note:'',status:200},
+  invite: {title:'You’re invited',description:'You’ve been invited to the EGM Growth Dashboard. Continue with Google to accept your invitation and open the dashboard.',action:'Continue with Google',note:'If the invitation was emailed to you, use the Google account for that email address.',status:200,invite:true},
   pending: {title:'Your access is pending',description:'Your account is waiting for Oliver’s approval. Once approved, return here to open the dashboard.',action:'Sign out',note:'Signing out does not cancel your request.',status:403,logout:true},
   denied: {title:'Access is unavailable',description:'This account does not have access to the dashboard. If you think this is a mistake, ask Oliver to review it.',action:'Sign out',note:'You can sign in again with a different account.',status:403,logout:true},
   error: {title:'Sign-in did not complete',description:'We couldn’t finish signing you in. Try again to securely open the dashboard.',action:'Try signing in again',note:'Your dashboard data remains private.',status:401},
@@ -17,6 +18,8 @@ export function renderAccessPage(state='signin') {
   const view=views[state]??views.error
   const action=view.retry
     ? `<a href="" class="action">${view.action}</a>`
+    : view.invite
+    ? `<form action="/auth/invite/continue" method="post"><button type="submit" class="action">${google}<span>${view.action}</span></button></form>`
     : view.logout
     ? `<form action="/auth/logout" method="post"><button type="submit" class="action action-secondary">${view.action}<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H5v14h4M14 8l4 4-4 4M9 12h9"/></svg></button></form>`
     : `<a href="/auth/login" class="action">${google}<span>${view.action}</span></a>`
