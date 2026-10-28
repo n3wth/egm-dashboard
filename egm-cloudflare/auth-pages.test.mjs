@@ -7,7 +7,7 @@ test('sign-in page has one clear authentication action and no empty explanatory 
   const html=await response.text()
   assert.equal(response.status,200)
   assert.match(html,/<h1>Sign in<\/h1>/)
-  assert.match(html,/Sign in to the EGM Growth Dashboard/)
+  assert.match(html,/Design with an elephant\. Review with a goldfish\./)
   assert.match(html,/href="\/auth\/login" class="action"/)
   assert.equal((html.match(/Continue with Google/g)??[]).length,1)
   assert.doesNotMatch(html,/<p(?: class="note")?><\/p>/)
