@@ -28,10 +28,8 @@ jobs:
           cache-dependency-path: egm-performance/package-lock.json
       - name: Install locked application dependencies
         run: npm run install:app
-      - name: Test source collectors and dashboard helpers
+      - name: Test dashboard and source collectors
         run: npm test
-      - name: Test application behavior
-        run: npm --prefix egm-performance test
       - name: Verify protected runtime and build assets
         env:
           VITE_POSTHOG_PROJECT_TOKEN: ${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}

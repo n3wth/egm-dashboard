@@ -6,8 +6,9 @@ import {InsightCallout} from './InsightCallout.jsx'
 import {EngagementSignals} from './EngagementSignals.jsx'
 import {PageSummary} from './PageSummary.jsx'
 import {VideoThumbnail} from './VideoThumbnail.jsx'
+import {safeExternalUrl,mentionGroup,earliestValidDate,uniqueMentionKey,matchingEngagement} from './research-mentions.mjs'
 
-const mentionLink=(value,row)=><a className="egm-mention-link" href={row.url} target="_blank" rel="noreferrer nofollow">{value}</a>
+const mentionLink=(value,row)=>{const href=safeExternalUrl(row.url);return href?<a className="egm-mention-link" href={href} target="_blank" rel="noreferrer nofollow">{value}</a>:<span>{value||'Link unavailable'}</span>}
 const dateValue=value=>{if(!value)return null;const date=new Date(/^\d{4}-\d{2}-\d{2}$/.test(value)?value+'T12:00:00Z':value);return Number.isFinite(date.getTime())?date:null}
 function ShortDate({value}) {
   const date=dateValue(value)
@@ -29,42 +30,28 @@ function VideoGallery({rows,queries}) {
   const videos=rows.map(row=>{const id=videoId(row.url);const details=metadata.find(item=>item.videoId===id||videoId(item.url)===id);return {...row,...details,title:details?.title||row.title,published:details?.published||row.published,id,commentSample:comments.find(item=>item.videoId===id)}}).filter(row=>row.id)
   const measured=videos.filter(row=>Number.isFinite(row.views)&&row.views>=0).sort((a,b)=>b.views-a.views)
   const observedViews=measured.reduce((total,row)=>total+row.views,0)
-  return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:queries.mentions?.rows??[],...(queries.youtube_videos?{youtube_videos:metadata}:{}),...(queries.youtube_comments?{youtube_comments:comments}:{})}}>
+  const otherVideos=rows.filter(row=>!videoId(row.url))
+  return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={[...videos,...otherVideos]} sourceRowsByQuery={{mentions:queries.mentions?.rows??[],...(queries.youtube_videos?{youtube_videos:metadata}:{}),...(queries.youtube_comments?{youtube_comments:comments}:{})}}>
     {measured.length>=2&&observedViews>0&&<InsightCallout>The most-viewed video accounts for {percentage(measured[0].views/observedViews)} of YouTube view counts across the {measured.length} videos that have one.</InsightCallout>}
+    {otherVideos.length>0&&<MentionRows rows={otherVideos} label="Other video mentions"/>}
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
       <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><VideoThumbnail id={row.id} sizes="(max-width: 550px) 100vw, (max-width: 1000px) 50vw, 33vw"/><h3 title={row.title}>{row.title}</h3></a>
       {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><span title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</span>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
       <div className="egm-video-stats"><EngagementSignals row={row}/></div>
-      {row.commentSample&&<details className="egm-video-comments"><summary className="egm-video-meta">Comment sample{row.commentSample.comments?.length>0&&` (${row.commentSample.comments.length})`} {row.commentSample.observedAt&&<>observed <ShortDate value={row.commentSample.observedAt}/></>}{row.commentSample.status==='unavailable'&&(row.commentSample.observedAt?' · refresh failed, cached':' · unavailable')}</summary>{row.commentSample.comments?.length>0?<ul>{row.commentSample.comments.map(comment=><li key={comment.id}><a href={comment.url} target="_blank" rel="noreferrer nofollow">{comment.text}</a></li>)}</ul>:row.commentSample.status==='available'&&<p className="egm-video-meta">No comments returned in this sample.</p>}</details>}
+      {row.commentSample&&<details className="egm-video-comments"><summary className="egm-video-meta">Comment sample{row.commentSample.comments?.length>0&&` (${row.commentSample.comments.length})`} {row.commentSample.observedAt&&<>observed <ShortDate value={row.commentSample.observedAt}/></>}{row.commentSample.status==='unavailable'&&(row.commentSample.observedAt?' · refresh failed, cached':' · unavailable')}</summary>{row.commentSample.comments?.length>0?<ul>{row.commentSample.comments.map(comment=><li key={comment.id}>{mentionLink(comment.text,comment)}</li>)}</ul>:row.commentSample.status==='available'&&<p className="egm-video-meta">No comments returned in this sample.</p>}</details>}
     </article>)}</div>
   </DataComponent>
 }
-const canonicalUrl=value=>{
-  try {
-    const url=new URL(value)
-    url.hostname=url.hostname.toLowerCase().replace(/^www\./,'').replace(/^twitter\.com$/,'x.com')
-    if(['m.youtube.com','youtu.be','youtube.com'].includes(url.hostname)) {
-      const id=url.hostname==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v')??url.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1]
-      if(id) return 'https://youtube.com/watch?v='+id
-    }
-    url.hash=''
-    for(const key of [...url.searchParams.keys()]) if(/^(utm_|fbclid$|gclid$|ref$|source$|si$)/i.test(key)) url.searchParams.delete(key)
-    url.searchParams.sort()
-    url.pathname=url.pathname.replace(/\/$/,'')||'/'
-    return url.href
-  } catch {return value}
-}
-
 function additionalDiscovery(queries,primaryRows) {
   const providers=[['Exa','exa_mentions','exa_status'],['Tavily','tavily_mentions','tavily_status'],['Parallel','parallel_mentions','parallel_status']].filter(([,id,statusId])=>queries[id]||queries[statusId])
-  const known=new Set(primaryRows.map(row=>canonicalUrl(row.url)))
+  const known=new Set(primaryRows.map(row=>uniqueMentionKey(row.url)))
   const unique=new Map()
   const sourceRowsByQuery={}
   for(const [provider,id,statusId] of providers) {
     if(queries[id])sourceRowsByQuery[id]=queries[id].rows
     if(queries[statusId])sourceRowsByQuery[statusId]=queries[statusId].rows
     for(const row of queries[id]?.rows??[]) {
-      const url=canonicalUrl(row.url)
+      const url=uniqueMentionKey(row.url)
       if(known.has(url))continue
       const previous=unique.get(url)
       if(previous) {
@@ -80,9 +67,13 @@ function CollectionNote({provider,status}) {
   if(!status)return null
   return <span className="egm-mentions-collection"><SiteName label={provider}/> {dateValue(status.lastSuccessAt)?<ShortDate value={status.lastSuccessAt}/>:<span>not yet collected</span>}{status.status==='stale'&&<span>(refresh failed, cached)</span>}{status.status==='unavailable'&&<span>(unavailable)</span>}</span>
 }
-function SupplementaryMentions({discovery}) {
+export function MissingMentionCollection({providers,queries}) {
+  return <><p className="egm-note">Public mentions have not completed their first collection.</p><div className="egm-mentions-collection-line">{providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div></>
+}
+export function SupplementaryMentions({discovery}) {
   const {rows,queryIds,sourceRowsByQuery,providers}=discovery
-  if(!rows.length)return null
+  if(!providers.length)return null
+  if(!rows.length)return <Section title="Additional discovery" id="mentions-exa"><p className="egm-note">No additional links to show. Check collection statuses below.</p></Section>
   return <Section title="Additional discovery" id="mentions-exa">
     <DataComponent id="mentions-exa-table" queryId={queryIds[0]} queryIds={queryIds} title="Search results" kind="table" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
       <MentionRows rows={rows} label="Search results"/>
@@ -95,26 +86,31 @@ export function mentionSummarySources(queries,discovery) {
   return {mentions:queries.mentions?.rows??[],mentions_status:queries.mentions_status?.rows??[],...discovery.sourceRowsByQuery}
 }
 
+// Copy only engagement fields; the mention retains its own identity and status.
+export function enrichMention(row,engagement) {
+  const {hnPoints,comments,engagementObservedAt,engagementSource}=matchingEngagement(row,engagement)??{}
+  return {...row,...(hnPoints!=null&&{hnPoints}),...(comments!=null&&{comments}),...(engagementObservedAt&&{engagementObservedAt}),...(engagementSource&&{engagementSource})}
+}
+
 export function Mentions() {
   const {queries}=useDataApp()
   const query=queries.mentions
   const engagement=queries.mention_engagement?.rows??[]
-  // Copy only the engagement counts; the engagement row's own url, status and timestamps must not overwrite the mention's.
-  const enrich=row=>{const {hnPoints,comments,engagementObservedAt,engagementSource}=engagement.find(item=>canonicalUrl(item.url)===canonicalUrl(row.url))??{};return {...row,...(hnPoints!=null&&{hnPoints}),...(comments!=null&&{comments}),...(engagementObservedAt&&{engagementObservedAt}),...(engagementSource&&{engagementSource})}}
+  const enrich=row=>enrichMention(row,engagement)
   const rows=(query?.rows??[]).map(enrich)
   const discovery=additionalDiscovery(queries,rows)
   discovery.rows=discovery.rows.map(enrich)
   if(queries.mention_engagement){discovery.sourceRowsByQuery.mention_engagement=engagement;discovery.queryIds.push('mention_engagement')}
   const allRows=[...rows,...discovery.rows]
   const status=queries.mentions_status?.rows?.[0]
-  const earliest=allRows.map(row=>row.firstSeen).filter(Boolean).sort()[0]
-  const since=earliest?new Date(earliest).toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):null
-  const groups=[['Video','YouTube'],['Social','Social posts'],['Media / web','Media and web'],['Official','Official announcements']]
-  const firstKind=groups.find(([kind])=>rows.some(row=>row.kind===kind))?.[0]
+  const earliest=earliestValidDate(allRows)
+  const since=earliest?dateValue(earliest).toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):null
+  const groups=[['Video','YouTube'],['Social','Social posts'],['Media / web','Media and web'],['Official','Official announcements'],['Other','Other mentions']]
+  const firstKind=groups.find(([kind])=>rows.some(row=>mentionGroup(row.kind)===kind))?.[0]
   return <>
     <PageSummary page="mentions" queries={queries}/>
     {groups.map(([kind,title])=>{
-      const selected=rows.filter(row=>row.kind===kind)
+      const selected=rows.filter(row=>mentionGroup(row.kind)===kind)
       if(!selected.length) return null
       return <Section key={kind} title={kind==='Video'?undefined:title} spacing={kind===firstKind?'none':'section'} id={'mentions-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')}>
         {kind==='Video'?<VideoGallery rows={selected} queries={queries}/>:<DataComponent id={'mentions-table-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')} queryId="mentions" queryIds={queries.mention_engagement?['mentions','mention_engagement']:['mentions']} title={`${selected.length} ${selected.length===1?'mention':'mentions'}`} kind="table" variant="card" displayRows={selected} sourceRowsByQuery={{mentions:query?.rows??[],...(queries.mention_engagement?{mention_engagement:engagement}:{})}}>
@@ -128,7 +124,7 @@ export function Mentions() {
         <div className="egm-mentions-collection-line"><span title={since?`Discovered since ${since}`:undefined}>{allRows.length.toLocaleString('en-US')} discovered links</span>{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
         {status?.status==='stale'&&<p className="egm-note">Latest search failed; showing cached results.</p>}
         {status?.status==='unavailable'&&<p className="egm-note">Search unavailable.</p>}
-      </DataComponent>:<p className="egm-note">Public mentions have not completed their first collection.</p>}
+      </DataComponent>:<MissingMentionCollection providers={discovery.providers} queries={queries}/>}
     </Section>
   </>
 }

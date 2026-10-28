@@ -144,6 +144,10 @@ export async function runRefresh(env, request = fetch, services = {}) {
     const finished = clock()
     if (finished >= cutoff) { state.status = 'expired'; return { ...state } }
     const commitAt = new Date(finished).toISOString()
+    // Keep runner outcomes separate from provider status rows, whose cache and
+    // budget fields must survive failures unchanged. Never persist error text.
+    const allowedStatuses = new Set(['refreshed', 'failed', 'skipped_deadline', 'available', 'unavailable', 'stale', 'cached', 'checked', 'expired', 'disabled', 'partial', 'unconfigured'])
+    merged.refreshStatus = { checkedAt: commitAt, collectors: Object.fromEntries(Object.entries(state).filter(([name]) => name !== 'status').map(([name, status]) => [name, allowedStatuses.has(status) ? status : 'unknown'])) }
     const saved = await env.DB.prepare('INSERT INTO snapshots(id,body,generated_at) SELECT 1,?,? WHERE EXISTS(SELECT 1 FROM refresh_control WHERE id=1 AND lease_id=? AND lease_until>?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,generated_at=excluded.generated_at WHERE julianday(excluded.generated_at)>=julianday(snapshots.generated_at) RETURNING id').bind(JSON.stringify(merged), commitAt, id, finished).first()
     if (!saved) { state.status = 'skipped'; return { ...state, reason: 'lease_lost_or_newer_snapshot' } }
     state.status = state.github === 'refreshed' ? 'refreshed' : 'partial'

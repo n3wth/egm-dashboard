@@ -14,3 +14,15 @@ test('live GitHub metrics render without a saved snapshot query', async () => {
     assert.match(html, /\[S1\]/)
   } finally { await server.close() }
 })
+
+test('Ask keeps an active request open on outside interaction and announces completion', async () => {
+  const server = await createServer({ server: { middlewareMode: true }, logLevel: 'silent' })
+  try {
+    const { shouldDismissAsk, AskCompletion, LiveMetricCard } = await server.ssrLoadModule('/src/content/dashboard/AskPanel.jsx')
+    assert.equal(shouldDismissAsk(true), false)
+    assert.equal(shouldDismissAsk(false), true)
+    assert.match(renderToStaticMarkup(React.createElement(AskCompletion, { status: 'streaming' })), /role="status"[^>]*><\/span>/)
+    assert.match(renderToStaticMarkup(React.createElement(AskCompletion, { status: 'complete' })), /role="status"[^>]*>Answer complete/)
+    assert.doesNotMatch(renderToStaticMarkup(React.createElement(LiveMetricCard, { card: { title: 'Test', observedAt: 'invalid', metrics: [] } })), /Invalid Date/)
+  } finally { await server.close() }
+})
