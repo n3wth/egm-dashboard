@@ -34,7 +34,8 @@ const combinedReferralViews = rows => {
 }
 function StarTooltip({active,payload=[],label}) {
   const row=payload[0]?.payload
-  const details=payload.filter(item=>item.value!=null).map(item=>({label:String(item.name??item.dataKey).replace(/([A-Z])/g,' $1').replace(/^./,letter=>letter.toUpperCase()),value:n(item.value)}))
+  const starFields=payload.length>0&&payload.every(item=>['stars','completedStars','partialStars'].includes(item.dataKey))
+  const details=starFields&&Number.isFinite(row?.stars)?[{label:'Stars',value:n(row.stars)}]:payload.filter(item=>item.value!=null).map(item=>({label:String(item.name??item.dataKey).replace(/([A-Z])/g,' $1').replace(/^./,letter=>letter.toUpperCase()),value:n(item.value)}))
   if(row?.coverage)details.push({label:'Coverage',value:row.coverage})
   return <ChartTooltip active={active} label={row?.date?shortDate(row.date):label} details={details}/>
 }
@@ -168,14 +169,8 @@ export function DashboardContent() {
   const historyObservedAt=queries.star_history?.source?.executedAt
   const observedPacificDate=historyObservedAt?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(historyObservedAt)):null
   const partialStarDay=starHistory.at(-1)?.date===observedPacificDate
-  const starDisplayRows=starHistory.map(row=>({...row,coverage:partialStarDay&&row.date===observedPacificDate?'Partial day':'Complete day'}))
-  const starSpec=line('stars')
-  if(partialStarDay&&starHistory.length>=2) {
-    const first=Date.parse(starHistory[0].date),last=Date.parse(starHistory.at(-1).date),previous=Date.parse(starHistory.at(-2).date)
-    const boundary=last>first?(previous-first)/(last-first):0
-    const faded='color-mix(in srgb, var(--chart-1) 40%, transparent)'
-    starSpec.lineGradients={stars:[{color:'var(--chart-1)',offset:0},{color:'var(--chart-1)',offset:boundary},{color:faded,offset:boundary},{color:faded,offset:1}]}
-  }
+  const starDisplayRows=starHistory.map((row,index)=>({...row,completedStars:partialStarDay&&index===starHistory.length-1?null:row.stars,partialStars:partialStarDay&&index>=starHistory.length-2?row.stars:null,coverage:partialStarDay&&row.date===observedPacificDate?'Partial day':'Complete day'}))
+  const starSpec={...line('completedStars',['completedStars','partialStars']),showLegend:false,colors:{completedStars:'var(--chart-1)',partialStars:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   return <>
     <ReportingPeriod label="Traffic" />
     <SortableRegion id="reach:canvas" variant="freeform" className="egm-dashboard-grid egm-reach-grid" authoredRevision={3} rows={[
