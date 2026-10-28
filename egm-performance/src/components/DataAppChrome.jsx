@@ -572,6 +572,7 @@ function DataAppOverflowMenu({
   const nativeSelect = useRef(null);
   const canLogOut = published && globalThis.location?.hostname === 'egm.n3wth.com';
   const [viewer,setViewer]=useState(null);
+  const [failedPhoto,setFailedPhoto]=useState(null);
   React.useEffect(()=>{
     if(!canLogOut)return;
     const controller=new AbortController();
@@ -579,7 +580,8 @@ function DataAppOverflowMenu({
     return ()=>controller.abort();
   },[canLogOut]);
   const initial=String(viewer?.name??viewer?.email??'').trim().slice(0,1).toUpperCase();
-  const avatar=<span className="egm-account-avatar" aria-hidden="true">{initial||<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>}</span>;
+  const photo=(()=>{try{const url=new URL(viewer?.profilePictureUrl);return url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.username&&!url.password&&!url.port?url.href:null}catch{return null}})();
+  const avatar=<span className="egm-account-avatar" aria-hidden="true">{photo&&failedPhoto!==photo?<img src={photo} alt="" width="28" height="28" referrerPolicy="no-referrer" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={()=>setFailedPhoto(photo)}/>:initial||<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>}</span>;
   const logOut = () => {
     const form = document.createElement('form');
     form.method = 'POST';

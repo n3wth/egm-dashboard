@@ -1,7 +1,20 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {seal,open,handle} from './worker.mjs'
+import {seal,open,handle,profilePhoto} from './worker.mjs'
 const secret='a'.repeat(64)
+test('WorkOS avatar accepts exact HTTPS CDN only',()=>{
+  assert.equal(profilePhoto('https://workoscdn.com/images/v1/photo'),'https://workoscdn.com/images/v1/photo')
+  for(const value of ['http://workoscdn.com/photo','https://workoscdn.com.evil.example/photo','https://user:pass@workoscdn.com/photo','https://workoscdn.com:444/photo','data:image/png;base64,AA',null])assert.equal(profilePhoto(value),null)
+})
+test('authenticated viewer photo comes only from the signed session and legacy sessions fall back',async()=>{
+  for(const photo of [undefined,'https://workoscdn.com/images/v1/photo','https://evil.example/photo']) {
+    const token=await seal({sid:'owner',profilePictureUrl:photo},secret,'session')
+    const env={APP_URL:'https://egm.n3wth.com',OWNER_EMAIL:'oliver@newth.ai',SESSION_SECRET:secret,DB:{prepare(sql){return {bind(){return {first:async()=>({id:'owner',email:'oliver@newth.ai',name:'Oliver',verified:1,status:'approved'})}},first:async()=>({body:'{}',revision:0})}}}}
+    const response=await handle(new Request(env.APP_URL+'/api/presentation',{headers:{cookie:'__Host-egm_session='+token}}),env)
+    const data=await response.json()
+    assert.equal(data.viewer.profilePictureUrl,profilePhoto(photo))
+  }
+})
 test('session token is bound to key, audience, expiry, and signature',async()=>{
   const token=await seal({sid:'session'},secret,'session')
   assert.equal((await open(token,secret,'session')).sid,'session')

@@ -5,7 +5,7 @@ import {Research} from './Research.jsx'
 import {Mentions} from './Mentions.jsx'
 import channelIcons from './channel-icons.json'
 import {SiteName} from './SiteName.jsx'
-import {weeklyChange} from './weekly-change.mjs'
+import {weeklyChange,starWeeklyChange} from './weekly-change.mjs'
 import {InsightCallout} from './InsightCallout.jsx'
 import {OverviewSummary} from './OverviewSummary.jsx'
 
@@ -53,16 +53,16 @@ function Table({id,queryId,title,rows,columns,searchable=false}) {
 function AcrossEgm({queries,reach,web}) {
   const ids=['website','reach','youtube_videos','research_evidence'].filter(id=>queries[id])
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
-  const strongest=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views)[0]
+  const popularVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views).slice(0,3)
   const discussion=(queries.research_evidence?.rows??[]).find(row=>row.status==='verified'&&row.themes?.length)
   const experiment={workflow:'Choose one small repo task. Ask three new users to run EGM on it, then record completion and where they stop.',demo:'Show a short EGM demo to three new users. Ask them to repeat the workflow and record whether they finish.',install:'Ask three new users to install EGM and run its first example. Record installation failures and first successful runs.',friction:'Ask three users to repeat the workflow described by this source. Record the step where each gets stuck.'}[discussion?.themes?.[0]?.theme]
   const viewShare=reach.views>0?web.referralViews/reach.views:null
   const visitorShare=reach.visitors>0?web.referralVisitors/reach.visitors:null
-  const displayRows=[{signal:'Website referrals',views:web.referralViews,viewShare,visitorShare},...(strongest?[{signal:'Observed video views',url:strongest.url,views:strongest.views}]:[]),...(discussion?[{signal:'Verified project reference',url:discussion.url,theme:discussion.themes[0].theme}]:[])]
+  const displayRows=[{signal:'Website referrals',views:web.referralViews,viewShare,visitorShare},...popularVideos.map(video=>({signal:'Observed video views',url:video.url,views:video.views})),...(discussion?[{signal:'Verified project reference',url:discussion.url,theme:discussion.themes[0].theme}]:[])]
   return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
     <div className="egm-overview-signals" data-reviewed-rows>
-      <article><h3>Website referrals</h3><dl className="egm-overview-ratios"><div><dd>{viewShare==null?'Unavailable':`${(viewShare*100).toFixed(1)}%`}</dd><dt>of repo views</dt></div><div><dd>{visitorShare==null?'Unavailable':`${(visitorShare*100).toFixed(1)}%`}</dd><dt>of repo visitors</dt></div></dl><a className="egm-overview-next" href="/website">Website <Icon name="arrowUpRight" size={14}/></a></article>
-      <article><h3>Top video</h3>{strongest?<><a className="egm-overview-video" href={`https://www.youtube.com/watch?v=${strongest.videoId}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${strongest.videoId}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><div className="egm-overview-video-copy"><span title={strongest.title}>{strongest.title}</span><span className="egm-overview-video-meta">{new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(strongest.views)} observed views · {strongest.channel??'YouTube'}</span></div></a></>:<p>Video view counts unavailable.</p>}<a className="egm-overview-next" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a></article>
+      <article><h3>Website referrals</h3><p className="egm-overview-website-copy">{Number.isFinite(viewShare)&&Number.isFinite(visitorShare)?<><strong>{(viewShare*100).toFixed(1)}%</strong> of repo views and <strong>{(visitorShare*100).toFixed(1)}%</strong> of repo visitors came via egm.dev.</>:'Referral shares are unavailable.'}</p><a className="egm-overview-next" href="/website">Website <Icon name="arrowUpRight" size={14}/></a></article>
+      <article><h3>Popular videos</h3>{popularVideos.length?<div className="egm-overview-videos">{popularVideos.map(video=><a className="egm-overview-video" key={video.videoId} href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noreferrer" aria-label={`${video.title??'YouTube video'}. ${n(video.views)} observed views. Open YouTube.`}><span className="egm-overview-video-thumb"><img src={`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><span className="egm-overview-video-views" aria-hidden="true">{new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(video.views)}</span></span><span className="egm-overview-video-title" title={video.title}>{video.title??'YouTube video'}</span></a>)}</div>:<p>Video view counts unavailable.</p>}<a className="egm-overview-next" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a></article>
       <article><h3>Recommended experiment</h3>{discussion&&experiment?<><p className="egm-overview-action">{experiment}</p><a className="egm-overview-source" href={discussion.url} target="_blank" rel="noreferrer"><SiteName url={discussion.url}/></a></>:<p>Discussion evidence not verified yet.</p>}<a className="egm-overview-next" href="/research">Research <Icon name="arrowUpRight" size={14}/></a></article>
     </div>
   </DataComponent>
@@ -85,13 +85,14 @@ export function DashboardContent() {
     const historyQuery=websiteMetric?'website_referral_history':id==='stars'?'star_history':'traffic'
     const history=rows(historyQuery)
     const trendValues=field?history.map(row=>row[field]).filter(Number.isFinite):[]
-    const weekly=['total-views','total-clones'].includes(id)?weeklyChange(daily,field):null
+    const historyStale=(queries.star_history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
+    const weekly=['total-views','total-clones'].includes(id)?weeklyChange(daily,field):id==='stars'&&!historyStale?starWeeklyChange(history,queries.star_history?.source?.executedAt):null
     const queryIds=[...new Set([queryId,...(field&&queries[historyQuery]?[historyQuery]:[]),...(websiteMetric?['reach']:[])])]
     const trend = {trendValues,trendLabel:websiteMetric?'Observed rolling 14-day GitHub referrals since monitoring began':id === 'stars' ? 'Cumulative current stargazers by Pacific date' : `Daily ${field}, ${dateSpan(daily)}`,queryIds,sourceRowsByQuery:Object.fromEntries(queryIds.map(key=>[key,rows(key)]))}
     return <DataComponent {...{id,queryId,title,description}} kind="metric" variant="card" queryIds={trend.queryIds} displayRows={rows(queryId)} sourceRows={rows(queryId)} sourceRowsByQuery={trend.sourceRowsByQuery}>
       <div className="egm-metric-reading" data-reviewed-rows><span className="egm-metric-value">{n(value)}</span>{field&&trendValues.length>=2&&(!websiteMetric||new Set(trendValues).size>=2)&&<MetricSparkline values={trend.trendValues} label={trend.trendLabel} tone="neutral" className="egm-metric-sparkline" />}</div>
       {secondary&&<p className="egm-metric-secondary" data-reviewed-rows>{secondary}</p>}
-      {weekly&&<p className="egm-metric-secondary" data-reviewed-rows title={`Latest seven reported days (${weekly.mid}–${weekly.end}) compared with the preceding seven, using additive ${field} counts.`}>{weekly.change>=0?'+':''}{Math.round(weekly.change).toLocaleString('en-US')}% w/w</p>}
+      {weekly&&<p className="egm-metric-secondary" data-reviewed-rows title={`Latest seven complete reported days (${weekly.mid}–${weekly.end}) compared with the preceding seven.${weekly.reconstructed?' Reconstructed new stars from observed current stargazers; removed stars unavailable. Partial day excluded.':` Additive ${field} counts.`}`}>{weekly.reconstructed?'New stars ':''}{weekly.change>=0?'+':''}{Math.round(weekly.change).toLocaleString('en-US')}% w/w{weekly.reconstructed?' (reconstructed)':''}</p>}
     </DataComponent>
   }
   if(activeTabId==='acquisition') {
@@ -163,7 +164,6 @@ export function DashboardContent() {
   const starDisplayRows=starHistory.map((row,index)=>({...row,completedStars:partialStarDay&&index===starHistory.length-1?null:row.stars,partialStars:partialStarDay&&index>=starHistory.length-2?row.stars:null,coverage:partialStarDay&&row.date===observedPacificDate?'Partial day':'Complete day'}))
   const starSpec={...line('completedStars',['completedStars','partialStars']),showLegend:false,colors:{completedStars:'var(--chart-1)',partialStars:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   return <>
-    <Section title="Overview" id="overview-heading" className="egm-overview-heading" spacing="none"/>
     <OverviewSummary queries={queries}/>
     <SortableRegion id="reach:canvas" variant="freeform" className="egm-dashboard-grid egm-reach-grid" authoredRevision={4} rows={[
       {id:'reach:metrics',kind:'metrics',items:['unique-visitors','total-views','total-clones','stars']},

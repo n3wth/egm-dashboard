@@ -31,13 +31,17 @@ const cookie = (name,value,age=3600) => `${name}=${value}; Path=/; Secure; HttpO
 const cookieValue = (request,name) => request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1)
 const json = (value,status=200,headers={}) => new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json','cache-control':'private, no-store',...headers}})
 const escape = value => String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+export function profilePhoto(value) {
+  try {const url=new URL(value);return typeof value==='string'&&value.length<=2048&&url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.port&&!url.username&&!url.password?url.href:null}catch{return null}
+}
 function page(title,body,status=200) {
   return new Response(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} · EGM</title><style>html{color-scheme:light dark}body{font:16px system-ui;margin:0;background:light-dark(#fff,#181818);color:light-dark(#202124,#fff)}main{max-width:440px;margin:12vh auto;padding:32px}h1{font-size:26px}p{line-height:1.65;color:light-dark(#555,#aaa)}a,button{display:inline-block;padding:12px 18px;border:0;border-radius:9px;background:#1b6ef3;color:#fff;text-decoration:none;font:inherit}small{display:block;margin-top:32px;color:#888}</style></head><body><main><h1>${escape(title)}</h1>${body}<small>EGM Growth Dashboard · Private access</small></main></body></html>`,{status,headers:{'content-type':'text/html;charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'same-origin','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'"}})
 }
 async function identity(request,env) {
   const session=await open(cookieValue(request,'__Host-egm_session'),env.SESSION_SECRET,'session')
   if(!session || typeof session.sid!=='string') return null
-  return env.DB.prepare('SELECT users.* FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id=? AND sessions.expires_at>?').bind(session.sid,now()).first()
+  const user=await env.DB.prepare('SELECT users.* FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id=? AND sessions.expires_at>?').bind(session.sid,now()).first()
+  return user?{...user,profilePictureUrl:profilePhoto(session.profilePictureUrl)}:null
 }
 let jwksCache
 async function mcpOwner(request,env) {
@@ -152,7 +156,7 @@ export async function handle(request,env,ctx) {
     await env.DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(sid,user.id,now()+3600).run()
     const headers=new Headers({location:'/overview','cache-control':'private, no-store'})
     headers.append('set-cookie',clear)
-    headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid},env.SESSION_SECRET,'session')))
+    headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid,profilePictureUrl:profilePhoto(user.profile_picture_url)},env.SESSION_SECRET,'session')))
     return new Response(null,{status:302,headers})
   }
   const user=await identity(request,env)
@@ -171,7 +175,7 @@ export async function handle(request,env,ctx) {
     const canEdit=user.email===env.OWNER_EMAIL && user.verified===1
     const read=async()=>{
       const record=await env.DB.prepare('SELECT body,revision FROM presentation WHERE id=1').first()
-      return {presentation:JSON.parse(record.body),revision:record.revision,canEdit,viewer:{name:user.name??'',email:user.email}}
+      return {presentation:JSON.parse(record.body),revision:record.revision,canEdit,viewer:{name:user.name??'',email:user.email,profilePictureUrl:user.profilePictureUrl}}
     }
     if(request.method==='GET') return json(await read())
     if(request.method!=='PUT') return json({error:'method_not_allowed'},405)
