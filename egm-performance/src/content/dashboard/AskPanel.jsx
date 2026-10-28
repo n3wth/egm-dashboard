@@ -13,7 +13,7 @@ export function LiveMetricCard({card}) {
   return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}{card.observedAt&&<time dateTime={card.observedAt}> · {new Date(card.observedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time>}</p></section>
 }
 
-function AnswerCard({card,index,turnId}) {
+export function AnswerCard({card,index,turnId}) {
   const {queries}=useDataApp()
   const rows=Array.isArray(card.rows)?card.rows:[]
   const source=queries[card.queryId]
