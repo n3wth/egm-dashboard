@@ -25,7 +25,7 @@ async function userPhotos(env,users,viewer,request) {
       const url=new URL('https://api.workos.com/user_management/users')
       url.searchParams.set('limit','100')
       if(after)url.searchParams.set('after',after)
-      const response=await request(url.href,{headers:{authorization:`Bearer ${env.WORKOS_API_KEY}`},redirect:'error',signal:AbortSignal.timeout(4000)})
+      const response=await request(url.href,{headers:{authorization:`Bearer ${env.WORKOS_API_KEY}`},redirect:'manual',signal:AbortSignal.timeout(4000)})
       if(!response.ok)break
       const body=await response.json()
       if(!Array.isArray(body.data))break

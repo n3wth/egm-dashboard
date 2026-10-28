@@ -51,10 +51,21 @@ test('user photos are bounded, limited to dashboard identities and validated',as
   }
   const result=await (await manageAccess(new Request(env.APP_URL+'/api/access'),env,{...owner,id:'user_owner'},fetcher)).json()
   assert.equal(calls.length,2)
-  assert.equal(calls[0].options.redirect,'error')
+  assert.equal(calls[0].options.redirect,'manual')
   assert.equal(result.users.find(user=>user.id==='user_owner').profilePictureUrl,'https://workoscdn.com/images/owner')
   assert.equal(result.users.find(user=>user.id==='pending').profilePictureUrl,null)
   assert.equal(result.users.some(user=>user.id==='user_other'),false)
+})
+test('redirects from the photo provider are not followed',async()=>{
+  const env={...environment(),WORKOS_API_KEY:'test-key'}
+  let calls=0
+  const result=await (await manageAccess(new Request(env.APP_URL+'/api/access'),env,owner,async(_url,options)=>{
+    calls++
+    assert.equal(options.redirect,'manual')
+    return new Response(null,{status:302,headers:{location:'https://other.example/'}})
+  })).json()
+  assert.equal(calls,1)
+  assert.equal(result.users[0].profilePictureUrl,null)
 })
 test('provider outage preserves dashboard users and verified viewer photo',async()=>{
   const env={...environment(),WORKOS_API_KEY:'test-key'}
