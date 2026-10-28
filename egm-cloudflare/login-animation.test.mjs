@@ -44,7 +44,7 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   step(0)
   step(50)
   const position = second.values.get('bootstrapX').value
-  assert.ok(position <= 556)
+  assert.ok(position <= 542)
   assert.ok(second.values.get('brainstormX').value > 101, 'nearby objects repel one another')
   document.hidden = true
   step(100)
@@ -63,12 +63,12 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   const third = instances[2]
   third.options.onLoad()
   assert.equal(third.options.artboard, 'Portrait')
-  assert.equal(third.values.get('elephantX').value, 145)
-  assert.equal(third.values.get('goldfishY').value, 445)
+  assert.equal(third.values.get('elephantX').value, 160)
+  assert.equal(third.values.get('goldfishY').value, 490)
   for (let time = 0; time <= 10000; time += 50) step(time)
-  assert.ok(third.values.get('resolveY').value + 19.2 + 25 <= 263)
+  assert.ok(third.values.get('resolveY').value + 25.2 + 33 <= 263)
   assert.ok(third.values.get('elephantY').value + 70 <= 263)
-  assert.ok(third.values.get('driftY').value + 19.2 - 25 >= 337)
+  assert.ok(third.values.get('driftY').value + 25.2 - 33 >= 337)
   assert.ok(third.values.get('goldfishY').value - 70 >= 337)
   portrait.matches = false
   listeners.portrait()
