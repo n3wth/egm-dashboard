@@ -1,10 +1,10 @@
 import {percentage} from './percentage.mjs'
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ChartTooltip, DataComponent, DataTable, EvidenceChart, Icon, MetricCard, MetricSparkline, Section, SortableItem, SortableRegion, useDataApp, useDashboardTabs } from '../../data-app-public.jsx'
 import './egm.css'
 import {Research} from './Research.jsx'
 import {Mentions} from './Mentions.jsx'
-import channelIcons from './channel-icons.json'
+import {sourceIcon} from './source-icon.mjs'
 import {SiteName} from './SiteName.jsx'
 import {weeklyChange,starWeeklyChange} from './weekly-change.mjs'
 import {InsightCallout} from './InsightCallout.jsx'
@@ -38,7 +38,7 @@ const combinedReferralViews = rows => {
     const source = row.referrer === 'linkedin.com' || row.referrer === 'com.linkedin.android' ? 'LinkedIn' : sourceLabel(row.referrer)
     groups.set(source, (groups.get(source) ?? 0) + row.count)
   }
-  return [...groups].map(([source,count])=>({source,count,__categoryIcon:channelIcons[source]?'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(channelIcons[source].replaceAll('currentColor','#a0a0a0')):undefined})).sort((a,b)=>b.count-a.count)
+  return [...groups].map(([source,count])=>({source,count,__categoryIcon:sourceIcon(source)})).sort((a,b)=>b.count-a.count)
 }
 function StarTooltip({active,payload=[],label}) {
   const row=payload[0]?.payload
@@ -47,9 +47,22 @@ function StarTooltip({active,payload=[],label}) {
   if(row?.coverage)details.push({label:'Coverage',value:row.coverage})
   return <ChartTooltip active={active} label={row?.date?shortDate(row.date):label} details={details}/>
 }
+function Changed({value,children,as:Tag='div'}) {
+  const previous=useRef(value)
+  const [changed,setChanged]=useState(false)
+  useEffect(()=>{
+    if(previous.current!==value) {
+      previous.current=value
+      setChanged(true)
+      const timer=setTimeout(()=>setChanged(false),800)
+      return ()=>clearTimeout(timer)
+    }
+  },[value])
+  return <Tag className={changed?'egm-live-changed':undefined} onAnimationEnd={()=>setChanged(false)}>{children}</Tag>
+}
 function Plot({id,queryId,title,rows,spec,description,sourceRows=rows,children,chartOptions}) {
   const brandedSpec = { ...spec, colors: spec.colors ?? {[spec.y]:'var(--chart-1)'} }
-  return <EvidenceChart {...{id,queryId,title,rows,description,sourceRows,chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart>
+  return <Changed value={JSON.stringify(rows)}><EvidenceChart {...{id,queryId,title,rows,description,sourceRows,chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart></Changed>
 }
 function Table({id,queryId,title,rows,columns,searchable=false}) {
   return <DataComponent {...{id,queryId,title}} kind="table" variant="card" displayRows={rows} sourceRows={rows}><DataTable {...{rows,columns,searchable}} label={title} /></DataComponent>
@@ -95,7 +108,7 @@ export function DashboardContent() {
     const queryIds=[...new Set([queryId,...(field&&queries[historyQuery]?[historyQuery]:[]),...(websiteMetric?['reach']:[])])]
     const trend = {trendValues,trendLabel:websiteMetric?'Observed rolling 14-day GitHub referrals since monitoring began':id === 'stars' ? 'Cumulative current stargazers by Pacific date' : `Daily ${field}, ${dateSpan(daily)}`,queryIds,sourceRowsByQuery:Object.fromEntries(queryIds.map(key=>[key,rows(key)]))}
     return <DataComponent {...{id,queryId,title,description}} kind="metric" variant="card" queryIds={trend.queryIds} displayRows={rows(queryId)} sourceRows={rows(queryId)} sourceRowsByQuery={trend.sourceRowsByQuery}>
-      <div className="egm-metric-reading" data-reviewed-rows><span className="egm-metric-value">{n(value)}</span>{field&&trendValues.length>=2&&(!websiteMetric||new Set(trendValues).size>=2)&&<MetricSparkline values={trend.trendValues} label={trend.trendLabel} tone="neutral" className="egm-metric-sparkline" />}</div>
+      <div className="egm-metric-reading" data-reviewed-rows><span className="egm-metric-value"><Changed as="span" value={value}>{n(value)}</Changed></span>{field&&trendValues.length>=2&&(!websiteMetric||new Set(trendValues).size>=2)&&<MetricSparkline values={trend.trendValues} label={trend.trendLabel} tone="neutral" className="egm-metric-sparkline" />}</div>
       {secondary&&<p className="egm-metric-secondary" data-reviewed-rows>{secondary}</p>}
       {weekly&&<p className="egm-metric-secondary" data-reviewed-rows title={`Latest seven complete reported days (${weekly.mid}–${weekly.end}) compared with the preceding seven.${weekly.reconstructed?' Reconstructed new stars from observed current stargazers; removed stars unavailable. Partial day excluded.':` Additive ${field} counts.`}`}>{weekly.change>=0?'+':''}{Math.round(weekly.change).toLocaleString('en-US')}% w/w</p>}
     </DataComponent>

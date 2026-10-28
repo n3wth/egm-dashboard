@@ -2,6 +2,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {seal,open,handle,profilePhoto} from './worker.mjs'
 const secret='a'.repeat(64)
+test('pending badge endpoint and live connection require an approved admin and same origin',async()=>{
+  const env={APP_URL:'https://egm.n3wth.com',OWNER_EMAIL:'oliver@newth.ai',SESSION_SECRET:secret}
+  let user={id:'owner',email:env.OWNER_EMAIL,verified:1,status:'approved'}
+  env.DB={prepare(sql){return sql.includes('EXISTS')?{first:async()=>({pending:1})}:{bind(){return {first:async()=>user}}}}}
+  const token=await seal({sid:'session'},secret,'session')
+  const headers={cookie:'__Host-egm_session='+token}
+  const read=()=>handle(new Request(env.APP_URL+'/api/access-pending',{headers}),env)
+  assert.deepEqual(await (await read()).json(),{pending:true})
+  const socket=(origin)=>handle(new Request(env.APP_URL+'/api/access-live',{headers:{...headers,origin,upgrade:'websocket'}}),env)
+  assert.equal((await socket('https://evil.example')).status,400)
+  user={...user,email:'guest@example.com'}
+  assert.equal((await read()).status,403)
+  assert.equal((await socket(env.APP_URL)).status,403)
+})
 test('WorkOS avatar accepts exact HTTPS CDN only',()=>{
   assert.equal(profilePhoto('https://workoscdn.com/images/v1/photo'),'https://workoscdn.com/images/v1/photo')
   for(const value of ['http://workoscdn.com/photo','https://workoscdn.com.evil.example/photo','https://user:pass@workoscdn.com/photo','https://workoscdn.com:444/photo','data:image/png;base64,AA',null])assert.equal(profilePhoto(value),null)

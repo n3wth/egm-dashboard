@@ -64,3 +64,15 @@ test('provider outage preserves dashboard users and verified viewer photo',async
   const result=await response.json()
   assert.equal(result.users.find(user=>user.id==='user_owner').profilePictureUrl,'https://workoscdn.com/images/owner')
 })
+test('admin user-list photo lookups reuse a bounded cache and refresh when users change',async()=>{
+  const env={...environment(),WORKOS_API_KEY:'test-key'}
+  let calls=0
+  const fetcher=async()=>{calls++;return Response.json({data:[{id:'pending',profile_picture_url:'https://workoscdn.com/images/pending'}],list_metadata:{after:null}})}
+  const read=()=>manageAccess(new Request(env.APP_URL+'/api/access'),env,owner,fetcher)
+  assert.equal((await (await read()).json()).users[0].profilePictureUrl,'https://workoscdn.com/images/pending')
+  await read()
+  assert.equal(calls,1)
+  env.db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?,?)').run('new','New','new@example.org','pending','2026-10-28',null,null)
+  await read()
+  assert.equal(calls,2)
+})

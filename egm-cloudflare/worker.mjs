@@ -11,6 +11,8 @@ import {syncWorkosMember,syncWorkosMemberships} from './workos-membership.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
 import {readVerifiedWorkosEmail,reconcileVerifiedEmail} from './workos-identity.mjs'
 import {issueUserSessionsWidgetToken} from './workos-widgets.mjs'
+import {accessLive,accessChanged} from './access-live.mjs'
+export {AccessLive} from './access-live.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 const enc = new TextEncoder()
 const b64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')
@@ -132,6 +134,7 @@ async function mcp(request,env,ctx) {
       const result=await env.DB.prepare("UPDATE users SET status=?, decided_at=?, decided_by=? WHERE id=? AND status='pending'").bind(a.decision,new Date().toISOString(),owner.id,a.request_id).run()
       if(!result.meta.changes) return error(-32602,'Request missing or already decided')
       await env.DB.prepare('INSERT INTO audit VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),a.request_id,a.decision,owner.id,new Date().toISOString()).run()
+      ctx?.waitUntil(accessChanged(env).catch(()=>{}))
       data={request_id:a.request_id,status:a.decision}
     } else return error(-32602,'Invalid tool arguments')
     return reply({content:[{type:'text',text:JSON.stringify(data)}]})
@@ -217,6 +220,7 @@ export async function handle(request,env,ctx) {
     if(!existing && !invited) {
       await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,[user.first_name,user.last_name].filter(Boolean).join(' ')||email,isOwner?'approved':'pending',new Date().toISOString()).run()
       if(!isOwner) ctx?.waitUntil(flushApprovalEvents(env))
+      if(!isOwner) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     }
     const sid=random()
     await env.DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(sid,user.id,now()+3600).run()
@@ -250,13 +254,27 @@ export async function handle(request,env,ctx) {
     return renderAccessPage('signin')
   }
   if(user.status!=='approved') return renderAccessPage(user.status==='pending'?'pending':'denied')
+  if(url.pathname==='/api/access-live') {
+    if(request.method!=='GET' || request.headers.get('upgrade')?.toLowerCase()!=='websocket' || request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_request'},400)
+    if(!await accessManager(user,env)) return json({error:'owner_required'},403)
+    const live=accessLive(env)
+    return live?live.fetch(request):json({error:'unavailable'},503)
+  }
+  if(url.pathname==='/api/access-pending') {
+    if(request.method!=='GET') return json({error:'method_not_allowed'},405)
+    if(!await accessManager(user,env)) return json({error:'owner_required'},403)
+    const row=await env.DB.prepare("SELECT EXISTS(SELECT 1 FROM users WHERE status='pending' AND verified=1) AS pending").first()
+    return json({pending:row?.pending===1})
+  }
   if(url.pathname==='/api/workos-widget-token') return issueUserSessionsWidgetToken(request,env,user,user.workosAccessToken)
   if(url.pathname==='/api/site-icon') return cachedSiteIcon(request,env)
   if(url.pathname==='/api/ask') return handleAsk(request,env,user)
   if(url.pathname==='/api/access' || url.pathname==='/api/invitations' || url.pathname==='/api/invitations/revoke') {
     if(request.method==='POST' && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
     user.canManageAccess=await accessManager(user,env)
-    return url.pathname==='/api/access'?manageAccess(request,env,user):manageInvitations(request,env,user)
+    const response=await (url.pathname==='/api/access'?manageAccess(request,env,user):manageInvitations(request,env,user))
+    if(url.pathname==='/api/access' && request.method==='POST' && response.ok) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
+    return response
   }
   if(url.pathname==='/api/refresh' && request.method==='POST') {
     if(request.headers.get('origin')!==env.APP_URL || !await accessManager(user,env)) return json({error:'owner_required'},403)
