@@ -36,6 +36,7 @@ See the [official Codex Cloud environment documentation](https://learn.chatgpt.c
 
 ## Optional integrations
 
+- Dashboard usage tracking uses PostHog when `VITE_POSTHOG_PROJECT_TOKEN` and `VITE_POSTHOG_HOST` are set at build time. Set both as GitHub Actions repository variables for production. Only section views are sent; automatic interaction capture and session replay are disabled. Local and preview hosts do not send events. The project token is public and must not be a personal API key.
 - `GOOGLE_WEB_PERFORMANCE_API_KEY` enables PageSpeed Insights and Chrome UX Report collection for egm.dev. Collection follows the existing refresh window and cache; missing or stale provider data is identified in the dashboard.
 - Apply `egm-cloudflare/invitations-schema.sql` to the target D1 database before using invitations. Link invitations expire and can be revoked; email invitations require `INVITATION_EMAIL_ENABLED=true` and a `RESEND_API_KEY` for a verified n3wth.com sender. A provider accepting an email does not guarantee delivery.
 - WorkOS administration requires the session schema in `egm-cloudflare/workos-session-schema.sql`, a dashboard organization and admin permission, a pinned `WORKOS_OWNER_USER_ID`, `WORKOS_API_KEY`, and the settings shown in `.env.example`. Verify the issuer from the target environment before enabling `WORKOS_RBAC_ENABLED`. With RBAC enabled, administration and presentation edits require the dashboard admin permission.

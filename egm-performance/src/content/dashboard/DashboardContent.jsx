@@ -10,6 +10,7 @@ import {weeklyChange,starWeeklyChange} from './weekly-change.mjs'
 import {InsightCallout} from './InsightCallout.jsx'
 import {OverviewSummary} from './OverviewSummary.jsx'
 import {PageSummary} from './PageSummary.jsx'
+import {trackDashboardSection} from './usage-analytics.js'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = value => value == null ? 'Unavailable' : Number(value).toLocaleString('en-US')
@@ -76,6 +77,7 @@ export function DashboardContent() {
     if (appTitle === 'EGM performance') setAppTitle('EGM Growth Dashboard')
   }, [appTitle,setAppTitle])
   const {activeTabId} = useDashboardTabs(tabs)
+  useEffect(() => { trackDashboardSection(activeTabId) }, [activeTabId])
   if(activeTabId==='research') return <Research />
   if(activeTabId==='mentions') return <Mentions />
   const rows = id => queries[id]?.rows??[]
