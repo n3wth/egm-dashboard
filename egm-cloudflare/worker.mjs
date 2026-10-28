@@ -2,6 +2,7 @@ import {validatePresentation} from '../egm-performance/src/presentation-state.js
 import {runRefresh} from './refresh-runner.mjs'
 import {approvalEventsRpc,flushApprovalEvents} from './approval-events.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
+import {cachedSiteIcon} from './favicon-cache.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 const enc = new TextEncoder()
 const b64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')
@@ -158,6 +159,7 @@ export async function handle(request,env,ctx) {
     return renderAccessPage('signin')
   }
   if(user.status!=='approved') return renderAccessPage(user.status==='pending'?'pending':'denied')
+  if(url.pathname==='/api/site-icon') return cachedSiteIcon(request,env)
   if(url.pathname==='/api/refresh' && request.method==='POST') {
     if(user.email!==env.OWNER_EMAIL || user.verified!==1 || request.headers.get('origin')!==env.APP_URL) return json({error:'owner_required'},403)
     return json(await runRefresh(env))

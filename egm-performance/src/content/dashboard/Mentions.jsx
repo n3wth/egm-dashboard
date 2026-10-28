@@ -1,5 +1,6 @@
 import React from 'react'
 import {DataComponent,DataTable,Section,useDataApp} from '../../data-app-public.jsx'
+import {SiteName} from './SiteName.jsx'
 
 const stamp=value=>!value?'Unknown':/^\d{4}-\d{2}-\d{2}$/.test(value)?new Date(value+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):new Date(value).toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' PT'
 const mentionLink=(value,row)=><a className="egm-mention-link" href={row.url} target="_blank" rel="noreferrer nofollow">{value}</a>
@@ -11,7 +12,7 @@ function ShortDate({value}) {
   const full=date.toLocaleString('en-US',{timeZone:'America/Los_Angeles',year:'numeric',month:'long',day:'numeric',...(!dateOnly?{hour:'numeric',minute:'2-digit',timeZoneName:'short'}:{})})
   return <time dateTime={value} title={full} aria-label={full}>{date.toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'})}</time>
 }
-const mentionTitle=(value,row)=><div className="egm-mentions-title">{mentionLink(value,row)}<div className="egm-mentions-detail"><span>{row.platform??row.domain}</span>{row.discoveryProviders?.length>0&&<span>Found by {row.discoveryProviders.join(' and ')}</span>}{dateValue(row.published)&&<span>Published <ShortDate value={row.published}/></span>}</div></div>
+const mentionTitle=(value,row)=><div className="egm-mentions-title">{mentionLink(value,row)}<div className="egm-mentions-detail"><SiteName url={row.url} label={row.platform??row.domain}/>{row.discoveryProviders?.length>0&&<span>Found by {row.discoveryProviders.join(' and ')}</span>}{dateValue(row.published)&&<span>Published <ShortDate value={row.published}/></span>}</div></div>
 function MentionRows({rows,label}) {
   const columns=[{field:'title',label:'Mention',renderCell:mentionTitle},...(rows.some(row=>dateValue(row.firstSeen))?[{field:'firstSeen',label:'First seen',renderCell:value=><ShortDate value={value}/>}]:[])]
   return <div className="egm-mentions-table" data-has-dates={columns.length>1?'true':'false'}><DataTable rows={rows} searchable={rows.length>8} label={label} columns={columns}/></div>
@@ -25,10 +26,8 @@ function VideoGallery({rows,queries}) {
   return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="Videos" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:rows,...(queries.youtube_videos?{youtube_videos:metadata}:{})}}>
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
       <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${row.id}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><h3 title={row.title}>{row.title}</h3></a>
-      <p className="egm-video-meta egm-video-channel" title={row.channelTitle??row.channel??'Channel unavailable'}>{row.channelTitle??row.channel??'Channel unavailable'}</p>
-      <p className="egm-video-meta egm-video-published">{dateValue(row.published)?<>Published <ShortDate value={row.published}/></>:null}</p>
-      <div className="egm-video-stats">{typeof row.views==='number'?<span aria-label={`${row.views.toLocaleString('en-US')} ${row.views===1?'view':'views'}`}>{compactCount(row.views)} {row.views===1?'view':'views'}</span>:<span>Views unavailable</span>}{typeof row.likes==='number'&&<span aria-label={`${row.likes.toLocaleString('en-US')} ${row.likes===1?'like':'likes'}`}>{compactCount(row.likes)} {row.likes===1?'like':'likes'}</span>}{typeof row.comments==='number'&&<span aria-label={`${row.comments.toLocaleString('en-US')} ${row.comments===1?'comment':'comments'}`}>{compactCount(row.comments)} {row.comments===1?'comment':'comments'}</span>}</div>
-      <p className="egm-video-meta egm-video-checked">{typeof row.views==='number'&&(row.statsObservedAt||row.observedAt)?<>Stats checked <ShortDate value={row.statsObservedAt||row.observedAt}/></>:null}</p>
+      {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><span title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</span>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
+      <div className="egm-video-stats" title={dateValue(row.statsObservedAt||row.observedAt)?`Statistics observed ${stamp(row.statsObservedAt||row.observedAt)}`:undefined}>{typeof row.views==='number'?<span aria-label={`${row.views.toLocaleString('en-US')} ${row.views===1?'view':'views'}`}>{compactCount(row.views)} {row.views===1?'view':'views'}</span>:<span>Views unavailable</span>}{typeof row.likes==='number'&&<span aria-label={`${row.likes.toLocaleString('en-US')} ${row.likes===1?'like':'likes'}`}>{compactCount(row.likes)} {row.likes===1?'like':'likes'}</span>}{typeof row.comments==='number'&&<span aria-label={`${row.comments.toLocaleString('en-US')} ${row.comments===1?'comment':'comments'}`}>{compactCount(row.comments)} {row.comments===1?'comment':'comments'}</span>}</div>
     </article>)}</div>
   </DataComponent>
 }
@@ -49,7 +48,7 @@ const canonicalUrl=value=>{
 }
 
 function additionalDiscovery(queries,primaryRows) {
-  const providers=[['Exa','exa_mentions','exa_status'],['Tavily','tavily_mentions','tavily_status']].filter(([,id,statusId])=>queries[id]||queries[statusId])
+  const providers=[['Exa','exa_mentions','exa_status'],['Tavily','tavily_mentions','tavily_status'],['Parallel','parallel_mentions','parallel_status']].filter(([,id,statusId])=>queries[id]||queries[statusId])
   const known=new Set(primaryRows.map(row=>canonicalUrl(row.url)))
   const unique=new Map()
   const sourceRowsByQuery={}
@@ -71,7 +70,7 @@ function additionalDiscovery(queries,primaryRows) {
 }
 function CollectionNote({provider,status}) {
   if(!status)return null
-  return <p className="egm-note egm-mentions-collection">{provider}: {status.status==='stale'?'latest search failed; showing cached results. ':status.status==='expired'?'scheduled search has ended. ':status.status==='unavailable'?'search unavailable. ':''}Last search {dateValue(status.lastSuccessAt)?<ShortDate value={status.lastSuccessAt}/>:<span>not yet collected</span>}.</p>
+  return <p className="egm-note egm-mentions-collection"><SiteName label={provider}/> {status.status==='stale'?'Latest search failed; showing cached results ':status.status==='expired'?'Scheduled search has ended ':status.status==='unavailable'?'Search unavailable ':''}Last search {dateValue(status.lastSuccessAt)?<ShortDate value={status.lastSuccessAt}/>:<span>not yet collected</span>}</p>
 }
 function SupplementaryMentions({discovery}) {
   const {rows,queryIds,sourceRowsByQuery,providers}=discovery
@@ -100,7 +99,7 @@ export function Mentions() {
       {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Discovery and coverage" kind="custom" variant="card" displayRows={allRows} sourceRowsByQuery={{mentions:rows,mentions_status:queries.mentions_status?.rows??[],...discovery.sourceRowsByQuery}}>
         <p className="egm-copy">{allRows.length?`${allRows.length.toLocaleString('en-US')} unique URLs discovered${since?` since ${since}`:''}.`:'No URLs collected yet.'}</p>
         <p className="egm-note">{status?.status==='stale'?'Latest search failed; showing cached results. ':status?.status==='expired'?'Scheduled search has ended. ':status?.status==='unavailable'?'Search unavailable. ':''}Last search: {stamp(status?.lastSuccessAt)}. Indexed coverage is incomplete.</p>
-        {discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}
+        <div className="egm-mentions-provider-notes">{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
       </DataComponent>:<p className="egm-note">Public mentions have not completed their first collection.</p>}
     </Section>
     {groups.map(([kind,title])=>{

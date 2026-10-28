@@ -2,7 +2,7 @@
 
 Verified 2026-10-28. Published at https://egm.n3wth.com/overview.
 
-- Source build passed. All 74 backend and live snapshot tests passed.
+- Source build passed. All 84 backend and live snapshot tests passed.
 - Browser verified title-to-Overview navigation, compact repo/PR labels, top-aligned tables, Semrush backlinks, and Firecrawl/Exa discovery.
 - Favicon returns HTTP 200 with image/svg+xml. Sign-in page visually inspected at 698px.
 - Actual logout revoked the session. Private snapshot API returned sign_in_required. Google sign-in restored owner access.
@@ -15,6 +15,10 @@ The integrated refresh uses a bounded lease and publishes only the final merged 
 
 Tavily's stored credential was configured as a Worker secret without printing its value. Live collection succeeded: three basic requests, seven retained results. Daily caching and a seven-batch cap are tested. Provider results are deduplicated for display while original query records remain in Sources.
 
-Local Research leads were browser-checked at 698px: readable full-width rows, default estimated-English filter, no document horizontal overflow. Final visual browser checks after the latest publication remain pending while the browser is handed to Oliver for Google Cloud passkey confirmation. Google YouTube API key setup is not yet complete.
+Research leads were browser-checked live at 698px: readable full-width rows, default estimated-English filter, no document horizontal overflow. Google YouTube API key setup still requires Google Cloud passkey confirmation. Existing video statistics continue using the bounded collector.
+
+Parallel live collection succeeded with two bounded requests and eight retained results. Provider records remain separate in Sources and deduplicated in the UI. Generic website icons use a fixed Vemetric upstream with PNG validation, allowed-host checks, authenticated delivery, and seven-day caching. Exa, Tavily, and Parallel render bundled single-color SVG brand marks.
+
+WorkOS EGM application-specific branding was saved with all six light/dark icon, logo, and favicon uploads. The editor was reloaded and asset paths plus the rendered icon were verified. EGM's default sign-out destination is https://egm.n3wth.com/. Shared environment authentication methods and Cineplex branding were not changed.
 
 Approval event methods are deployed at /mcp. Dot still needs an authenticated EGM connection and successful webhook subscription. No supported connection-creation tool was available, so active Dot notifications are not claimed.

@@ -31,4 +31,6 @@ Gemini's malformed-URL finding was rejected after inspecting the canonicalizer: 
 
 The final batch passes the source build and 74 tests, including six bounded Tavily collector tests. Research uses readable responsive leads, an estimated-English default filter, action-first proposals, and original source records. The incomplete final star-day segment is translucent. Publishing and anonymous endpoint checks are recorded in VALIDATION.md.
 
+Follow-up judgment accepted the zoom defect in gradient-based partial-day styling. Separate completed/partial series now preserve the correct segment under zoom. A Fable review identified mismatched experiment text and quotes; both Overview and Research now use a shared theme-based proposal helper. Its suggestion to emphasize huge percentage changes from a 57-view baseline was rejected in favor of the Data review's measured concentration insight. Final expansion passes 84 tests. Muse could not receive a task through this Harness session, and the direct Claude `muse` model name was rejected; no Muse review is claimed.
+
 A reviewer suggested moving long refreshes into HTTP waitUntil. This is not accepted as a durable-job solution: background HTTP execution has its own time bound. Scheduled ingestion and cheap client polling remain separate.

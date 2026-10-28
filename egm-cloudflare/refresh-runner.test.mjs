@@ -123,7 +123,7 @@ test('failed bootstrap skips paid collectors without discarding unpersistable bu
   const collector = async () => { calls++; return {} }
   const result = await runRefresh(f.env, noRequest, {
     now: () => baseTime, github: async () => { throw Error('GitHub unavailable') },
-    semrush: collector, mentions: collector, exa: collector, exaResearch: collector, contentResearch: collector, youtube: collector, tavily: collector
+    semrush: collector, mentions: collector, exa: collector, exaResearch: collector, contentResearch: collector, youtube: collector, tavily: collector, parallel: collector
   })
   assert.equal(result.status, 'failed')
   assert.equal(result.reason, 'no_base_snapshot')
@@ -134,7 +134,7 @@ test('failed bootstrap skips paid collectors without discarding unpersistable bu
 })
 
 test('every collector checks deadline before consuming source attempt budgets', async () => {
-  const names = ['semrush', 'mentions', 'exa', 'exaResearch', 'contentResearch', 'youtube', 'tavily']
+  const names = ['semrush', 'mentions', 'exa', 'exaResearch', 'contentResearch', 'youtube', 'tavily', 'parallel']
   for (let stopAfter = -1; stopAfter < names.length; stopAfter++) {
     const f = fixture()
     const budget = { rows: [{ successfulBatches: 3, totalCostDollars: 0.21 }] }

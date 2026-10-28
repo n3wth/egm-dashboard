@@ -1,8 +1,10 @@
 import React,{useState} from 'react'
-import {DataComponent,DataTable,Icon,Section,useDataApp} from '../../data-app-public.jsx'
+import {DataComponent,DataTable,Icon,MenuItem,Section,useDataApp} from '../../data-app-public.jsx'
+import {researchProposal} from './research-insights.js'
 
 const repoLink=(value,row)=><a className="egm-research-repo" href={row.url} target="_blank" rel="noreferrer">{value}</a>
 const wrappedText=value=><span className="egm-research-description">{value??'—'}</span>
+const plainExcerpt=value=>String(value??'').replace(/^\s*#{1,6}\s+/,'')
 const createdDate=value=>value?new Date(value.slice(0,10)+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}):'—'
 const focusText=value=>{
   if(!value) return '—'
@@ -47,18 +49,19 @@ function DiscussionSignals({queries}) {
   const rows=query.rows??[]
   const verified=rows.filter(row=>row.status==='verified')
   const unchecked=rows.filter(row=>row.status!=='verified')
-  const proposals={workflow:'Test one workflow example with new users; track their first successful result.',demo:'Test a short demo; track the first successful workflow afterward.',install:'Run a first-install test with new users; record completion.',friction:'Test the quoted workflow step; record where users stop.'}
+  const queryIds=['research_evidence',...(statusQuery?['research_status']:[])]
+  const sourceRowsByQuery={research_evidence:rows,...(statusQuery?{research_status:statusQuery.rows}: {})}
   return <Section title="Verified discussion signals" id="research-discussion">
-    <DataComponent id="research-discussion-evidence" queryId="research_evidence" title="Source checks and experiment proposals" kind="custom" variant="card" displayRows={rows} sourceRows={rows}>
+    <DataComponent id="research-discussion-evidence" queryId="research_evidence" queryIds={queryIds} title="Source checks and experiment proposals" kind="custom" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
       <div className="egm-discussion-list" data-reviewed-rows>{verified.map(row=>{const signal=row.themes?.[0];const quote=signal?.quote?.trim().split(/\s+/).slice(0,24).join(' ');return <article key={row.url}>
         <h3><a href={row.url} target="_blank" rel="noreferrer">{row.title||new URL(row.url).hostname}</a></h3>
         <span className="egm-signal-status">Verified reference</span>
-        {quote&&<><p className="egm-signal-quote"><q>{quote}{signal.quote.trim().split(/\s+/).length>24?'…':''}</q></p><p>Suggested test: {proposals[signal.theme]??'Validate this observation with users before changing the product.'}</p></>}
+        {quote&&<><p className="egm-signal-quote"><q>{quote}{signal.quote.trim().split(/\s+/).length>24?'…':''}</q></p><p>Suggested test: {researchProposal(signal.theme)}</p></>}
       </article>})}</div>
       {unchecked.length>0&&<details className="egm-unverified-sources"><summary>{unchecked.length} sources not verified</summary>{unchecked.map(row=><p key={row.url}><a href={row.url} target="_blank" rel="noreferrer">{row.title||row.url}</a> · {row.status==='inaccessible'?'Could not retrieve':'Project reference not confirmed'}</p>)}</details>}
       <p className="egm-note">Verified means a project reference was found, not that every claim was validated.</p>
+      {statusQuery&&statusQuery.rows?.[0]?.status!=='available'&&<p className="egm-note">Collection: {statusQuery.rows?.[0]?.status??'unknown'}.</p>}
     </DataComponent>
-    {statusQuery&&<DataComponent id="research-discussion-status" queryId="research_status" title="Content research coverage" kind="custom" variant="card" displayRows={statusQuery.rows} sourceRows={statusQuery.rows}><p className="egm-note">Collection state: {statusQuery.rows?.[0]?.status??'unknown'}.</p></DataComponent>}
   </Section>
 }
 function ResearchCandidates({queries}) {
@@ -69,6 +72,8 @@ function ResearchCandidates({queries}) {
   if(!query) return null
   const statusQuery=queries.exa_research_status
   const rows=query.rows??[]
+  const queryIds=['exa_research',...(statusQuery?['exa_research_status']:[])]
+  const sourceRowsByQuery={exa_research:rows,...(statusQuery?{exa_research_status:statusQuery.rows}:{})}
   const estimated=rows.some(row=>!row.language)
   const isEnglish=row=>{
     if(row.language)return /^(en(?:[-_]|$)|english$)/i.test(row.language)
@@ -77,14 +82,15 @@ function ResearchCandidates({queries}) {
     return (text.toLowerCase().match(/\b(the|and|of|to|for|with|is|in|how|what|why|using|agent|workflow|review|model|code|design|software|skills|google|elephant|goldfish)\b/g)??[]).length>=2
   }
   const selected=rows.filter(row=>(language==='all'||isEnglish(row))&&`${row.title??''} ${row.evidence??''} ${row.domain??''} ${(row.queryAngles??[]).join(' ')}`.toLowerCase().includes(search.toLowerCase().trim()))
-  const controls=<div className="egm-research-controls"><select aria-label="Research lead language" value={language} onChange={event=>setLanguage(event.target.value)}><option value="english">English{estimated?' (estimated)':''}</option><option value="all">All languages</option></select>{searchOpen&&<input id="research-leads-search" autoFocus type="search" value={search} onChange={event=>setSearch(event.target.value)} aria-label="Search research leads" placeholder="Search leads"/>}<button type="button" aria-label={searchOpen?'Close research search':'Search research leads'} aria-expanded={searchOpen} aria-controls="research-leads-search" onClick={()=>{setSearchOpen(!searchOpen);if(searchOpen)setSearch('')}}><Icon name={searchOpen?'close':'search'} size={16}/></button></div>
+  const controls=<div className="egm-research-controls">{searchOpen&&<input id="research-leads-search" autoFocus type="search" value={search} onChange={event=>setSearch(event.target.value)} aria-label="Search research leads" placeholder="Search leads"/>}<button type="button" aria-label={searchOpen?'Close research search':'Search research leads'} aria-expanded={searchOpen} aria-controls={searchOpen?'research-leads-search':undefined} onClick={()=>{setSearchOpen(!searchOpen);if(searchOpen)setSearch('')}}><Icon name={searchOpen?'close':'search'} size={16}/></button></div>
+  const languageActions=<><MenuItem role="menuitemradio" aria-checked={language==='english'} leading={<span className="egm-filter-check">{language==='english'&&<Icon name="check" size={16}/>}</span>} onSelect={()=>setLanguage('english')}>English only{estimated?' (estimated)':''}</MenuItem><MenuItem role="menuitemradio" aria-checked={language==='all'} leading={<span className="egm-filter-check">{language==='all'&&<Icon name="check" size={16}/>}</span>} onSelect={()=>setLanguage('all')}>All languages</MenuItem></>
   return <Section title="Research leads" id="research-candidates">
-    <DataComponent id="research-candidate-table" queryId="exa_research" title="Discussion, tutorial, and workflow candidates" kind="custom" variant="card" headerControls={controls} displayRows={selected} sourceRows={rows}>
-      <div className="egm-research-leads" data-reviewed-rows>{selected.map(row=><article key={row.url}><div><h3><a href={row.url} target="_blank" rel="noreferrer">{row.title}</a></h3><p className="egm-note">{(row.queryAngles??[]).join(' · ')}</p></div><p className="egm-research-excerpt">{row.evidence}</p></article>)}</div>
+    <DataComponent id="research-candidate-table" queryId="exa_research" queryIds={queryIds} title="Discussion, tutorial, and workflow candidates" kind="custom" variant="card" className="egm-research-candidates" headerControls={controls} additionalActions={languageActions} displayRows={selected} sourceRowsByQuery={sourceRowsByQuery}>
+      <div className="egm-research-leads" data-reviewed-rows>{selected.map(row=><article key={row.url}><div><h3><a href={row.url} target="_blank" rel="noreferrer">{row.title}</a></h3><p className="egm-note">{(row.queryAngles??[]).join(' · ')}</p></div><p className="egm-research-excerpt">{plainExcerpt(row.evidence)}</p></article>)}</div>
       {!selected.length&&<p className="egm-note">No leads match these filters.</p>}
       <p className="egm-note">{selected.length} of {rows.length} leads. Unverified results may include first-party posts and mirrors.{estimated&&language==='english'?' English is estimated from indexed text; choose All languages to review every result.':''}</p>
+      {statusQuery&&statusQuery.rows?.[0]?.status!=='available'&&<p className="egm-note">Collection: {statusQuery.rows?.[0]?.status??'unknown'}.</p>}
     </DataComponent>
-    {statusQuery&&<DataComponent id="research-candidate-status" queryId="exa_research_status" title="Research search coverage" kind="custom" variant="card" displayRows={statusQuery.rows} sourceRows={statusQuery.rows}><p className="egm-note">Collection state: {statusQuery.rows?.[0]?.status??'unknown'}.</p></DataComponent>}
   </Section>
 }
 export function Research() {
@@ -109,6 +115,7 @@ export function Research() {
     ...(total?[{title:'Channel concentration',evidence:`Google and YouTube account for ${(searchVideo/total*100).toFixed(1)}% of reported referral views.`,action:'Test one additional distribution channel and compare attributed views. This is an experiment proposal, not evidence of causal lift.',source:'https://github.com/google/elephant-goldfish-model/graphs/traffic'}]:[]),
     ...(popular?[{title:'Follow observed content interest',evidence:`${popular.path.replace('/google/elephant-goldfish-model','').replace('/blob/main','')} received ${popular.count.toLocaleString('en-US')} views.`,action:'Test a clearer route from this documentation page to installation and the first successful workflow.',source:'https://github.com'+popular.path}]:[])
   ]
+  const recommendationIcons={'First-run discovery':'arrowUpRight','Show the workflow':'monitor','Channel concentration':'link','Follow observed content interest':'textDocument'}
   return <>
     <Section title="Comparable repos" id="research-peers" spacing="none">
       <DataComponent id="research-peer-table" queryId="peers" title="Reach and first-run discovery" kind="table" variant="card" displayRows={peers} sourceRows={peers}>
@@ -118,7 +125,7 @@ export function Research() {
     </Section>
     <Section title="Gaps and experiments" id="research-opportunities">
       <DataComponent id="research-opportunity-list" queryId="peers" queryIds={opportunityQueryIds} title="Opportunities to test" kind="custom" variant="card" displayRows={suggestions} sourceRowsByQuery={opportunitySourceRows}>
-        <div className="egm-opportunities">{suggestions.map(item=><div key={item.title}><h3>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} <a className="egm-evidence-link" href={item.source} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></a></p></div>)}</div>
+        <div className="egm-opportunities">{suggestions.map(item=><div key={item.title}><h3 className="egm-recommendation-title"><Icon name={recommendationIcons[item.title]} size={20}/>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} <a className="egm-evidence-link" href={item.source} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></a></p></div>)}</div>
       </DataComponent>
     </Section>
     <DiscussionSignals queries={queries}/>

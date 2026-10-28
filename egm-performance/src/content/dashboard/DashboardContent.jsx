@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react'
-import { ChartTooltip, DataComponent, DataTable, EvidenceChart, MetricCard, MetricSparkline, Section, SortableItem, SortableRegion, useDataApp, useDashboardTabs } from '../../data-app-public.jsx'
+import React, { useEffect } from 'react'
+import { ChartTooltip, DataComponent, DataTable, EvidenceChart, Icon, MetricCard, MetricSparkline, Section, SortableItem, SortableRegion, useDataApp, useDashboardTabs } from '../../data-app-public.jsx'
 import './egm.css'
 import {Research} from './Research.jsx'
 import {Mentions} from './Mentions.jsx'
 import channelIcons from './channel-icons.json'
+import {SiteName} from './SiteName.jsx'
+import {researchProposal} from './research-insights.js'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = value => value == null ? 'Unavailable' : Number(value).toLocaleString('en-US')
@@ -40,22 +42,11 @@ function StarTooltip({active,payload=[],label}) {
   return <ChartTooltip active={active} label={row?.date?shortDate(row.date):label} details={details}/>
 }
 function Plot({id,queryId,title,rows,spec,description,sourceRows=rows,children,chartOptions}) {
-  const [referralHeight,setReferralHeight]=useState(450)
-  useEffect(()=>{
-    if(id!=='referral-chart') return
-    const resize=()=>setReferralHeight(window.innerWidth<=550?400:window.innerWidth<=900?430:450)
-    resize()
-    window.addEventListener('resize',resize)
-    return ()=>window.removeEventListener('resize',resize)
-  },[id])
   const brandedSpec = { ...spec, colors: spec.colors ?? {[spec.y]:'var(--chart-1)'} }
-  return <EvidenceChart {...{id,queryId,title,rows,description,sourceRows,chartOptions}} spec={brandedSpec} variant="card" height={id==='referral-chart'?referralHeight:300}>{children}</EvidenceChart>
+  return <EvidenceChart {...{id,queryId,title,rows,description,sourceRows,chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart>
 }
 function Table({id,queryId,title,rows,columns,searchable=false}) {
   return <DataComponent {...{id,queryId,title}} kind="table" variant="card" displayRows={rows} sourceRows={rows}><DataTable {...{rows,columns,searchable}} label={title} /></DataComponent>
-}
-function ReportingPeriod({label}) {
-  return null
 }
 function AcrossEgm({queries,reach,web}) {
   const ids=['website','reach','youtube_videos','research_evidence'].filter(id=>queries[id])
@@ -65,11 +56,11 @@ function AcrossEgm({queries,reach,web}) {
   const viewShare=reach.views>0?web.referralViews/reach.views:null
   const visitorShare=reach.visitors>0?web.referralVisitors/reach.visitors:null
   const displayRows=[{signal:'Website referrals',views:web.referralViews,viewShare,visitorShare},...(strongest?[{signal:'Observed video views',url:strongest.url,views:strongest.views}]:[]),...(discussion?[{signal:'Verified project reference',url:discussion.url,theme:discussion.themes[0].theme}]:[])]
-  return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Across EGM" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
+  return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
     <div className="egm-overview-signals" data-reviewed-rows>
-      <article><h3>Website contribution</h3><p className="egm-overview-number">{viewShare==null?'Unavailable':`${(viewShare*100).toFixed(1)}%`}</p><p>of repo views came from egm.dev{visitorShare==null?'':`; ${(visitorShare*100).toFixed(1)}% of repo visitors`}.</p><a href="/website">Website</a></article>
-      <article><h3>Most-viewed observed video</h3>{strongest?<><a className="egm-overview-video" href={`https://www.youtube.com/watch?v=${strongest.videoId}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${strongest.videoId}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><span>{strongest.title}</span></a><p>{new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(strongest.views)} views · {strongest.channel??'YouTube'}</p></>:<p>Video view counts are unavailable.</p>}<a href="/mentions">Mentions</a></article>
-      <article><h3>Research to act on</h3>{discussion?<><a href={discussion.url} target="_blank" rel="noreferrer">{discussion.title}</a><p>Verified project reference · {discussion.themes[0].theme}</p><p>Experiment proposal: test a concrete first-run workflow and measure successful completion.</p></>:<p>Discussion evidence has not been verified yet.</p>}<a href="/research">Research</a></article>
+      <article><h3>Website referrals</h3><dl className="egm-overview-ratios"><div><dd>{viewShare==null?'Unavailable':`${(viewShare*100).toFixed(1)}%`}</dd><dt>of repo views</dt></div><div><dd>{visitorShare==null?'Unavailable':`${(visitorShare*100).toFixed(1)}%`}</dd><dt>of repo visitors</dt></div></dl><p><SiteName url="https://egm.dev" label="egm.dev"/></p><a className="egm-overview-next" href="/website">Website <Icon name="arrowUpRight" size={14}/></a></article>
+      <article><h3>Top video</h3>{strongest?<><a className="egm-overview-video" href={`https://www.youtube.com/watch?v=${strongest.videoId}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${strongest.videoId}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><span title={strongest.title}>{strongest.title}</span></a><p>{new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(strongest.views)} observed views · {strongest.channel??'YouTube'}</p></>:<p>Video view counts unavailable.</p>}<a className="egm-overview-next" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a></article>
+      <article><h3>Next experiment</h3>{discussion?<><p className="egm-overview-action">{researchProposal(discussion.themes[0].theme)}</p><p className="egm-overview-quote">“{discussion.themes[0].quote}”</p><a className="egm-overview-source" href={discussion.url} target="_blank" rel="noreferrer"><SiteName url={discussion.url}/></a></>:<p>Discussion evidence not verified yet.</p>}<a className="egm-overview-next" href="/research">Research <Icon name="arrowUpRight" size={14}/></a></article>
     </div>
   </DataComponent>
 }
@@ -83,6 +74,7 @@ export function DashboardContent() {
   if(activeTabId==='mentions') return <Mentions />
   const rows = id => queries[id]?.rows??[]
   const reach = rows('reach')[0], daily = rows('traffic'), web = rows('website')[0], queue = rows('maintenance')[0]
+  const recentDays=daily.slice(-3),recentViews=sum(recentDays,'views'),windowViews=sum(daily,'views')
   const item = (id,span,content,kind='chart') => <SortableItem key={id} id={id} label={id} kind={kind} className={`egm-block egm-block--${kind}`} style={{'--egm-span':span}}>{content}</SortableItem>
   const metric = (id,queryId,title,value,description,secondary) => {
     const field = {'unique-visitors':'visitors','total-views':'views','total-clones':'clones',stars:'stars','website-visitors':'referralVisitors','website-views':'referralViews'}[id]
@@ -100,14 +92,14 @@ export function DashboardContent() {
   if(activeTabId==='acquisition') {
     const channels = combinedReferralViews(rows('referrers'))
     const attributed = sum(channels,'count')
+    const searchVideoViews=sum(channels.filter(row=>['Google','YouTube'].includes(row.source)),'count')
     const channelRows = channels.map(row=>({...row,shareOfRepoViews:row.count/reach.views,shareOfReportedReferrals:row.count/attributed}))
     return <>
-      <ReportingPeriod label="Acquisition" />
       <Section id="acquisition-channels-heading" title="Channel contribution" spacing="none">
         <Plot id="acquisition-channels" queryId="referrers" title="Repo views by channel" rows={channels} sourceRows={rows('referrers')} spec={{type:'horizontalBar',presentation:'plot',x:'source',y:'count',showValues:true,showXAxisLabel:false,showYAxisLabel:false}} />
         <DataComponent id="acquisition-shares" queryId="referrers" queryIds={['referrers','reach']} title="Channel share" kind="table" variant="card" displayRows={channelRows} sourceRowsByQuery={{referrers:rows('referrers'),reach:rows('reach')}}>
           <DataTable rows={channelRows} searchable={false} label="Channel share" columns={[{field:'source',label:'Channel'},{field:'count',label:'Views'},{field:'shareOfRepoViews',label:'All repo views',renderCell:v=>`${(v*100).toFixed(1)}%`},{field:'shareOfReportedReferrals',label:'Reported referrals',renderCell:v=>`${(v*100).toFixed(1)}%`}]} />
-          <p className="egm-note">Reported referrals cover GitHub’s top-ten raw sources, with LinkedIn web and Android combined. The remaining repo views include direct, unattributed, and unreported sources. Shares describe attribution, not causal lift.</p>
+          {attributed>0&&reach.views>0&&<p className="egm-note">Google and YouTube account for {(searchVideoViews/attributed*100).toFixed(1)}% of top reported referral views, or {(searchVideoViews/reach.views*100).toFixed(1)}% of all repo views. Test a clearer first-run path for these visitors.</p>}
         </DataComponent>
       </Section>
       <Section id="acquisition-content-heading" title="Content attracting attention">
@@ -116,7 +108,6 @@ export function DashboardContent() {
     </>
   }
   if(activeTabId==='adoption') return <>
-    <ReportingPeriod label="Adoption signals" />
     <Section id="adoption-signals-heading" title="Acquisition of the code" spacing="none" columns={2}>
       {metric('adoption-cloners','reach','Unique cloners',reach.cloners,'GitHub period-level unique cloners. Includes automation and repeat environments.')}
       {metric('adoption-clones','reach','Clone operations',reach.clones,'Operations, not verified installs or active users.')}
@@ -124,14 +115,13 @@ export function DashboardContent() {
     <Section id="adoption-depth-heading" title="Download signals">
       <Plot id="adoption-clone-history" queryId="traffic" title="Daily clone activity" rows={daily} spec={{...line('clones',['clones','cloners']),legend:{labels:{clones:'Clone operations',cloners:'Unique cloners per day'}}}} />
       <Table id="adoption-release-downloads" queryId="downloads" title="Release asset downloads" rows={rows('downloads')} columns={[{field:'release',label:'Release'},{field:'asset',label:'Asset'},{field:'downloads',label:'Downloads'}]} />
-      <DataComponent id="adoption-measurement-gap" queryId="downloads" title="What would establish adoption?" kind="custom" variant="card" displayRows={rows('downloads')} sourceRows={rows('downloads')}>
-        <p className="egm-copy" data-editable-id="adoption-next-measure">Track completed installation, first successful EGM workflow, and repeat workflow use to measure activation and retention. GitHub clone operations and release downloads show code acquisition only.</p>
+      <DataComponent id="adoption-measurement-gap" queryId="traffic" queryIds={['traffic','maintenance','downloads']} title="Prioritize the first successful workflow" kind="custom" variant="card" displayRows={[{recentViews,windowViews,openIssues:queue.openIssues}]} sourceRowsByQuery={{traffic:daily,maintenance:rows('maintenance'),downloads:rows('downloads')}}>
+        <p className="egm-copy" data-editable-id="adoption-next-measure">{windowViews>0&&recentDays.length===3?`${(recentViews/windowViews*100).toFixed(1)}% of reported repo views arrived ${dateSpan(recentDays)} UTC. `:''}Review first-run blockers in the current {n(queue.openIssues)}-issue queue, then track successful workflow completion.</p>
         <p className="egm-note">Release downloads are lifetime asset counts, not the selected traffic period. SHA256SUMS is a checksum file. Git-based plugin installs are not counted here.</p>
       </DataComponent>
     </Section>
   </>
   if(activeTabId==='website') return <>
-    <ReportingPeriod label="Referrals" />
     <Section id="website-flow-title" title="egm.dev → GitHub" spacing="none" columns={2}>
       {metric('website-visitors','website','Visitors referred to GitHub',web.referralVisitors,'Rolling 14-day GitHub referrals. Sparkline shows actual observations since monitoring began.',reach.visitors>0?`${(web.referralVisitors/reach.visitors*100).toFixed(1)}% of repo visitors`:undefined)}
       {metric('website-views','website','Repo views from egm.dev',web.referralViews,'Rolling 14-day GitHub referrals. Sparkline shows actual observations since monitoring began.',reach.views>0?`${(web.referralViews/reach.views*100).toFixed(1)}% of repo views`:undefined)}
@@ -145,7 +135,7 @@ export function DashboardContent() {
     </Section>
   </>
   if(activeTabId==='development') return <>
-    <ReportingPeriod label="Activity" />
+    <Section id="development-summary" title="Development" spacing="none">
     <SortableRegion id="development:canvas" variant="freeform" className="egm-dashboard-grid egm-development-grid" authoredRevision={2} rows={[
       {id:'dev:metrics',kind:'metrics',items:['open-issues','open-prs','merged-prs']},
       {id:'dev:activity',items:['pr-activity','issue-activity']},
@@ -159,6 +149,7 @@ export function DashboardContent() {
       {item('issue-queue',12,<Table id="issue-queue" queryId="issue_queue" title="Open issues by discussion volume" rows={rows('issue_queue')} searchable columns={[{field:'number',label:'#'},{field:'title',label:'Issue',renderCell:(v,r)=><a href={r.url} target="_blank" rel="noreferrer">{v}</a>},{field:'comments',label:'Comments'}]} />,'table')}
       {item('downloads',12,<Table id="downloads" queryId="downloads" title="Release asset downloads" rows={rows('downloads')} columns={[{field:'release',label:'Release'},{field:'asset',label:'Asset'},{field:'downloads',label:'Downloads'}]} />,'table')}
     </SortableRegion>
+    </Section>
     <p className="egm-note">Clone operations and release downloads do not establish installs, activation, or repeat usage. Issue comments indicate discussion, not severity. SHA256SUMS is a checksum file.</p>
   </>
   const comparison = ['views','clones'].map(field => {
@@ -172,7 +163,6 @@ export function DashboardContent() {
   const starDisplayRows=starHistory.map((row,index)=>({...row,completedStars:partialStarDay&&index===starHistory.length-1?null:row.stars,partialStars:partialStarDay&&index>=starHistory.length-2?row.stars:null,coverage:partialStarDay&&row.date===observedPacificDate?'Partial day':'Complete day'}))
   const starSpec={...line('completedStars',['completedStars','partialStars']),showLegend:false,colors:{completedStars:'var(--chart-1)',partialStars:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   return <>
-    <ReportingPeriod label="Traffic" />
     <SortableRegion id="reach:canvas" variant="freeform" className="egm-dashboard-grid egm-reach-grid" authoredRevision={3} rows={[
       {id:'reach:metrics',kind:'metrics',items:['unique-visitors','total-views','total-clones','stars']},
       {id:'reach:across',items:['overview-across-egm']},
