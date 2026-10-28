@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {refreshEnabled,refreshSnapshot} from './refresh.mjs'
 import {readFile} from 'node:fs/promises'
+import seed from '../egm-performance/src/data.json' with {type:'json'}
 const root=new URL('./test-fixtures/',import.meta.url)
 const load=async name=>JSON.parse(await readFile(new URL(name+'.json',root),'utf8'))
 test('seven-day cutoff disables refresh without reading sources or writing',async()=>{
@@ -37,6 +38,10 @@ test('complete refresh reconciles traffic and writes once with fresh provenance'
   assert.equal(writes,1)
   assert.equal(staged.snapshot.queries.reach.source.executedAt,staged.snapshot.generatedAt)
   assert.deepEqual(staged.snapshot.queries.traffic.rows,saved.queries.traffic.rows)
+  for(const id of ['mentions','exa_mentions','research_evidence','youtube_videos','seo_backlinks']) {
+    if(!seed.queries[id])continue
+    assert.deepEqual(staged.snapshot.queries[id].source,seed.queries[id].source,'GitHub must not restamp '+id)
+  }
 })
 
 test('bounded or failed stargazer collection preserves dated history while traffic and total stars refresh',async()=>{

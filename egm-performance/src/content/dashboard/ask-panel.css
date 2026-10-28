@@ -44,3 +44,20 @@
 .egm-ask-followups { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
 .egm-ask-followups button { display: inline-flex; align-items: center; gap: 8px; text-align: left; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; color: var(--text); font: inherit; font-size: 12px; line-height: 1.5; }
 .egm-ask-followups button:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+.egm-ask-active-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: var(--border); color: var(--text); }
+.egm-ask-conversation { display: flex; flex-direction: column; min-height: calc(100dvh - 120px); }
+.egm-ask-messages { display: grid; gap: 32px; }
+.egm-ask-turn { min-width: 0; }
+.egm-chat-speaker { display: block; color: var(--secondary); font-size: 11px; font-weight: 500; margin-bottom: 6px; }
+.egm-ask-user { margin: 0 0 20px auto; max-width: min(680px,88%); padding: 12px 16px; border-radius: var(--card-radius); background: var(--border); }
+.egm-ask-user p,.egm-ask-message-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
+.egm-ask-assistant { min-width: 0; }
+.egm-ask-assistant .egm-ask-options { margin-top: 10px; }
+.egm-ask-error button { margin-left: 8px; border: 1px solid var(--border); border-radius: var(--control-radius); padding: 5px 9px; color: var(--text); background: transparent; font: inherit; }
+.egm-ask-composer-wrap { position: sticky; z-index: 2; bottom: 16px; margin-top: auto; padding-top: 24px; }
+.egm-ask-composer { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); }
+.egm-ask-composer input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 14px; }
+.egm-ask-composer:focus-within { outline: 1px solid var(--secondary); outline-offset: 2px; }
+.egm-ask-composer button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; border: 0; border-radius: var(--control-radius); color: var(--text); background: var(--border); }
+.egm-ask-composer button:disabled { opacity: .4; }
+.egm-ask-composer button:focus-visible,.egm-ask-active-toggle:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }

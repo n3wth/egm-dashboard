@@ -9,8 +9,9 @@ function DataAppLoading() {
   return (
     <main className="dashboard-shell-loading" aria-busy="true">
       <div className="dashboard-shell-loading-topbar" aria-hidden="true">
-        <div className="dashboard-shell-loading-line is-brand" />
-        <div className="dashboard-shell-loading-line is-action" />
+        <div className="dashboard-shell-loading-brand"><div className="dashboard-shell-loading-line is-logo"/><div className="dashboard-shell-loading-line is-brand" /></div>
+        <div className="dashboard-shell-loading-nav">{Array.from({length:7},(_,index)=><div key={index} className="dashboard-shell-loading-line is-nav-icon"/>)}</div>
+        <div className="dashboard-shell-loading-actions"><div className="dashboard-shell-loading-line is-nav-icon"/><div className="dashboard-shell-loading-line is-avatar"/></div>
       </div>
       <DataAppLoadingContent />
     </main>

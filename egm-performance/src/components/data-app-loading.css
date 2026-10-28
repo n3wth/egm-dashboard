@@ -46,8 +46,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 52px;
-  padding-inline: 16px;
+  gap: 24px;
+  height: 64px;
+  padding-inline: var(--data-app-dashboard-gutter);
   border-bottom: 1px solid var(--border);
   background: var(--background);
 }
@@ -57,7 +58,14 @@
   margin-inline: auto;
   padding: 32px var(--data-app-dashboard-gutter) 64px;
 }
-.dashboard-shell-loading-heading { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 32px; }
+.dashboard-shell-loading-heading { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 24px; }
+.dashboard-shell-loading-brand,.dashboard-shell-loading-nav,.dashboard-shell-loading-actions { display: flex; align-items: center; gap: 16px; }
+.dashboard-shell-loading-brand { min-width: 0; }
+.dashboard-shell-loading-nav { margin-left: auto; gap: 20px; }
+.dashboard-shell-loading-actions { flex-shrink: 0; }
+.dashboard-shell-loading-line.is-logo { width: 28px; height: 20px; flex-shrink: 0; }
+.dashboard-shell-loading-line.is-nav-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.dashboard-shell-loading-line.is-avatar { width: 28px; height: 28px; border-radius: 50%; }
 .dashboard-shell-loading-line {
   height: 12px;
   max-width: 100%;
@@ -65,9 +73,9 @@
   background: var(--skeleton-fill);
   animation: component-skeleton-pulse 1.4s ease-in-out infinite alternate;
 }
-.dashboard-shell-loading-line.is-brand { width: 160px; height: 16px; }
+.dashboard-shell-loading-line.is-brand { width: 184px; height: 16px; }
 .dashboard-shell-loading-line.is-action { width: 72px; height: 28px; }
-.dashboard-shell-loading-line.is-title { width: 280px; height: 28px; }
+.dashboard-shell-loading-line.is-title { width: 140px; height: 28px; }
 .dashboard-shell-loading-line.is-description { width: 380px; }
 .dashboard-shell-loading-line.is-label { width: 120px; }
 .dashboard-shell-loading-line.is-value { width: 104px; height: 32px; margin-block: 24px 16px; }
@@ -86,8 +94,14 @@
 .dashboard-shell-loading-charts .component-skeleton-shape { margin-top: 24px; }
 @media (max-width: 900px) {
   .dashboard-shell-loading-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-shell-loading-topbar { gap: 16px; }
+  .dashboard-shell-loading-nav { gap: 14px; }
+  .dashboard-shell-loading-line.is-brand { width: 140px; }
 }
 @media (max-width: 650px) {
+  .dashboard-shell-loading-topbar { padding-inline: var(--data-app-dashboard-mobile-gutter); }
+  .dashboard-shell-loading-line.is-brand { display: none; }
+  .dashboard-shell-loading-nav { gap: 10px; }
   .dashboard-shell-loading-content,
   .dashboard-shell-loading-error { padding: 24px var(--data-app-dashboard-mobile-gutter) 40px; }
   .dashboard-shell-loading-metrics,

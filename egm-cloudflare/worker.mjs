@@ -171,7 +171,7 @@ export async function handle(request,env,ctx) {
     const canEdit=user.email===env.OWNER_EMAIL && user.verified===1
     const read=async()=>{
       const record=await env.DB.prepare('SELECT body,revision FROM presentation WHERE id=1').first()
-      return {presentation:JSON.parse(record.body),revision:record.revision,canEdit}
+      return {presentation:JSON.parse(record.body),revision:record.revision,canEdit,viewer:{name:user.name??'',email:user.email}}
     }
     if(request.method==='GET') return json(await read())
     if(request.method!=='PUT') return json({error:'method_not_allowed'},405)

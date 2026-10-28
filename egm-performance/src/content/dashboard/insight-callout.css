@@ -1,0 +1,6 @@
+.egm-insight-callout { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 18px; padding: 0 0 16px; border-bottom: 1px solid var(--border); color: var(--text); }
+.egm-insight-callout > .dashboard-icon { flex: 0 0 18px; margin-top: 2px; color: var(--secondary); }
+.egm-insight-callout > div { min-width: 0; }
+.egm-insight-callout p { margin: 0; font-size: 13px; line-height: 1.6; }
+.egm-insight-callout .egm-insight-action { margin-top: 5px; color: var(--secondary); }
+.egm-insight-action strong { font-weight: 500; color: var(--text); }

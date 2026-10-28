@@ -1,6 +1,8 @@
 import React from 'react'
 import {DataComponent,DataTable,Section,useDataApp} from '../../data-app-public.jsx'
 import {SiteName} from './SiteName.jsx'
+import {InsightCallout} from './InsightCallout.jsx'
+import {EngagementSignals} from './EngagementSignals.jsx'
 
 const stamp=value=>!value?'Unknown':/^\d{4}-\d{2}-\d{2}$/.test(value)?new Date(value+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):new Date(value).toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' PT'
 const mentionLink=(value,row)=><a className="egm-mention-link" href={row.url} target="_blank" rel="noreferrer nofollow">{value}</a>
@@ -12,22 +14,24 @@ function ShortDate({value}) {
   const full=date.toLocaleString('en-US',{timeZone:'America/Los_Angeles',year:'numeric',month:'long',day:'numeric',...(!dateOnly?{hour:'numeric',minute:'2-digit',timeZoneName:'short'}:{})})
   return <time dateTime={value} title={full} aria-label={full}>{date.toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'})}</time>
 }
-const mentionTitle=(value,row)=><div className="egm-mentions-title">{mentionLink(value,row)}<div className="egm-mentions-detail"><SiteName url={row.url} label={row.platform??row.domain}/>{row.discoveryProviders?.length>0&&<span>Found by {row.discoveryProviders.join(' and ')}</span>}{dateValue(row.published)&&<span>Published <ShortDate value={row.published}/></span>}</div></div>
+const mentionTitle=(value,row)=><div className="egm-mentions-title">{mentionLink(value,row)}<div className="egm-mentions-detail"><SiteName url={row.url} label={row.platform??row.domain}/><EngagementSignals row={row}/>{row.discoveryProviders?.length>0&&<span>Found by {row.discoveryProviders.join(' and ')}</span>}{dateValue(row.published)&&<span>Published <ShortDate value={row.published}/></span>}</div></div>
 function MentionRows({rows,label}) {
   const columns=[{field:'title',label:'Mention',renderCell:mentionTitle},...(rows.some(row=>dateValue(row.firstSeen))?[{field:'firstSeen',label:'First seen',renderCell:value=><ShortDate value={value}/>}]:[])]
   return <div className="egm-mentions-table" data-has-dates={columns.length>1?'true':'false'}><DataTable rows={rows} searchable={rows.length>8} label={label} columns={columns}/></div>
 }
 const videoId=value=>{try{const url=new URL(value);if(!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname))return null;const id=url.hostname==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v')??url.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1];return /^[A-Za-z0-9_-]{11}$/.test(id??'')?id:null}catch{return null}}
-const compactCount=value=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value)
 function VideoGallery({rows,queries}) {
   const metadata=queries.youtube_videos?.rows??[]
   const queryIds=['mentions',...(queries.youtube_videos?['youtube_videos']:[])]
   const videos=rows.map(row=>{const id=videoId(row.url);const details=metadata.find(item=>item.videoId===id||videoId(item.url)===id);return {...row,...details,title:details?.title||row.title,published:details?.published||row.published,id}}).filter(row=>row.id)
+  const measured=videos.filter(row=>Number.isFinite(row.views)&&row.views>=0).sort((a,b)=>b.views-a.views)
+  const observedViews=measured.reduce((total,row)=>total+row.views,0)
   return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:rows,...(queries.youtube_videos?{youtube_videos:metadata}:{})}}>
+    {measured.length>=2&&observedViews>0&&<InsightCallout action="Test a short first-run guide alongside the most-viewed video.">The most-viewed measured video accounts for {(measured[0].views/observedViews*100).toFixed(1)}% of observed views across {measured.length} videos with available counts.</InsightCallout>}
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
       <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${row.id}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><h3 title={row.title}>{row.title}</h3></a>
       {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><span title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</span>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
-      <div className="egm-video-stats" title={dateValue(row.statsObservedAt||row.observedAt)?`Statistics observed ${stamp(row.statsObservedAt||row.observedAt)}`:undefined}>{typeof row.views==='number'?<span aria-label={`${row.views.toLocaleString('en-US')} ${row.views===1?'view':'views'}`}>{compactCount(row.views)} {row.views===1?'view':'views'}</span>:<span>Views unavailable</span>}{typeof row.likes==='number'&&<span aria-label={`${row.likes.toLocaleString('en-US')} ${row.likes===1?'like':'likes'}`}>{compactCount(row.likes)} {row.likes===1?'like':'likes'}</span>}{typeof row.comments==='number'&&<span aria-label={`${row.comments.toLocaleString('en-US')} ${row.comments===1?'comment':'comments'}`}>{compactCount(row.comments)} {row.comments===1?'comment':'comments'}</span>}</div>
+      <div className="egm-video-stats"><EngagementSignals row={row}/></div>
     </article>)}</div>
   </DataComponent>
 }
@@ -85,8 +89,12 @@ function SupplementaryMentions({discovery}) {
 export function Mentions() {
   const {queries}=useDataApp()
   const query=queries.mentions
-  const rows=query?.rows??[]
+  const engagement=queries.mention_engagement?.rows??[]
+  const enrich=row=>({...row,...engagement.find(item=>canonicalUrl(item.url)===canonicalUrl(row.url))})
+  const rows=(query?.rows??[]).map(enrich)
   const discovery=additionalDiscovery(queries,rows)
+  discovery.rows=discovery.rows.map(enrich)
+  if(queries.mention_engagement){discovery.sourceRowsByQuery.mention_engagement=engagement;discovery.queryIds.push('mention_engagement')}
   const allRows=[...rows,...discovery.rows]
   const status=queries.mentions_status?.rows?.[0]
   const earliest=allRows.map(row=>row.firstSeen).filter(Boolean).sort()[0]
@@ -98,7 +106,7 @@ export function Mentions() {
       const selected=rows.filter(row=>row.kind===kind)
       if(!selected.length) return null
       return <Section key={kind} title={kind==='Video'?undefined:title} id={'mentions-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')}>
-        {kind==='Video'?<VideoGallery rows={selected} queries={queries}/>:<DataComponent id={'mentions-table-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')} queryId="mentions" title={`${selected.length} ${selected.length===1?'mention':'mentions'}`} kind="table" variant="card" displayRows={selected} sourceRows={rows}>
+        {kind==='Video'?<VideoGallery rows={selected} queries={queries}/>:<DataComponent id={'mentions-table-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')} queryId="mentions" queryIds={queries.mention_engagement?['mentions','mention_engagement']:['mentions']} title={`${selected.length} ${selected.length===1?'mention':'mentions'}`} kind="table" variant="card" displayRows={selected} sourceRowsByQuery={{mentions:query?.rows??[],...(queries.mention_engagement?{mention_engagement:engagement}:{})}}>
           <MentionRows rows={selected} label={`${title} mentions`}/>
         </DataComponent>}
       </Section>

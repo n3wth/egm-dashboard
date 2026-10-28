@@ -119,3 +119,47 @@ test('follow-up history is bounded and untrusted, and previous topic guides shor
   assert.ok(body.suggestedFollowUps[0].includes('similar repos'))
   assert.match(body.coverageNote,/not measured trending growth/)
 })
+test('real streaming relays split SSE deltas before final metadata and charges quota once',async()=>{
+  const env=environment()
+  let quota=0
+  const prepare=env.DB.prepare
+  env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('INSERT'))statement.run=async()=>{quota++;return {meta:{changes:1}}};return statement}
+  let push
+  env.AI.run=async(_,input)=>{
+    assert.equal(input.stream,true)
+    return new ReadableStream({start(controller){push=text=>controller.enqueue(new TextEncoder().encode(text))}})
+  }
+  const result=await handleAsk(request({question:'views?',stream:true}),env,user)
+  assert.match(result.headers.get('content-type'),/application\/x-ndjson/)
+  const reader=result.body.getReader(),decoder=new TextDecoder()
+  push('data: {"respon')
+  push('se":"100 "}\n\n')
+  const first=JSON.parse(decoder.decode((await reader.read()).value))
+  assert.deepEqual(first,{type:'delta',text:'100 '})
+  push('data: {"response":"views [S1]"}\r\n\r\ndata: [DONE]\n\n')
+  let rest=''
+  while(true){const item=await reader.read();if(item.done)break;rest+=decoder.decode(item.value)}
+  const events=rest.trim().split('\n').map(JSON.parse)
+  assert.equal(events.at(-1).type,'result')
+  assert.equal(events.at(-1).answer,'100 views [S1]')
+  assert.equal(events.at(-1).sources[0].id,'S1')
+  assert.equal(quota,1)
+})
+test('stream timeout emits safe terminal error and cancels upstream reader',async()=>{
+  const env=environment()
+  let cancelled=false
+  env.AI.run=async()=>new ReadableStream({cancel(){cancelled=true}})
+  const result=await handleAsk(request({question:'views?',stream:true}),env,user,{timeoutMs:2})
+  const events=(await result.text()).trim().split('\n').map(JSON.parse)
+  assert.deepEqual(events,[{type:'error',error:'ask_timeout'}])
+  assert.equal(cancelled,true)
+})
+test('client stream cancellation cancels the provider',async()=>{
+  const env=environment()
+  let cancelled=false
+  env.AI.run=async()=>new ReadableStream({cancel(){cancelled=true}})
+  const result=await handleAsk(request({question:'views?',stream:true}),env,user)
+  await result.body.cancel()
+  await new Promise(resolve=>setTimeout(resolve,0))
+  assert.equal(cancelled,true)
+})

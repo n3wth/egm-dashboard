@@ -571,6 +571,15 @@ function DataAppOverflowMenu({
   const hasPreferences = canSwitchTheme || canSetHandoffPreference;
   const nativeSelect = useRef(null);
   const canLogOut = published && globalThis.location?.hostname === 'egm.n3wth.com';
+  const [viewer,setViewer]=useState(null);
+  React.useEffect(()=>{
+    if(!canLogOut)return;
+    const controller=new AbortController();
+    fetch('/api/presentation',{credentials:'same-origin',signal:controller.signal}).then(response=>response.ok?response.json():null).then(data=>{if(!controller.signal.aborted)setViewer(data?.viewer??null)}).catch(()=>{});
+    return ()=>controller.abort();
+  },[canLogOut]);
+  const initial=String(viewer?.name??viewer?.email??'').trim().slice(0,1).toUpperCase();
+  const avatar=<span className="egm-account-avatar" aria-hidden="true">{initial||<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>}</span>;
   const logOut = () => {
     const form = document.createElement('form');
     form.method = 'POST';
@@ -606,12 +615,12 @@ function DataAppOverflowMenu({
       });
   };
   if(published)return <>
-    <span className="dashboard-custom-overflow"><Menu label="More" align="start" contentClassName="dashboard-header-action-menu" trigger={<HeaderOverflowButton ref={triggerRef}/>}>
+    <span className="dashboard-custom-overflow"><Menu label="Account" align="end" contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label="Account" title={viewer?.name?`Account: ${viewer.name}`:'Account'}>{avatar}</button>}>
       {canLogOut&&<MenuItem icon="logOut" className="dashboard-action-menu-item" onSelect={logOut}>Log out</MenuItem>}
       <MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>onAction?.('copy-link')}>Copy link</MenuItem>
       <MenuItem icon="palette" className="dashboard-action-menu-item" onSelect={onOpenThemes}>Switch theme</MenuItem>
     </Menu></span>
-    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true"><Icon name="more" size={18}/></span><select ref={nativeSelect} aria-label="More" onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}>{canLogOut&&<option value="logout">Log out</option>}<option value="copy-link">Copy link</option><option value="theme">Switch theme</option></select></span>
+    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true">{avatar}</span><select ref={nativeSelect} aria-label="Account" onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}>{canLogOut&&<option value="logout">Log out</option>}<option value="copy-link">Copy link</option><option value="theme">Switch theme</option></select></span>
   </>;
   return (
     <>
@@ -1006,7 +1015,7 @@ export function DataAppTopbar({
       >
         <div className="dashboard-chrome-inner dashboard-topbar-inner">
           <div className="dashboard-topbar-copy">
-<a href="/overview" aria-label="EGM overview" style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+<a href="/overview" aria-label="EGM overview" onClick={event=>{const overviewTab=tabs.find(tab=>tab.id==='reach')??tabs.find(tab=>tab.label==='Overview');if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||!onTabChange||!overviewTab)return;event.preventDefault();onTabChange(overviewTab.id)}} style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
 <path d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2ZM20 12l3-2.6M20 12l3 2.6" />
             </svg></a>
@@ -1167,6 +1176,7 @@ export function DataAppTopbar({
             <div className="dashboard-topbar-actions">
               {mode !== "edit" && (
                 <>
+                  <span className="egm-account-menu">
                   <DataAppOverflowMenu
                     canEdit={canEdit && !editingBlocked}
                     canSwitchTheme={canEdit}
@@ -1190,6 +1200,7 @@ export function DataAppTopbar({
                     published={published}
                     surface={surface}
                   />
+                  </span>
 
                 </>
               )}

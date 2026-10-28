@@ -7,6 +7,7 @@ import { collectContentResearch } from './content-research.mjs'
 import { collectYouTube } from './youtube.mjs'
 import { collectTavily } from './tavily.mjs'
 import { collectParallel } from './parallel.mjs'
+import { collectEngagement } from './engagement.mjs'
 
 // Cron Workers have a 15-minute wall-time limit. The longer lease cannot expire
 // while a scheduled invocation is still running and spending provider units.
@@ -48,7 +49,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
       state.github = 'failed'
     }
     if (typeof latest.generatedAt !== 'string' || !Number.isFinite(Date.parse(latest.generatedAt))) {
-      for (const name of ['semrush', 'mentions', 'exa', 'exaResearch', 'contentResearch', 'youtube', 'tavily', 'parallel']) state[name] = 'skipped_no_snapshot'
+      for (const name of ['semrush', 'mentions', 'exa', 'exaResearch', 'contentResearch', 'youtube', 'tavily', 'parallel', 'engagement']) state[name] = 'skipped_no_snapshot'
       return { ...state, reason: 'no_base_snapshot' }
     }
     const merged = { ...latest, queries: { ...previous.queries, ...latest.queries } }
@@ -56,7 +57,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
     // GitHub rebuilds from a seed that may contain old placeholders for these
     // providers. Only the independent collector may replace their saved records.
     for (const [key, value] of Object.entries(oldQueries)) {
-      if (/^(seo_|semrush_|mentions(?:_|$)|exa_|research_|youtube_|tavily_|parallel_)/.test(key)) merged.queries[key] = value
+      if (/^(seo_|semrush_|mentions(?:_|$)|mention_engagement|exa_|research_|youtube_|tavily_|parallel_)/.test(key)) merged.queries[key] = value
     }
     if (clock() >= deadline) state.semrush = 'skipped_deadline'
     else try {
@@ -106,6 +107,12 @@ export async function runRefresh(env, request = fetch, services = {}) {
       Object.assign(merged.queries, queries)
       state.parallel = queries.parallel_status?.rows?.[0]?.status ?? 'refreshed'
     } catch { state.parallel = 'failed' }
+    if (clock() >= deadline) state.engagement = 'skipped_deadline'
+    else try {
+      const queries = await (services.engagement ?? collectEngagement)(env, boundedRequest, merged.queries, clock())
+      Object.assign(merged.queries, queries)
+      state.engagement = queries.mention_engagement_status?.rows?.[0]?.status ?? 'refreshed'
+    } catch { state.engagement = 'failed' }
     // GitHub collection is 30 minutes; search discovery uses provider caches.
     // Recheck the cutoff and fencing token before publishing any merged result.
     const finished = clock()

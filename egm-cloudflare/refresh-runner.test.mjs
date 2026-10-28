@@ -123,7 +123,7 @@ test('failed bootstrap skips paid collectors without discarding unpersistable bu
   const collector = async () => { calls++; return {} }
   const result = await runRefresh(f.env, noRequest, {
     now: () => baseTime, github: async () => { throw Error('GitHub unavailable') },
-    semrush: collector, mentions: collector, exa: collector, exaResearch: collector, contentResearch: collector, youtube: collector, tavily: collector, parallel: collector
+    semrush: collector, mentions: collector, exa: collector, exaResearch: collector, contentResearch: collector, youtube: collector, tavily: collector, parallel: collector, engagement: collector
   })
   assert.equal(result.status, 'failed')
   assert.equal(result.reason, 'no_base_snapshot')
@@ -134,7 +134,7 @@ test('failed bootstrap skips paid collectors without discarding unpersistable bu
 })
 
 test('every collector checks deadline before consuming source attempt budgets', async () => {
-  const names = ['semrush', 'mentions', 'exa', 'exaResearch', 'contentResearch', 'youtube', 'tavily', 'parallel']
+  const names = ['semrush', 'mentions', 'exa', 'exaResearch', 'contentResearch', 'youtube', 'tavily', 'parallel', 'engagement']
   for (let stopAfter = -1; stopAfter < names.length; stopAfter++) {
     const f = fixture()
     const budget = { rows: [{ successfulBatches: 3, totalCostDollars: 0.21 }] }
@@ -157,6 +157,34 @@ test('every collector checks deadline before consuming source attempt budgets', 
     const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
     assert.deepEqual(saved.queries.exa_research_status, budget)
   }
+})
+test('engagement reads newly merged discovery and commits actual HN counts with the snapshot',async()=>{
+  const f=fixture()
+  let calls=0
+  const services={now:()=>baseTime,github:async()=>({status:'refreshed',snapshot:f.previous}),semrush:async()=>({}),mentions:async()=>({mentions:{rows:[{url:'https://news.ycombinator.com/item?id=123'}]}}),exa:async()=>({}),exaResearch:async()=>({}),contentResearch:async()=>({}),youtube:async()=>({}),tavily:async()=>({}),parallel:async()=>({})}
+  const result=await runRefresh(f.env,async(url,init)=>{calls++;assert.equal(url,'https://hacker-news.firebaseio.com/v0/item/123.json');assert.equal(init.redirect,'manual');return Response.json({id:123,type:'story',score:2,descendants:0})},services)
+  const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.equal(result.engagement,'checked')
+  assert.equal(calls,1)
+  assert.equal(saved.queries.mention_engagement.rows[0].hnPoints,2)
+  assert.equal(saved.queries.mention_engagement.rows[0].comments,0)
+})
+test('engagement saved cache and budgets survive stale GitHub seeds without network calls',async()=>{
+  const f=fixture()
+  const observedAt=new Date(baseTime-1000).toISOString()
+  const engagement={rows:[{hnId:'123',url:'https://news.ycombinator.com/item?id=123',hnPoints:8,lastAttemptAt:observedAt,engagementObservedAt:observedAt}],source:{executedAt:observedAt}}
+  const status={rows:[{collectionDay:new Date(baseTime).toISOString().slice(0,10),dailyAttempts:5}]}
+  f.previous.queries.mention_engagement=engagement
+  f.previous.queries.mention_engagement_status=status
+  f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(f.previous))
+  const services={now:()=>baseTime,github:async()=>({status:'refreshed',snapshot:{...f.previous,queries:{...f.previous.queries,mention_engagement:{rows:[]},mention_engagement_status:{rows:[{dailyAttempts:0}]}}}}),semrush:async()=>({}),mentions:async()=>({mentions:{rows:[{url:'https://news.ycombinator.com/item?id=123'}]}}),exa:async()=>({}),exaResearch:async()=>({}),contentResearch:async()=>({}),youtube:async()=>({}),tavily:async()=>({}),parallel:async()=>({})}
+  let calls=0
+  const result=await runRefresh(f.env,async()=>{calls++;throw Error('unexpected network')},services)
+  const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.equal(result.engagement,'cached')
+  assert.equal(calls,0)
+  assert.deepEqual(saved.queries.mention_engagement,engagement)
+  assert.equal(saved.queries.mention_engagement_status.rows[0].dailyAttempts,5)
 })
 
 test('Workers adapter normalizes redirect error to manual and rejects provider redirects without following', async () => {

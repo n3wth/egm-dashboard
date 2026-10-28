@@ -25,7 +25,7 @@
   --dashboard-tabs-height-easing: var(--motion-easing-emphasized);
 }
 
-.dashboard-root:has(> .dashboard-topbar[data-tabs-motion-ready]) {
+.dashboard-root:has(> .dashboard-topbar[data-tabs-motion-ready]:not(.egm-single-row)) {
   transition: --dashboard-tabs-visible-height
     var(--dashboard-tabs-height-duration) var(--dashboard-tabs-height-easing);
 }

@@ -88,8 +88,10 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
     const caveat=repo.stargazers_count>=10000?'Star history is stale: full stargazer collection was skipped at the 10,000-record bound. Current total stars remain available in the reach query.':'Star history is stale: stargazer collection failed or was incomplete. Current total stars remain available in the reach query.'
     data.queries.star_history.source.caveats=[...new Set([...(data.queries.star_history.source.caveats??[]).filter(text=>!text.startsWith('Star history is stale:')),caveat])]
   }
+  const collectedQueries=new Set(['traffic','reach','referrers','paths','maintenance','activity','issue_queue','downloads','website','website_contribution',...(stars?['star_history']:[])])
   for(const [id,query] of Object.entries(data.queries)) {
-    if(id==='semrush_status'||id==='website_referral_history'||id==='star_history'&&!stars) continue
+    // Seeded independent-provider records are dated evidence, not GitHub results.
+    if(!collectedQueries.has(id)) continue
     query.source.executedAt=started
     query.source.coverage=id==='star_history'?{startDate:start,endDate:today}:{startDate:traffic[0].date,endDate:traffic.at(-1).date}
     query.source.caveats=(query.source.caveats??[]).filter(c=>!c.includes('Oct 13')&&!c.includes('Oct 27'))
