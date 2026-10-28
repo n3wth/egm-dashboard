@@ -4,6 +4,7 @@ import {approvalEventsRpc,flushApprovalEvents} from './approval-events.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
 import {cachedSiteIcon} from './favicon-cache.mjs'
 import {handleAsk} from './ask.mjs'
+import {manageAccess} from './access-management.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 const enc = new TextEncoder()
 const b64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')
@@ -167,6 +168,7 @@ export async function handle(request,env,ctx) {
   if(user.status!=='approved') return renderAccessPage(user.status==='pending'?'pending':'denied')
   if(url.pathname==='/api/site-icon') return cachedSiteIcon(request,env)
   if(url.pathname==='/api/ask') return handleAsk(request,env,user)
+  if(url.pathname==='/api/access') return manageAccess(request,env,user)
   if(url.pathname==='/api/refresh' && request.method==='POST') {
     if(user.email!==env.OWNER_EMAIL || user.verified!==1 || request.headers.get('origin')!==env.APP_URL) return json({error:'owner_required'},403)
     return json(await runRefresh(env))

@@ -1,0 +1,8 @@
+.egm-manage-users .egm-invite-row,.egm-manage-users li{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--border)}
+.egm-manage-users h3,.egm-manage-users p{margin:0}
+.egm-manage-users p,.egm-manage-users li span{font-size:13px;line-height:1.6;color:var(--secondary)}
+.egm-manage-users ul{list-style:none;padding:0;margin:0;max-height:50vh;overflow:auto}
+.egm-manage-users li>div:first-child{display:grid;gap:4px;min-width:0;overflow-wrap:anywhere}
+.egm-access-actions{display:flex;gap:8px;flex-shrink:0}
+.egm-manage-users .egm-access-status{padding-top:20px}
+@media(max-width:500px){.egm-manage-users .egm-invite-row,.egm-manage-users li{align-items:flex-start;flex-direction:column;gap:12px}}

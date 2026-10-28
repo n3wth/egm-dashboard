@@ -21,6 +21,7 @@ import convertPowerpointIcon from "./icons/convert-icon-powerpoint.svg";
 import convertSpreadsheetIcon from "./icons/convert-icon-spreadsheet.svg";
 import convertWordIcon from "./icons/convert-icon-word.svg";
 import { DashboardAskIcon, useDashboardAsk } from "./DashboardAsk.jsx";
+import { ManageUsers } from "../content/dashboard/ManageUsers.jsx";
 import { DashboardTabs } from "./DashboardTabs.jsx";
 import { RefreshSetupCoachmark } from "./RefreshSetupCoachmark.jsx";
 import { PublishReviewDialog } from "./PublishReviewDialog.jsx";
@@ -525,7 +526,7 @@ const HeaderOverflowButton = React.forwardRef(function HeaderOverflowButton(prop
 
 export function DataAppHandoffMenu({ destination, onDestinationChange }) {
   return (
-    <MenuSub icon="sliders" label="Open ChatGPT in…">
+    <MenuSub icon="sliders" label="Open editor in…">
       <Dropdown.RadioGroup value={destination} onValueChange={onDestinationChange}>
         {[
           ["desktop", "Desktop app"],
@@ -572,6 +573,7 @@ function DataAppOverflowMenu({
   const nativeSelect = useRef(null);
   const canLogOut = published && globalThis.location?.hostname === 'egm.n3wth.com';
   const [viewer,setViewer]=useState(null);
+  const [manageUsersOpen,setManageUsersOpen]=useState(false);
   const [failedPhoto,setFailedPhoto]=useState(null);
   React.useEffect(()=>{
     if(!canLogOut)return;
@@ -604,6 +606,7 @@ function DataAppOverflowMenu({
     else if (action === "schedule") openView(onScheduleRefresh);
     else if (action === "theme") openView(onOpenThemes);
     else if (action === "copy-link") onAction?.("copy-link");
+    else if (action === "manage-users" && canEdit) setManageUsersOpen(true);
     else if (action === "handoff-settings") openView(onOpenHandoffSettings);
     else if (action === "restore") onRestoreHidden?.();
     else if (action === "logout" && canLogOut) logOut();
@@ -618,11 +621,14 @@ function DataAppOverflowMenu({
   };
   if(published)return <>
     <span className="dashboard-custom-overflow"><Menu label="Account" align="end" contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label="Account" title={viewer?.name?`Account: ${viewer.name}`:'Account'}>{avatar}</button>}>
-      {canLogOut&&<MenuItem icon="logOut" className="dashboard-action-menu-item" onSelect={logOut}>Log out</MenuItem>}
       <MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>onAction?.('copy-link')}>Copy link</MenuItem>
       <MenuItem icon="palette" className="dashboard-action-menu-item" onSelect={onOpenThemes}>Switch theme</MenuItem>
+      {canEdit&&canLogOut&&<MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Invite</MenuItem>}
+      {canEdit&&canLogOut&&<MenuItem icon="users" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Manage users</MenuItem>}
+      {canLogOut&&<MenuItem icon="logOut" className="dashboard-action-menu-item" onSelect={logOut}>Log out</MenuItem>}
     </Menu></span>
-    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true">{avatar}</span><select ref={nativeSelect} aria-label="Account" onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}>{canLogOut&&<option value="logout">Log out</option>}<option value="copy-link">Copy link</option><option value="theme">Switch theme</option></select></span>
+    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true">{avatar}</span><select ref={nativeSelect} aria-label="Account" onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}><option value="copy-link">Copy link</option><option value="theme">Switch theme</option>{canEdit&&canLogOut&&<option value="manage-users">Manage users and invite</option>}{canLogOut&&<option value="logout">Log out</option>}</select></span>
+    {canEdit&&canLogOut&&<ManageUsers open={manageUsersOpen} onClose={()=>setManageUsersOpen(false)}/>}
   </>;
   return (
     <>
@@ -750,7 +756,7 @@ function DataAppOverflowMenu({
             {canEdit && <option value="theme">Switch theme</option>}
             {published && <option value="copy-link">Copy link</option>}
             {canLogOut && <option value="logout">Log out</option>}
-            {published && onOpenHandoffSettings && <option value="handoff-settings">Open in ChatGPT settings</option>}
+            {published && onOpenHandoffSettings && <option value="handoff-settings">Editor settings</option>}
             {surface !== "report" && <option value="duplicate">Create a copy</option>}
             {canEdit && mode === "edit" && hiddenCount > 0 && (
               <option value="restore">Restore hidden ({hiddenCount})</option>
@@ -827,7 +833,7 @@ export function dataAppAskSuggestions({
         action: "edit-in-chatgpt",
         icon: "edit",
         label: surface === "report" ? "Change this report" : "Change this dashboard",
-        subtext: "Tell ChatGPT what to change",
+        subtext: "Describe the requested change",
         ...edit,
         getHandoffHref: (destination) => getActionHref("edit-in-chatgpt", undefined, destination),
       });
@@ -1080,8 +1086,8 @@ export function DataAppTopbar({
                 role="status"
                 title={
                   build.active
-                    ? `ChatGPT is working on this ${noun}. You can keep exploring; editing and publishing will be available when it finishes.`
-                    : "Work is paused. Continue in ChatGPT to finish this update."
+                    ? `This ${noun} is updating. You can keep exploring; editing and publishing will be available when it finishes.`
+                    : "Work is paused. Continue in the editor to finish this update."
                 }
               >
                 {build.active && <Icon name="spinner" size={16} className="dashboard-authoring-spinner" />}
