@@ -24,6 +24,7 @@
 .egm-ask-options label { display: inline-flex; align-items: center; gap: 6px; }
 .egm-ask-cards,.egm-ask-skeletons { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: 18px; }
 .egm-ask-cards > * { min-width: 0; }
+.egm-ask-live-card { padding: 20px; border: 1px solid var(--border); border-radius: var(--card-radius); }
 .egm-ask-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; margin: 0; }
 .egm-ask-metrics dt { color: var(--secondary); font-size: 12px; }
 .egm-ask-metrics dd { margin: 6px 0 0; font-size: 25px; font-variant-numeric: tabular-nums; }

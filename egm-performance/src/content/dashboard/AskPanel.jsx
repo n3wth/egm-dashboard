@@ -9,10 +9,15 @@ const errorMessage=status=>status===401?'Your session expired. Sign in again to 
 const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
 const format=value=>typeof value==='number'?value.toLocaleString('en-US'):String(value??'Unavailable')
 
+export function LiveMetricCard({card}) {
+  return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}{card.observedAt&&<time dateTime={card.observedAt}> · {new Date(card.observedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time>}</p></section>
+}
+
 function AnswerCard({card,index,turnId}) {
   const {queries}=useDataApp()
   const rows=Array.isArray(card.rows)?card.rows:[]
   const source=queries[card.queryId]
+  if(!source)return card.type==='metric'?<LiveMetricCard card={card}/>:null
   const props={id:`ask-result-${turnId}-${index}-${card.queryId}`,title:card.title,queryId:source?card.queryId:undefined,sourceRows:source?.rows??rows,displayRows:rows,variant:'card',showActions:Boolean(source)}
   const foot=<p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}{card.observedAt&&<time dateTime={card.observedAt} title={card.observedAt}> · {new Date(card.observedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time>}</p>
   if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
