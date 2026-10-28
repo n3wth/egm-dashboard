@@ -7,9 +7,10 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   const classes = new Set(), listeners = {}, instances = [], frames = new Map()
   let frameId = 0
   const reduced = { matches: false, addEventListener: (_, listener) => { listeners.reduced = listener } }
+  const portrait = { matches: false, addEventListener: (_, listener) => { listeners.portrait = listener } }
   const handoff = { classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name) }, querySelector: () => ({}) }
   const window = {
-    matchMedia: () => reduced,
+    matchMedia: query => query.includes('prefers-reduced-motion') ? reduced : portrait,
     addEventListener: () => {},
     rive: {
       RuntimeLoader: { setWasmUrl() {}, setWasmFallbackUrl() {} },
@@ -57,8 +58,16 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   second.options.onLoad()
   assert.equal(classes.has('ready'), false)
   reduced.matches = false
+  portrait.matches = true
   listeners.reduced()
   const third = instances[2]
-  third.options.onLoadError()
+  third.options.onLoad()
+  assert.equal(third.options.artboard, 'Portrait')
+  assert.equal(third.values.get('elephantX').value, 145)
+  assert.equal(third.values.get('goldfishY').value, 445)
+  portrait.matches = false
+  listeners.portrait()
+  assert.equal(instances[3].options.artboard, 'Desktop')
+  instances[3].options.onLoadError()
   assert.equal(classes.has('fallback'), true, 'failed artwork shows a static fallback')
 })
