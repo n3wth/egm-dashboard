@@ -27,6 +27,7 @@
     "figma-squircle": "1.1.0",
     "html-to-image": "1.11.13",
     "lexical": "^0.44.0",
+    "posthog-js": "^1.441.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-markdown": "^10.1.0",
