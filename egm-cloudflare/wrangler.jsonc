@@ -1,0 +1,20 @@
+{
+  "name": "egm-growth",
+  "main": "worker.mjs",
+  "account_id": "ac23513945eb49f73a89faf1be12384e",
+  "compatibility_date": "2026-10-27",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": {"crons": ["*/30 * * * *"]},
+  "routes": [{"pattern": "egm.n3wth.com", "custom_domain": true}],
+  "assets": {"directory": "assets", "binding": "ASSETS", "run_worker_first": true},
+  "d1_databases": [{"binding": "DB", "database_name": "egm-growth-access", "database_id": "4e4bd12f-afcf-4fda-a875-f40afa765f97"}],
+  "vars": {
+    "APP_URL": "https://egm.n3wth.com",
+    "OWNER_EMAIL": "oliver@newth.ai",
+    "APPROVAL_WEBHOOK_HOSTS": "connectors.api.openai.com",
+    "REFRESH_UNTIL": "2026-11-04T06:33:01Z",
+    "WORKOS_CLIENT_ID": "client_01M60K01HRESAKEPD135F3KAMM",
+    "WORKOS_AUTHKIT_DOMAIN": "https://striking-ripple-85.authkit.app"
+  }
+}

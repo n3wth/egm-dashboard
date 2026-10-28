@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+  verified INTEGER NOT NULL CHECK(verified=1), status TEXT NOT NULL CHECK(status IN ('pending','approved','denied')),
+  created_at TEXT NOT NULL, decided_at TEXT, decided_by TEXT
+);
+CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS audit (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, action TEXT NOT NULL, actor TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS presentation (id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL, revision INTEGER NOT NULL);
+INSERT OR IGNORE INTO presentation VALUES(1,'{}',0);
+CREATE TABLE IF NOT EXISTS snapshots (id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL, generated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS repo_baselines (repo TEXT PRIMARY KEY,stars INTEGER NOT NULL,observed_at TEXT NOT NULL);

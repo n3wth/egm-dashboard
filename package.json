@@ -1,0 +1,10 @@
+{
+  "name": "egm-dashbaord",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:app": "npm --prefix egm-performance ci",
+    "build": "npm --prefix egm-performance run build && node scripts/package-assets.mjs",
+    "test": "node --test egm-cloudflare/*.test.mjs egm-performance/src/live-snapshot.test.mjs"
+  }
+}

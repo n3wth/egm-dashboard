@@ -1,0 +1,13 @@
+**/node_modules/
+**/.wrangler/
+**/dist/
+**/.impeccable/
+**/.DS_Store
+**/.env
+**/.env.*
+**/.dev.vars
+**/.dev.vars.*
+egm-cloudflare/assets/*
+!egm-cloudflare/assets/favicon.svg
+work/
+*.log
