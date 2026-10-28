@@ -10,14 +10,14 @@ let updateMotionBounds
 
 function move(instance, isPortrait) {
   const names = ['bootstrap', 'brainstorm', 'draft', 'resolve', 'drift', 'review', 'loop', 'elephant', 'goldfish']
-  const portraitPositions = [[45, 35], [250, 65], [25, 225], [220, 250], [40, 355], [300, 395], [240, 530], [145, 145], [170, 445]]
+  const portraitPositions = [[15, 12], [330, 20], [12, 180], [325, 180], [12, 385], [330, 385], [300, 540], [160, 115], [180, 490]]
   const model = instance.viewModelInstance
   const bodies = names.map((name, index) => {
     const x = model?.number(`${name}X`), y = model?.number(`${name}Y`), rotation = model?.number(`${name}Rotation`)
     if (!x || !y || !rotation) throw new Error('Missing Rive motion binding')
     if (isPortrait) { x.value = portraitPositions[index][0]; y.value = portraitPositions[index][1]; rotation.value = 0 }
     const mark = index >= 7
-    return { x, y, rotation, homeX: x.value, homeY: y.value, px: x.value, py: y.value, vx: 0, vy: 0, angle: 0, spin: 0, targetX: 0, targetY: 0, targetAngle: 0, next: 0, anchor: index < 4 ? 7 : index < 7 ? 8 : null, upper: index < 4 || index === 7, radius: mark ? 70 : 25, centerOffset: mark ? 0 : 19.2, minX: mark ? 85 : 4, maxX: (isPortrait ? 400 : 600) - (mark ? 85 : 44), minY: mark ? 85 : 4, maxY: (isPortrait ? 600 : 400) - (mark ? 85 : 44) }
+    return { x, y, rotation, homeX: x.value, homeY: y.value, px: x.value, py: y.value, vx: 0, vy: 0, angle: 0, spin: 0, targetX: 0, targetY: 0, targetAngle: 0, next: 0, anchor: index < 4 ? 7 : index < 7 ? 8 : null, upper: index < 4 || index === 7, radius: mark ? 70 : 33, centerOffset: mark ? 0 : 25.2, minX: mark ? 85 : 8, maxX: (isPortrait ? 400 : 600) - (mark ? 85 : 58), minY: mark ? 85 : 8, maxY: (isPortrait ? 600 : 400) - (mark ? 85 : 58) }
   })
   updateMotionBounds = () => {
     if (!isPortrait) return
@@ -28,8 +28,8 @@ function move(instance, isPortrait) {
     const top = area.top + (area.height - 600 * scale) / 2
     const overlaps = content.bottom > top && content.top < top + 600 * scale
     for (const body of bodies) {
-      body.minY = body.radius === 70 ? 85 : 4
-      body.maxY = 600 - (body.radius === 70 ? 85 : 44)
+      body.minY = body.radius === 70 ? 85 : 8
+      body.maxY = 600 - (body.radius === 70 ? 85 : 58)
       if (overlaps && body.upper) body.maxY = Math.min(body.maxY, (content.top - 12 - top) / scale - body.centerOffset - body.radius)
       if (overlaps && !body.upper) body.minY = Math.max(body.minY, (content.bottom + 12 - top) / scale - body.centerOffset + body.radius)
       if (body.minY > body.maxY) throw new Error('Insufficient animation space')
