@@ -6,6 +6,7 @@ let animation
 let loading = false
 let active = true
 let frame
+let updateMotionBounds
 
 function move(instance, isPortrait) {
   const names = ['bootstrap', 'brainstorm', 'draft', 'resolve', 'drift', 'review', 'loop', 'elephant', 'goldfish']
@@ -16,8 +17,27 @@ function move(instance, isPortrait) {
     if (!x || !y || !rotation) throw new Error('Missing Rive motion binding')
     if (isPortrait) { x.value = portraitPositions[index][0]; y.value = portraitPositions[index][1]; rotation.value = 0 }
     const mark = index >= 7
-    return { x, y, rotation, homeX: x.value, homeY: y.value, px: x.value, py: y.value, vx: 0, vy: 0, angle: 0, spin: 0, targetX: 0, targetY: 0, targetAngle: 0, next: 0, anchor: index < 4 ? 7 : index < 7 ? 8 : null, radius: mark ? 70 : 25, centerOffset: mark ? 0 : 19.2, minX: mark ? 85 : 4, maxX: (isPortrait ? 400 : 600) - (mark ? 85 : 44), minY: mark ? 85 : 4, maxY: (isPortrait ? 600 : 400) - (mark ? 85 : 44) }
+    return { x, y, rotation, homeX: x.value, homeY: y.value, px: x.value, py: y.value, vx: 0, vy: 0, angle: 0, spin: 0, targetX: 0, targetY: 0, targetAngle: 0, next: 0, anchor: index < 4 ? 7 : index < 7 ? 8 : null, upper: index < 4 || index === 7, radius: mark ? 70 : 25, centerOffset: mark ? 0 : 19.2, minX: mark ? 85 : 4, maxX: (isPortrait ? 400 : 600) - (mark ? 85 : 44), minY: mark ? 85 : 4, maxY: (isPortrait ? 600 : 400) - (mark ? 85 : 44) }
   })
+  updateMotionBounds = () => {
+    if (!isPortrait) return
+    const area = canvas.getBoundingClientRect()
+    const content = document.querySelector('.login-content')?.getBoundingClientRect()
+    if (!content || !area.width || !area.height) return
+    const scale = Math.min(area.width / 400, area.height / 600)
+    const top = area.top + (area.height - 600 * scale) / 2
+    const overlaps = content.bottom > top && content.top < top + 600 * scale
+    for (const body of bodies) {
+      body.minY = body.radius === 70 ? 85 : 4
+      body.maxY = 600 - (body.radius === 70 ? 85 : 44)
+      if (overlaps && body.upper) body.maxY = Math.min(body.maxY, (content.top - 12 - top) / scale - body.centerOffset - body.radius)
+      if (overlaps && !body.upper) body.minY = Math.max(body.minY, (content.bottom + 12 - top) / scale - body.centerOffset + body.radius)
+      if (body.minY > body.maxY) throw new Error('Insufficient animation space')
+      body.py = Math.max(body.minY, Math.min(body.maxY, body.py))
+      body.y.value = body.py
+    }
+  }
+  updateMotionBounds()
   let last
   function tick(time) {
     if (animation !== instance || !active || reducedMotion.matches) return
@@ -64,6 +84,7 @@ function move(instance, isPortrait) {
 function stop() {
   cancelAnimationFrame(frame)
   frame = undefined
+  updateMotionBounds = undefined
   const previous = animation
   animation = null
   handoff?.classList.remove('ready')
@@ -123,7 +144,10 @@ reducedMotion.addEventListener('change', () => {
   } else start()
 })
 portrait.addEventListener('change', () => { stop(); start() })
-window.addEventListener('resize', () => { if (handoff?.classList.contains('ready')) animation?.resizeDrawingSurfaceToCanvas() })
+window.addEventListener('resize', () => {
+  if (!handoff?.classList.contains('ready')) return
+  try { animation?.resizeDrawingSurfaceToCanvas(); updateMotionBounds?.() } catch { stop(); handoff.classList.add('fallback') }
+})
 window.addEventListener('pagehide', () => {
   active = false
   stop()
