@@ -1,4 +1,5 @@
 import {percentage} from './percentage.mjs'
+import {isSearchVideo} from './referrer-channels.mjs'
 import React,{useState} from 'react'
 import {DataComponent,DataTable,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
 import {researchProposal} from './research-insights.js'
@@ -16,6 +17,7 @@ const focusText=value=>{
   return <span className="egm-research-description" title={value}>{concise}</span>
 }
 const yesNo=value=>value?'Found':'Not matched'
+const hostnameOf=value=>{try{return new URL(value).hostname}catch{return String(value??'')}}
 const readmeMatch=value=><span className="egm-research-match" role="img" aria-label={value?'Matched in README':'Not matched in README'} title={value?'Matched in README':'Not matched in README'}>{value?<Icon name="check" size={16}/>:<span aria-hidden="true">−</span>}</span>
 const observedGrowth=(value,row)=>value==null?<span title={`Monitoring baseline${row.baselineAt?`: ${row.baselineAt}`:''}`} aria-label="Monitoring baseline">—</span>:`${value>=0?'+':''}${value.toLocaleString('en-US')}`
 const starCount=value=>typeof value==='number'?(Math.abs(value)>=1000?`${(value/1000).toFixed(1)}K`:value.toLocaleString('en-US')):'—'
@@ -57,7 +59,7 @@ function DiscussionSignals({queries}) {
   return <Section title="Verified discussion signals" id="research-discussion">
     <DataComponent id="research-discussion-evidence" queryId="research_evidence" queryIds={queryIds} title="Source checks and experiment proposals" kind="custom" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
       <div className="egm-discussion-list" data-reviewed-rows>{verified.map(row=>{const signal=row.themes?.[0];const quote=signal?.quote?.trim().split(/\s+/).slice(0,24).join(' ');return <article key={row.url}>
-        <h3><a href={row.url} target="_blank" rel="noreferrer">{row.title||new URL(row.url).hostname}</a></h3>
+        <h3><a href={row.url} target="_blank" rel="noreferrer">{row.title||hostnameOf(row.url)}</a></h3>
         <span className="egm-signal-status history-tooltip-trigger" tabIndex={0} aria-label="Verified reference. A reference to EGM was found in the retrieved page. This does not verify every claim."><Icon name="check" size={14}/> Verified reference<Tooltip>A reference to EGM was found in the retrieved page. This does not verify every claim.</Tooltip></span>
         {quote&&<><p className="egm-signal-quote"><q>{quote}{signal.quote.trim().split(/\s+/).length>24?'…':''}</q></p><p>Suggested test: {researchProposal(signal.theme)}</p></>}
       </article>})}</div>
@@ -105,7 +107,7 @@ export function Research() {
   const quick=alternatives.filter(r=>r.quickStart).length
   const ref=queries.referrers?.rows??[]
   const total=ref.reduce((s,r)=>s+r.count,0)
-  const searchVideo=ref.filter(r=>['Google','youtube.com'].includes(r.referrer)).reduce((s,r)=>s+r.count,0)
+  const searchVideo=ref.filter(r=>isSearchVideo(r.referrer)).reduce((s,r)=>s+r.count,0)
   const popular=queries.paths?.rows?.find(r=>r.path.includes('/docs/'))
   const opportunityQueryIds=['peers','referrers','paths'].filter(id=>queries[id])
   const opportunitySourceRows=Object.fromEntries(opportunityQueryIds.map(id=>[id,queries[id]?.rows??[]]))
@@ -114,7 +116,7 @@ export function Research() {
       {title:'First-run discovery',evidence:`${quick} of ${alternatives.length} peer READMEs match a quick-start or installation heading. EGM: ${yesNo(egm.quickStart).toLowerCase()}.`,action:egm.quickStart?'Test the existing first-run path with new users and measure completion.':'Test a short, prominent first-run section before expanding the documentation.',source:egm.readmeUrl},
       {title:'Show the workflow',evidence:`${media} of ${alternatives.length} peer READMEs contain a matched video or animated media link. EGM: ${yesNo(egm.demo).toLowerCase()}.`,action:egm.demo?'Measure clicks and first successful runs from the existing demo.':'Test a short workflow demonstration showing a concrete input, review, and resulting change.',source:egm.readmeUrl}
     ]:[]),
-    ...(total?[{title:'Channel concentration',evidence:`Google and YouTube account for ${percentage(searchVideo/total)} of reported referral views.`,action:'Test one additional distribution channel and compare attributed views. This is an experiment proposal, not evidence of causal lift.',source:'https://github.com/google/elephant-goldfish-model/graphs/traffic'}]:[]),
+    ...(total?[{title:'Channel concentration',evidence:`Google and YouTube account for ${percentage(searchVideo/total)} of the views GitHub attributes to its top ten referrers.`,action:'Test one additional distribution channel and compare attributed views. This is an experiment proposal, not evidence of causal lift.',source:'https://github.com/google/elephant-goldfish-model/graphs/traffic'}]:[]),
     ...(popular?[{title:'Follow observed content interest',evidence:`${popular.path.replace('/google/elephant-goldfish-model','').replace('/blob/main','')} received ${popular.count.toLocaleString('en-US')} views.`,action:'Test a clearer route from this documentation page to installation and the first successful workflow.',source:'https://github.com'+popular.path}]:[])
   ]
   const recommendationIcons={'First-run discovery':'arrowUpRight','Show the workflow':'monitor','Channel concentration':'link','Follow observed content interest':'textDocument'}
