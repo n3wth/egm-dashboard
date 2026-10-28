@@ -14,15 +14,19 @@ export function startLiveSnapshot({ request = fetch, document: doc = globalThis.
     try {
       const options = { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]), cache: 'no-store', credentials: 'same-origin' };
       const response = await request('/api/snapshot-version', options);
+      options.signal.throwIfAborted();
       if (response.status === 401 || response.status === 403) { stopped = true; return; }
       if (!response.ok) throw new Error('snapshot_version_unavailable');
       const record = await response.json();
+      options.signal.throwIfAborted();
       if (typeof record.version !== 'string' || !record.version) throw new Error('invalid_snapshot_version');
       if (record.version !== version) {
         const dataResponse = await request('/api/snapshot', options);
+        options.signal.throwIfAborted();
         if (dataResponse.status === 401 || dataResponse.status === 403) { stopped = true; return; }
         if (!dataResponse.ok) throw new Error('snapshot_unavailable');
         const snapshot = await dataResponse.json();
+        options.signal.throwIfAborted();
         if (!snapshot || typeof snapshot.queries !== 'object' || Array.isArray(snapshot.queries) || snapshot.queries === null || typeof snapshot.generatedAt !== 'string') throw new Error('invalid_snapshot');
         if (!stopped && !controller.signal.aborted && doc.visibilityState === 'visible') {
           onSnapshot(snapshot);
