@@ -1,7 +1,7 @@
 import posthog from 'posthog-js'
 import { filterUsageEvent } from './usage-filter.mjs'
 
-const sections = new Set(['reach', 'acquisition', 'adoption', 'website', 'development', 'research', 'mentions'])
+const sections = new Set(['reach', 'growth', 'acquisition', 'adoption', 'website', 'development', 'research', 'mentions'])
 let initialized = false
 let lastSection
 

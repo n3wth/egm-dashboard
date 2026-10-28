@@ -49,6 +49,15 @@ test('anonymous requests cannot access html, data, APIs, or approval tools',asyn
   assert.equal(assetReads,0)
   assert.match(await response.text(),/Continue with Google/)
 })
+test('growth advice deep links preserve the sign-in flow',async()=>{
+  const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret}
+  const page=await handle(new Request(env.APP_URL+'/growth'),env)
+  assert.equal(page.status,200)
+  assert.match(await page.text(),/Continue with Google/)
+  const redirect=await handle(new Request(env.APP_URL+'/?tab=growth'),env)
+  assert.equal(redirect.status,302)
+  assert.equal(new URL(redirect.headers.get('location'),env.APP_URL).pathname,'/growth')
+})
 test('pending users cannot read private assets',async()=>{
   const token=await seal({sid:'pending-session'},secret,'session')
   const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,DB:{prepare(){return {bind(){return {first:async()=>({id:'user',email:'test@example.com',status:'pending'})}}}}},ASSETS:{fetch(){throw Error('must not read')}}}

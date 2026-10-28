@@ -150,7 +150,7 @@ export async function handle(request,env,ctx) {
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return new Response('Configuration incomplete',{status:503})
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})
   if(url.pathname==='/mcp') return mcp(request,env,ctx)
-  const pagePaths=['overview','reach','website','development','acquisition','adoption','research','mentions']
+  const pagePaths=['overview','reach','growth','website','development','acquisition','adoption','research','mentions']
   if(url.pathname==='/reach' && request.method==='GET') return new Response(null,{status:302,headers:{location:'/overview','cache-control':'no-store'}})
   if(url.pathname==='/' && url.searchParams.has('tab') && request.method==='GET' && pagePaths.includes(url.searchParams.get('tab'))) {
     const tab=url.searchParams.get('tab')
