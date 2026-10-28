@@ -76,14 +76,14 @@ test('encrypted tokens cannot be moved to another session or user', async () => 
   assert.equal(result.status, 'reauthenticate')
 })
 
-test('verified organization admin can manage, edit and refresh; owner without permission cannot', async () => {
+test('verified default organization admin can manage, edit and refresh; owner without permission cannot', async () => {
   const db = new DatabaseSync(':memory:')
   db.exec("CREATE TABLE sessions(id TEXT PRIMARY KEY,user_id TEXT,expires_at INTEGER); CREATE TABLE users(id TEXT PRIMARY KEY,email TEXT,name TEXT,status TEXT,verified INTEGER,created_at TEXT,decided_at TEXT); CREATE TABLE presentation(id INTEGER PRIMARY KEY,body TEXT,revision INTEGER); INSERT INTO sessions VALUES('s1','user_a',9999999999),('s2','user_owner',9999999999); INSERT INTO users VALUES('user_a','admin@example.com','Admin','approved',1,'2026-01-01',NULL),('user_owner','owner@example.com','Owner','approved',1,'2026-01-01',NULL); INSERT INTO presentation VALUES(1,'{}',0)")
   db.exec(readFileSync(new URL('./workos-session-schema.sql', import.meta.url), 'utf8'))
   const DB = { prepare(sql) { return { bind(...args) { return { async run() { const result = db.prepare(sql).run(...args); return { meta: { changes: Number(result.changes) } } }, async first() { return db.prepare(sql).get(...args) ?? null }, async all() { return { results: db.prepare(sql).all(...args) } } } }, async first() { return db.prepare(sql).get() ?? null }, async all() { return { results: db.prepare(sql).all() } } } } }
   const env = { ...envBase, DB, APP_URL: 'https://egm.example', OWNER_EMAIL: 'owner@example.com' }
   const signer = await signing()
-  const jwt = await signer.token({ exp: Math.floor(Date.now() / 1000) + 300 })
+  const jwt = await signer.token({ role: 'admin', permissions: [], exp: Math.floor(Date.now() / 1000) + 300 })
   await storeWorkosSession(env, 's1', 'user_a', 'unscoped', 'refresh')
   const previousFetch = globalThis.fetch
   globalThis.fetch = async url => String(url).includes('/sso/jwks/') ? Response.json({ keys: [signer.jwk] }) : Response.json({ access_token: jwt, refresh_token: 'next', organization_id: env.WORKOS_RBAC_ORGANIZATION_ID, user: { id: 'user_a' } })

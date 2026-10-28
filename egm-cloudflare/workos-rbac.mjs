@@ -7,9 +7,9 @@ function decode(value) {
   return Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0))
 }
 
-// Return verified claims only for the named user, application, organization and
-// permission. Callers must supply expected values from trusted configuration and
-// the server-side session, never from the token or request itself.
+// Return verified claims only for the named user, application and organization
+// with the default admin role or configured permission. Expected values come from
+// trusted configuration and the server-side session, never from the token itself.
 export async function verifyWorkosPermission(token, { clientId, issuer, subject, organizationId, permission, request = fetch, time = Date.now() }) {
   try {
     if (typeof token !== 'string' || token.length > 8192 || !/^client_[A-Za-z0-9]+$/.test(clientId) || ![issuer, subject, organizationId, permission].every(v => typeof v === 'string' && v.length > 0)) return null
@@ -19,7 +19,7 @@ export async function verifyWorkosPermission(token, { clientId, issuer, subject,
     const header = JSON.parse(decoder.decode(decode(h)))
     const claims = JSON.parse(decoder.decode(decode(p)))
     if (header.alg !== 'RS256' || typeof header.kid !== 'string' || !header.kid || header.crit != null || header.b64 === false) return null
-    if (claims.iss !== issuer || claims.client_id !== clientId || claims.sub !== subject || claims.org_id !== organizationId || !Number.isFinite(claims.exp) || claims.exp <= Math.floor(time / 1000) || (claims.nbf != null && (!Number.isFinite(claims.nbf) || claims.nbf > Math.floor(time / 1000))) || !Array.isArray(claims.permissions) || !claims.permissions.includes(permission)) return null
+    if (claims.iss !== issuer || claims.client_id !== clientId || claims.sub !== subject || claims.org_id !== organizationId || !Number.isFinite(claims.exp) || claims.exp <= Math.floor(time / 1000) || (claims.nbf != null && (!Number.isFinite(claims.nbf) || claims.nbf > Math.floor(time / 1000))) || !(claims.role === 'admin' || (Array.isArray(claims.permissions) && claims.permissions.includes(permission)))) return null
     const response = await request(`https://api.workos.com/sso/jwks/${clientId}`, { redirect: 'manual', signal: AbortSignal.timeout(5000) })
     if (!response.ok) return null
     const body = await response.json()
