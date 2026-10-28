@@ -56,4 +56,9 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   assert.equal(frames.size, 0)
   second.options.onLoad()
   assert.equal(classes.has('ready'), false)
+  reduced.matches = false
+  listeners.reduced()
+  const third = instances[2]
+  third.options.onLoadError()
+  assert.equal(classes.has('fallback'), true, 'failed artwork shows a static fallback')
 })
