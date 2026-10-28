@@ -1,0 +1,44 @@
+.egm-workos-account {
+  width: min(680px, 100%);
+}
+
+.egm-workos-account .radix-themes {
+  background-color: transparent;
+}
+
+@media (max-width: 600px) {
+  .egm-workos-account .rt-DataListRoot {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .egm-workos-account .rt-DataListItem {
+    grid-column: 1;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .egm-workos-account .rt-DataListLabel {
+    min-width: 0 !important;
+  }
+
+  .egm-workos-account .rt-DataListValue {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .egm-workos-account [aria-label="Sessions"] .rt-Box > .rt-Flex {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .egm-workos-account [aria-label="Sessions"] .rt-Flex > .rt-Flex {
+    min-width: 0;
+  }
+
+  .egm-workos-account [aria-label="Security settings"] .rt-Grid {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+
+  .egm-workos-account [aria-label="Security settings"] .rt-Grid > button {
+    grid-column: 2;
+  }
+}

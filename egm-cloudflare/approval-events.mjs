@@ -1,4 +1,5 @@
 // Owner-authenticated MCP events. No subscription or decision is automatic.
+import {isDashboardOwner} from './owner-identity.mjs'
 const encoder = new TextEncoder()
 const bytes64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
 const un64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0))
@@ -67,7 +68,7 @@ async function signedHeaders(sub, secret, previous, id, body, timestamp) {
   return {'webhook-id':id,'webhook-timestamp':String(timestamp),'webhook-signature':signature,'X-MCP-Subscription-Id':sub.id}
 }
 function isOwner(owner, env) {
-  return owner?.id && owner.email === env.OWNER_EMAIL && owner.verified === 1 && owner.status === 'approved'
+  return isDashboardOwner(owner,env) && owner.verified === 1 && owner.status === 'approved'
 }
 export async function approvalEventsRpc(rpc, owner, env, fetcher = fetch) {
   const fail = (code,message) => ({error:{code,message}})
@@ -107,7 +108,9 @@ export async function approvalEventsRpc(rpc, owner, env, fetcher = fetch) {
 export async function flushApprovalEvents(env, fetcher = fetch) {
   const timestamp = Math.floor(Date.now()/1000)
   let remaining = 20
-  const subscriptions = (await env.DB.prepare("SELECT s.* FROM approval_subscriptions s JOIN users u ON u.id=s.owner_id WHERE s.active=1 AND s.expires_at>? AND u.email=? AND u.verified=1 AND u.status='approved'").bind(timestamp,env.OWNER_EMAIL).all()).results
+  if(env.WORKOS_OWNER_USER_ID && !/^user_[A-Za-z0-9]+$/.test(env.WORKOS_OWNER_USER_ID)) return
+  const ownerField = env.WORKOS_OWNER_USER_ID ? 'u.id' : 'u.email'
+  const subscriptions = (await env.DB.prepare(`SELECT s.* FROM approval_subscriptions s JOIN users u ON u.id=s.owner_id WHERE s.active=1 AND s.expires_at>? AND ${ownerField}=? AND u.verified=1 AND u.status='approved'`).bind(timestamp,env.WORKOS_OWNER_USER_ID || env.OWNER_EMAIL).all()).results
   for(const sub of subscriptions) {
     // Current pending records only. Already-approved identities never emit a new request.
     const pending = (await env.DB.prepare("SELECT id,name,email,created_at FROM users WHERE status='pending' AND verified=1 ORDER BY created_at LIMIT 100").all()).results

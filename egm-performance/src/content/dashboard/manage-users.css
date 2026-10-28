@@ -1,8 +1,35 @@
-.egm-manage-users .egm-invite-row,.egm-manage-users li{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--border)}
+.dialog.egm-manage-users{width:min(560px,100%)}
 .egm-manage-users h3,.egm-manage-users p{margin:0}
-.egm-manage-users p,.egm-manage-users li span{font-size:13px;line-height:1.6;color:var(--secondary)}
-.egm-manage-users ul{list-style:none;padding:0;margin:0;max-height:50vh;overflow:auto}
-.egm-manage-users li>div:first-child{display:grid;gap:4px;min-width:0;overflow-wrap:anywhere}
+.egm-manage-users h3{font-size:15px;font-weight:600;line-height:1.4}
+.egm-manage-users p,.egm-manage-users li span,.egm-manage-section-heading span{color:var(--secondary);font-size:13px;line-height:1.55}
+.egm-invite-panel{display:grid;gap:16px;padding:8px 0 24px;border-bottom:1px solid var(--border)}
+.egm-invite-panel h3+p{margin-top:5px}
+.egm-expiry-control{display:flex;align-items:center;gap:8px;color:var(--secondary);font-size:13px}
+.egm-expiry-trigger{min-width:104px;justify-content:space-between;gap:12px}
+.egm-expiry-trigger svg{color:var(--secondary)}
+.egm-manage-users .menu-item-label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.egm-invite-created label{display:grid;gap:7px;min-width:0;color:var(--text);font-size:13px;font-weight:500}
+.egm-manage-users input{min-width:0;min-height:40px;padding:9px 11px;border:1px solid var(--border-strong);border-radius:var(--control-radius);background:var(--control);color:var(--text);font:inherit;font-weight:400}
+.egm-manage-users input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.egm-manage-users input::placeholder{color:var(--secondary)}
+.egm-manage-users .button{min-height:40px}
+.egm-manage-users .button:disabled{opacity:.45;cursor:not-allowed}
+.egm-invite-email,.egm-invite-created{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.egm-invite-email input,.egm-invite-created input{width:100%}
+.egm-invite-options{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.egm-invite-created{padding:14px;border:1px solid var(--border-strong);border-radius:var(--control-radius);background:var(--surface)}
+.egm-invite-created button{align-self:end}
+.egm-invite-created p{grid-column:1 / -1}
+.egm-manage-users .egm-manage-message{padding:10px 12px;border:1px solid var(--border-strong);border-radius:var(--control-radius);color:var(--text)}
+.egm-manage-section{padding-top:18px}
+.egm-manage-section+.egm-manage-section{margin-top:6px;border-top:1px solid var(--border)}
+.egm-manage-section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.egm-manage-users ul{list-style:none;padding:0;margin:8px 0 0}
+.egm-manage-users li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.egm-manage-users li:last-child{border-bottom:0}
+.egm-manage-users li>div:first-child{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}
+.egm-manage-users li strong{font-size:14px;font-weight:600}
+.egm-user-status{flex-shrink:0}
 .egm-access-actions{display:flex;gap:8px;flex-shrink:0}
-.egm-manage-users .egm-access-status{padding-top:20px}
-@media(max-width:500px){.egm-manage-users .egm-invite-row,.egm-manage-users li{align-items:flex-start;flex-direction:column;gap:12px}}
+@media(max-width:600px){.egm-manage-users input,.egm-manage-users .button{min-height:44px}}
+@media(max-width:360px){.egm-invite-created{grid-template-columns:minmax(0,1fr)}.egm-invite-created button{align-self:auto;justify-self:start}.egm-invite-created p{grid-column:auto}.egm-manage-users li:has(.egm-access-actions){align-items:flex-start;flex-direction:column;gap:10px}}

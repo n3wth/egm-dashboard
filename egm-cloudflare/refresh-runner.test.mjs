@@ -16,6 +16,39 @@ function fixture() {
 }
 const noRequest = () => { throw Error('network not expected') }
 
+test('transition preserves prior site data, honors both legacy attempts, and keeps comments', async () => {
+  const f = fixture()
+  const attempted = new Date(baseTime - 3600000).toISOString()
+  const legacy = { rows: [{ kind: 'Lab', score: 80, observedAt: attempted, lastAttemptAt: attempted }, { kind: 'Field', lcp: 1700, observedAt: attempted, lastAttemptAt: attempted }], source: { label: 'legacy phone data' } }
+  f.previous.queries.site_performance = legacy
+  f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(f.previous))
+  const result = await runRefresh({ ...f.env, GOOGLE_PERFORMANCE_API_KEY: 'fixture' }, noRequest, {
+    now: () => baseTime,
+    github: async () => ({ status: 'refreshed', snapshot: { ...f.previous, queries: { traffic: f.previous.queries.traffic, site_performance: { rows: [] } } } }),
+    semrush: async () => ({}), mentions: async () => ({ mentions: { rows: [{ url: 'https://example.com/video' }] } }),
+    exa: async () => ({}), exaResearch: async () => ({}), contentResearch: async () => ({}), youtube: async () => ({}),
+    youtubeComments: async (env, request, queries) => { assert.equal(queries.mentions.rows[0].url, 'https://example.com/video'); return { youtube_comments: { rows: [{ videoId: 'fixture' }] }, youtube_comments_status: { rows: [{ status: 'checked' }] } } },
+    tavily: async () => ({}), parallel: async () => ({}), engagement: async () => ({})
+  })
+  const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.equal(result.youtubeComments, 'checked')
+  assert.deepEqual(saved.queries.site_performance, legacy)
+  assert.equal(saved.queries.youtube_comments.rows[0].videoId, 'fixture')
+  assert.equal(saved.queries.web_pagespeed_status.rows[0].nextAttemptAt, new Date(baseTime + 23 * 3600000).toISOString())
+  assert.equal(saved.queries.web_crux_status.rows[0].nextAttemptAt, new Date(baseTime + 23 * 3600000).toISOString())
+  assert.equal(saved.queries.web_crux, undefined)
+})
+
+test('existing alternate Google key works for the single performance collector', async () => {
+  const f = fixture()
+  let checked = false
+  await runRefresh({ ...f.env, GOOGLE_PERFORMANCE_API_KEY: 'fallback' }, noRequest, {
+    now: () => baseTime, github: async () => ({ status: 'refreshed', snapshot: f.previous }),
+    webPerformance: async env => { checked = true; assert.equal(env.GOOGLE_WEB_PERFORMANCE_API_KEY, 'fallback'); return {} }
+  })
+  assert.equal(checked, true)
+})
+
 test('Exa records survive the GitHub seed and update independently', async () => {
   const f = fixture()
   f.previous.queries.exa_mentions = { rows: [{ url: 'https://example.com/old' }] }
