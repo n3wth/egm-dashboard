@@ -5,6 +5,7 @@ import { collectExa } from './exa.mjs'
 import { collectExaResearch } from './exa-research.mjs'
 import { collectContentResearch } from './content-research.mjs'
 import { collectYouTube } from './youtube.mjs'
+import { collectYouTubeComments } from './youtube-comments.mjs'
 import { collectTavily } from './tavily.mjs'
 import { collectParallel } from './parallel.mjs'
 import { collectEngagement } from './engagement.mjs'
@@ -95,6 +96,12 @@ export async function runRefresh(env, request = fetch, services = {}) {
       Object.assign(merged.queries, queries)
       state.youtube = queries.youtube_status?.rows?.[0]?.status ?? 'refreshed'
     } catch { state.youtube = 'failed' }
+    if (clock() >= deadline) state.youtubeComments = 'skipped_deadline'
+    else try {
+      const queries = await (services.youtubeComments ?? collectYouTubeComments)(env, boundedRequest, merged.queries, clock())
+      Object.assign(merged.queries, queries)
+      state.youtubeComments = queries.youtube_comments_status?.rows?.[0]?.status ?? 'refreshed'
+    } catch { state.youtubeComments = 'failed' }
     if (clock() >= deadline) state.tavily = 'skipped_deadline'
     else try {
       const queries = await (services.tavily ?? collectTavily)(env, boundedRequest, oldQueries, clock())
