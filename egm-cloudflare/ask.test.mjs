@@ -23,6 +23,17 @@ test('saved snapshot grounding and validated cited sources',async()=>{
   assert.equal(body.snapshotAt,snapshot.generatedAt)
   assert.equal(result.headers.get('cache-control'),'private, no-store')
 })
+test('Markdown responses retain evidence rules and request readable formatting',async()=>{
+  const env=environment()
+  env.AI.run=async(_,input)=>{
+    assert.match(input.messages[0].content,/untrusted data/)
+    assert.match(input.messages[1].content,/Markdown.*paragraphs, headings and lists/)
+    assert.equal(input.messages[2].role,'user')
+    return {response:'## Ideas\n\n- Test a first run [S1]'}
+  }
+  const response=await handleAsk(request({question:'Growth ideas',format:'markdown'}),env,user)
+  assert.match((await response.json()).answer,/^- /m)
+})
 test('atomic quota rejects before inference',async()=>{
   const env=environment(0)
   env.AI.run=()=>assert.fail('must not infer')
