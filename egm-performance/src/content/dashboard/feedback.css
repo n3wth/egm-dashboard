@@ -1,0 +1,9 @@
+.egm-feedback-trigger { font-size: 13px; }
+.egm-feedback-dialog form { display: grid; gap: 16px; }
+.egm-feedback-dialog form p { margin: 0; color: var(--secondary); line-height: 1.5; }
+.egm-feedback-dialog fieldset { padding: 0; margin: 0; border: 0; }
+.egm-feedback-dialog legend, .egm-feedback-dialog label[for] { margin-bottom: 8px; font-weight: 600; }
+.egm-feedback-options { display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.egm-feedback-options label { display: flex; align-items: center; gap: 7px; }
+.egm-feedback-dialog textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font: inherit; }
+.egm-feedback-actions { display: flex; justify-content: flex-end; gap: 8px; }

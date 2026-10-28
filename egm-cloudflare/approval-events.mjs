@@ -37,7 +37,7 @@ export async function encryptSecret(secret, sessionSecret) {
   const ciphertext = await crypto.subtle.encrypt({name:'AES-GCM',iv},await encryptionKey(sessionSecret),encoder.encode(secret))
   return bytes64(iv) + '.' + bytes64(ciphertext)
 }
-async function decryptSecret(box, sessionSecret) {
+export async function decryptSecret(box, sessionSecret) {
   const [iv,data] = box.split('.')
   return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:un64(iv)},await encryptionKey(sessionSecret),un64(data)))
 }

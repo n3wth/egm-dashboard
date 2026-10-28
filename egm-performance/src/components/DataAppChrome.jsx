@@ -1,4 +1,5 @@
 import { dataAppExportOptions } from "../export-catalog.js";
+import { Feedback } from "../content/dashboard/Feedback.jsx";
 import { useOptionalDataAppShell } from "../DataAppContext.jsx";
 import { dataAppBuildState } from "../build-state.js";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
@@ -1212,6 +1213,7 @@ export function DataAppTopbar({
               </div>
             )}
             <div className="dashboard-topbar-actions">
+              {mode !== "edit" && surface === "dashboard" && <Feedback />}
               {mode !== "edit" && (
                 <>
                   <span className="egm-account-menu">
