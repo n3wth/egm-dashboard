@@ -24,16 +24,18 @@ function MentionRows({rows,label}) {
 const videoId=value=>{try{const url=new URL(value);if(!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname))return null;const id=url.hostname==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v')??url.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1];return /^[A-Za-z0-9_-]{11}$/.test(id??'')?id:null}catch{return null}}
 function VideoGallery({rows,queries}) {
   const metadata=queries.youtube_videos?.rows??[]
-  const queryIds=['mentions',...(queries.youtube_videos?['youtube_videos']:[])]
-  const videos=rows.map(row=>{const id=videoId(row.url);const details=metadata.find(item=>item.videoId===id||videoId(item.url)===id);return {...row,...details,title:details?.title||row.title,published:details?.published||row.published,id}}).filter(row=>row.id)
+  const comments=queries.youtube_comments?.rows??[]
+  const queryIds=['mentions',...(queries.youtube_videos?['youtube_videos']:[]),...(queries.youtube_comments?['youtube_comments']:[])]
+  const videos=rows.map(row=>{const id=videoId(row.url);const details=metadata.find(item=>item.videoId===id||videoId(item.url)===id);return {...row,...details,title:details?.title||row.title,published:details?.published||row.published,id,commentSample:comments.find(item=>item.videoId===id)}}).filter(row=>row.id)
   const measured=videos.filter(row=>Number.isFinite(row.views)&&row.views>=0).sort((a,b)=>b.views-a.views)
   const observedViews=measured.reduce((total,row)=>total+row.views,0)
-  return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:rows,...(queries.youtube_videos?{youtube_videos:metadata}:{})}}>
+  return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:queries.mentions?.rows??[],...(queries.youtube_videos?{youtube_videos:metadata}:{}),...(queries.youtube_comments?{youtube_comments:comments}:{})}}>
     {measured.length>=2&&observedViews>0&&<InsightCallout action="Test a short first-run guide alongside the most-viewed video.">The most-viewed measured video accounts for {percentage(measured[0].views/observedViews)} of observed views across {measured.length} videos with available counts.</InsightCallout>}
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
       <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${row.id}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><h3 title={row.title}>{row.title}</h3></a>
       {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><span title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</span>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
       <div className="egm-video-stats"><EngagementSignals row={row}/></div>
+      {row.commentSample&&<div className="egm-video-comments"><p className="egm-video-meta">Comment sample {row.commentSample.observedAt&&<>observed <ShortDate value={row.commentSample.observedAt}/></>}{row.commentSample.status==='unavailable'&&(row.commentSample.observedAt?' · refresh failed, cached':' · unavailable')}</p>{row.commentSample.comments?.length>0?<ul>{row.commentSample.comments.map(comment=><li key={comment.id}><a href={comment.url} target="_blank" rel="noreferrer nofollow">{comment.text}</a></li>)}</ul>:row.commentSample.status==='available'&&<p className="egm-video-meta">No comments returned in this sample.</p>}</div>}
     </article>)}</div>
   </DataComponent>
 }
