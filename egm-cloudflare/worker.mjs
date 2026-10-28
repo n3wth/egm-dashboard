@@ -142,6 +142,7 @@ export async function handle(request,env,ctx) {
   const url=new URL(request.url)
   if(url.origin!==env.APP_URL) return new Response('Not found',{status:404})
   if(url.pathname==='/favicon.svg' && request.method==='GET') return env.ASSETS.fetch(request)
+  if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(['/fonts/SuisseIntl-Book.woff2','/fonts/SuisseIntl-Medium.woff2','/fonts/SuisseIntl-Semibold.woff2','/fonts/SuisseIntl-Bold.woff2'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return new Response('Configuration incomplete',{status:503})
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})

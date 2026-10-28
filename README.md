@@ -74,4 +74,6 @@ Cron runs every 30 minutes. Provider-specific caches control independent collect
 - `egm-cloudflare/test-fixtures`: recorded GitHub responses for offline tests.
 - `assets/branding`: light/dark SVG icon, favicon, and wordmark assets.
 
+The sign-in animation's editable Rive source is `assets/branding/egm-handoff.rml`; the app serves the checked-in `.riv` export. The source Figma skill icons and EGM mark are in `assets/branding/rive-source/`. To rebuild it, create a Rive CLI project, replace its `scene.rml` with that source, run `rive <project-directory> --once`, and copy the resulting `.riv` to `assets/branding/egm-handoff.riv`.
+
 The snapshot contains private analytics and research intended for this private repository. No access tokens or secret values are included. Search discoveries and modeled SEO data are labeled separately from measured repository activity; source timestamps and missing-data caveats are preserved.
