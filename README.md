@@ -24,6 +24,16 @@ npm --prefix egm-performance run dev
 
 Local development has no production session or source-provider credentials.
 
+## Codex Cloud and local configuration
+
+Builds and offline tests need no provider credentials. Configure a private Codex Cloud environment for this repository with Node.js 22.22 or newer. Install using `npm run install:app`; validate with `npm test` and `npm run build`. For a preview, run `npm --prefix egm-performance run dev -- --host 0.0.0.0`.
+
+A cloud task runs on a separate computer. An ignored `.env` on Oliver's Mac is not a portable cloud configuration. The committed `.env.example` contains names and safe defaults only. For local Worker development, copy it to `egm-cloudflare/.dev.vars`; Wrangler reads that file. The root `.env.example` is not automatically loaded by Vite or the Worker. Keep actual `.env` and `.dev.vars` files out of Git. Collection is disabled in the template to avoid accidental provider calls.
+
+For Codex Cloud, use **Settings > Codex Cloud > Environments** and keep **Who can use: Only me**. Add directly read settings as environment variables. For provider credentials sent over HTTPS, prefer network secrets scoped to the provider's exact API host. Programs receive placeholders; the network proxy substitutes credentials for allowed destinations. Personal vault can supply account-specific values. Do not copy production session or WorkOS secrets into a reusable development filesystem. Use a separate WorkOS development application for localhost sign-in. Publish environment changes, then start a new task to use them.
+
+See the [official Codex Cloud environment documentation](https://learn.chatgpt.com/docs/environments/cloud-environments) for variable, network-secret and prepared-filesystem behavior. Production deployment continues through GitHub Actions and Cloudflare runtime secrets, independently of development configuration.
+
 ## Deploy
 
 Production updates deploy automatically through `.github/workflows/deploy.yml` when changes reach `main`. Work on a feature branch, validate locally, then merge through the repository's normal review process. The workflow installs locked dependencies, runs backend and application tests, verifies the protected runtime, builds assets, and deploys the existing `egm-growth` Worker. Failed checks prevent deployment. Manual workflow dispatch is also limited to `main`.
