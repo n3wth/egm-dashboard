@@ -1,7 +1,6 @@
 const handoff = document.querySelector('.handoff')
 const canvas = handoff?.querySelector('canvas')
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-const compact = window.matchMedia('(max-width: 600px)')
 let animation
 let loading = false
 let active = true
@@ -24,7 +23,7 @@ function start() {
       const instance = new window.rive.Rive({
         src: '/rive/egm-handoff.riv',
         canvas,
-        artboard: compact.matches ? 'Mobile' : 'Desktop',
+        artboard: 'Desktop',
         stateMachine: 'Handoff',
         autoplay: true,
         onLoad() {
@@ -54,10 +53,6 @@ reducedMotion.addEventListener('change', () => {
   if (reducedMotion.matches) {
     stop()
   } else start()
-})
-compact.addEventListener('change', () => {
-  stop()
-  start()
 })
 window.addEventListener('resize', () => { if (handoff?.classList.contains('ready')) animation?.resizeDrawingSurfaceToCanvas() })
 window.addEventListener('pagehide', () => {
