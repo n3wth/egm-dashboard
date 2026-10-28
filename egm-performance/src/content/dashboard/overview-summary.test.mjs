@@ -4,8 +4,8 @@ import {overviewSummary} from './overview-summary.mjs'
 
 test('uses exact recorded traffic and distinct referral denominators',()=>{
   const summary=overviewSummary({reach:{rows:[{stars:3624,views:29252}]},traffic:{rows:[{date:'2026-10-23',views:3406},{date:'2026-10-24',views:6000},{date:'2026-10-25',views:8000},{date:'2026-10-26',views:11846}]},referrers:{rows:[{referrer:'Google',count:5481},{referrer:'youtube.com',count:3313},{referrer:'other',count:4970}]}})
-  assert.match(summary.sentences[0],/3,624 recorded stars; 88.4%/)
-  assert.match(summary.sentences[1],/63.9% of top reported referral views \(30.1% of all repo views\)/)
+  assert.match(summary.sentences[0],/3,624 recorded stars; 88%/)
+  assert.match(summary.sentences[1],/64% of top reported referral views \(30% of all repo views\)/)
   assert.equal(summary.sentences.length,3)
   assert.deepEqual(new Set(summary.queryIds),new Set(['reach','traffic','referrers']))
 })

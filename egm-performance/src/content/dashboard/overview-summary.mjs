@@ -1,3 +1,4 @@
+import {percentage} from './percentage.mjs'
 const count=value=>Number.isFinite(value)&&value>=0
 const number=value=>value.toLocaleString('en-US')
 export function overviewSummary(queries={}) {
@@ -11,7 +12,7 @@ export function overviewSummary(queries={}) {
   const total=traffic.length&&traffic.every(row=>count(row.views))?traffic.reduce((sum,row)=>sum+row.views,0):null
   if(total>0&&traffic.length>=3) {
     const recent=traffic.slice(-3).reduce((sum,row)=>sum+row.views,0)
-    sentences.push(`${stars?stars+'; ':''}${(recent/total*100).toFixed(1)}% of the window’s ${number(total)} repo views arrived in the last three reported days.`)
+    sentences.push(`${stars?stars+'; ':''}${percentage(recent/total)} of the window’s ${number(total)} repo views arrived in the last three reported days.`)
     ids.add('traffic')
   } else if(stars||count(reach?.views)) {
     sentences.push(`${stars??'The snapshot records'}${count(reach?.views)?`${stars?' and ':' '}${number(reach.views)} repo views in the reporting window`:''}.`)
@@ -21,7 +22,7 @@ export function overviewSummary(queries={}) {
     const totalReferrals=refs.reduce((sum,row)=>sum+row.count,0)
     const searchVideo=refs.filter(row=>['google','google.com','youtube','youtube.com'].includes(String(row.referrer).toLowerCase())).reduce((sum,row)=>sum+row.count,0)
     if(totalReferrals>0&&searchVideo>0) {
-      sentences.push(`Google and YouTube contributed ${(searchVideo/totalReferrals*100).toFixed(1)}% of top reported referral views${reach?.views>0?` (${(searchVideo/reach.views*100).toFixed(1)}% of all repo views)`:''}.`)
+      sentences.push(`Google and YouTube contributed ${percentage(searchVideo/totalReferrals)} of top reported referral views${reach?.views>0?` (${percentage(searchVideo/reach.views)} of all repo views)`:''}.`)
       ids.add('referrers');if(reach?.views>0)ids.add('reach')
     }
   }

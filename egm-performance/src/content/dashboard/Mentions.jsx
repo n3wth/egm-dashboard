@@ -1,8 +1,10 @@
+import {percentage} from './percentage.mjs'
 import React from 'react'
 import {DataComponent,DataTable,Section,useDataApp} from '../../data-app-public.jsx'
 import {SiteName} from './SiteName.jsx'
 import {InsightCallout} from './InsightCallout.jsx'
 import {EngagementSignals} from './EngagementSignals.jsx'
+import {PageSummary} from './PageSummary.jsx'
 
 const stamp=value=>!value?'Unknown':/^\d{4}-\d{2}-\d{2}$/.test(value)?new Date(value+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):new Date(value).toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' PT'
 const mentionLink=(value,row)=><a className="egm-mention-link" href={row.url} target="_blank" rel="noreferrer nofollow">{value}</a>
@@ -27,7 +29,7 @@ function VideoGallery({rows,queries}) {
   const measured=videos.filter(row=>Number.isFinite(row.views)&&row.views>=0).sort((a,b)=>b.views-a.views)
   const observedViews=measured.reduce((total,row)=>total+row.views,0)
   return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={videos} sourceRowsByQuery={{mentions:rows,...(queries.youtube_videos?{youtube_videos:metadata}:{})}}>
-    {measured.length>=2&&observedViews>0&&<InsightCallout action="Test a short first-run guide alongside the most-viewed video.">The most-viewed measured video accounts for {(measured[0].views/observedViews*100).toFixed(1)}% of observed views across {measured.length} videos with available counts.</InsightCallout>}
+    {measured.length>=2&&observedViews>0&&<InsightCallout action="Test a short first-run guide alongside the most-viewed video.">The most-viewed measured video accounts for {percentage(measured[0].views/observedViews)} of observed views across {measured.length} videos with available counts.</InsightCallout>}
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
       <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><img src={`https://i.ytimg.com/vi/${row.id}/hqdefault.jpg`} loading="lazy" alt="" width="480" height="360"/><h3 title={row.title}>{row.title}</h3></a>
       {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><span title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</span>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
@@ -105,12 +107,13 @@ export function Mentions() {
   const earliest=allRows.map(row=>row.firstSeen).filter(Boolean).sort()[0]
   const since=earliest?new Date(earliest).toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'}):null
   const groups=[['Video','YouTube'],['Social','Social posts'],['Media / web','Media and web'],['Official','Official announcements']]
+  const firstKind=groups.find(([kind])=>rows.some(row=>row.kind===kind))?.[0]
   return <>
-    <Section title="Mentions" id="mentions-heading" spacing="none"/>
+    <PageSummary page="mentions" queries={queries}/>
     {groups.map(([kind,title])=>{
       const selected=rows.filter(row=>row.kind===kind)
       if(!selected.length) return null
-      return <Section key={kind} title={kind==='Video'?undefined:title} id={'mentions-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')}>
+      return <Section key={kind} title={kind==='Video'?undefined:title} spacing={kind===firstKind?'none':'section'} id={'mentions-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')}>
         {kind==='Video'?<VideoGallery rows={selected} queries={queries}/>:<DataComponent id={'mentions-table-'+kind.toLowerCase().replaceAll(/[^a-z]+/g,'-')} queryId="mentions" queryIds={queries.mention_engagement?['mentions','mention_engagement']:['mentions']} title={`${selected.length} ${selected.length===1?'mention':'mentions'}`} kind="table" variant="card" displayRows={selected} sourceRowsByQuery={{mentions:query?.rows??[],...(queries.mention_engagement?{mention_engagement:engagement}:{})}}>
           <MentionRows rows={selected} label={`${title} mentions`}/>
         </DataComponent>}

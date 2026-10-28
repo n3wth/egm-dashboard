@@ -4,13 +4,12 @@ import { createPortal, flushSync } from "react-dom";
 import { compact } from "../charting/chart-theme.js";
 import { SelectedChartRegion } from "../charting/SelectedChartRegion.jsx";
 import { chartPointSelection, pinnedChartCardPosition } from "../dashboard-ask.js";
-import { dataAppPromptLinkProps } from "../data-app-handoff.js";
 import {
-  codexDataAppPromptUrl,
   isCodexBrowser,
 } from "../runtime-environment.js";
 import { Icon } from "./Icon.jsx";
 import { AskPanel } from "../content/dashboard/AskPanel.jsx";
+import { selectionAskQuestion } from "../content/dashboard/ask-entry-context.mjs";
 export function DashboardAskIcon({ name, size = 16 }) {
   return <Icon name={name} size={size} />;
 }
@@ -526,12 +525,6 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
     closingTimerRef.current = window.setTimeout(completeClose, HEADER_UNMORPH_DURATION + 100);
   }
 
-  function closeAfterNavigation() {
-    // Keep the trusted anchor mounted through bubbling and native activation.
-    window.clearTimeout(closingTimerRef.current);
-    closingTimerRef.current = window.setTimeout(completeClose, 0);
-  }
-
   function finishClosing(event) {
     if (!closing || event.target !== event.currentTarget || event.animationName !== "dashboard-ask-header-unmorph") return;
     flushSync(completeClose);
@@ -582,8 +575,9 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
   }
 
   function openNativeAsk(initialQuestion = "") {
+    const contextualQuestion=selectionAskQuestion(initialQuestion,selection?.context);
     closeComposer();
-    setNativeAskQuestion(initialQuestion.slice(0, 1200));
+    setNativeAskQuestion(contextualQuestion);
     setNativeAskOpen(true);
   }
 
@@ -947,8 +941,8 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
     && (!question.length || isPhoneViewport);
   const hasQuestion = Boolean(question.trim());
   const sharedPromptLabel = closing && headerMorph
-    ? selection.triggerLabel ?? "Ask ChatGPT"
-    : "Ask ChatGPT";
+    ? selection.triggerLabel ?? "Ask"
+    : "Ask";
   const hoverCard = selection?.context?.hoverCard;
   const pinned = hoverCard && phase === "menu";
   const pinnedPosition = pinned ? pinnedChartCardPosition(selection.anchor, hoverCard, { width: window.innerWidth, height: window.innerHeight }) : null;
@@ -967,7 +961,7 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
       style={{ left: position.left, top: position.top, ...motionStyle }}
     >
       {phase === "compose" && <button type="button" className="dashboard-ask-mobile-scrim"
-        aria-label="Close Ask ChatGPT" onClick={closeComposer} />}
+        aria-label="Close Ask" onClick={closeComposer} />}
       <div
         key={entranceKey}
         ref={panelRef}
@@ -982,12 +976,12 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
         data-placement={position.placement}
         role="dialog"
         aria-modal={phase === "compose" && isPhoneViewport || undefined}
-        aria-label={phase === "menu" ? "Selection actions" : "Ask ChatGPT about this dashboard"}
+        aria-label={phase === "menu" ? "Selection actions" : "Ask about this dashboard"}
         onAnimationEnd={finishClosing}
       >
         {phase === "compose" && <header className="dashboard-ask-mobile-heading">
-          <span>Ask ChatGPT</span>
-          <button type="button" aria-label="Close Ask ChatGPT" onClick={closeComposer}><Icon name="cross" size={20} /></button>
+          <span>Ask</span>
+          <button type="button" aria-label="Close Ask" onClick={closeComposer}><Icon name="cross" size={20} /></button>
         </header>}
         {closing && headerMorph && selection.triggerIconInset && <span className="dashboard-ask-return-icon" aria-hidden="true">
           <DashboardAskIcon name="chatBubble" size={18} />
@@ -1005,8 +999,8 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
           {markActions[0]?.context && <span className="dashboard-exploration-context">{markActions[0].context}</span>}
           {markActions.map((action, index) => <button type="button" key={action.label} autoFocus={index === 0}
             onClick={() => { closeComposer(); action.onSelect(); }}><span>{action.label}</span><Icon name="arrowUpRight" size={14} /></button>)}
-          {(selectionEnabled || !markActions.length) && <button type="button" onClick={() => setPhase("compose")}>
-            <span className={markActions.length ? undefined : "dashboard-ask-menu-prompt"}>Ask ChatGPT</span>
+          {(selectionEnabled || !markActions.length) && <button type="button" onClick={() => openNativeAsk()}>
+            <span className={markActions.length ? undefined : "dashboard-ask-menu-prompt"}>Ask</span>
           </button>}
         </div>
         <form
@@ -1034,8 +1028,8 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
                 event.currentTarget.form?.requestSubmit();
               }
             }}
-            placeholder={selection.source === "header" && canEdit ? "Ask a question or request a change…" : "Ask ChatGPT"}
-            aria-label="Question for ChatGPT"
+            placeholder={selection.source === "header" && canEdit ? "Ask a question or request a change…" : "Ask"}
+            aria-label="Question for Ask"
           />
           {zeroStateVisible && (
             <div className="dashboard-ask-zero-state" role="group" aria-label="Suggested actions">
@@ -1050,27 +1044,8 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
                     </span>
                   </>
                 );
-                return href ? (
-                  <a
-                    key={action}
-                    className={subtext ? "has-subtext" : undefined}
-                    {...dataAppPromptLinkProps(getHandoffHref ?? (() => href), closeAfterNavigation)}
-                  >
-                    {content}
-                  </a>
-                ) : (
-                  <button
-                    key={action}
-                    className={subtext ? "has-subtext" : undefined}
-                    type="button"
-                    onClick={() => {
-                      flushSync(completeClose);
-                      onSelect?.();
-                    }}
-                  >
-                    {content}
-                  </button>
-                );
+                return <button key={action} className={subtext ? "has-subtext" : undefined} type="button"
+                  onClick={() => openNativeAsk(label)}>{content}</button>;
               })}
             </div>
           )}

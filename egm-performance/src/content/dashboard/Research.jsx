@@ -1,7 +1,9 @@
+import {percentage} from './percentage.mjs'
 import React,{useState} from 'react'
 import {DataComponent,DataTable,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
 import {researchProposal} from './research-insights.js'
 import {backlinkPages} from './backlink-pages.js'
+import {PageSummary} from './PageSummary.jsx'
 
 const repoLink=(value,row)=><a className="egm-research-repo" href={row.url} target="_blank" rel="noreferrer">{value}</a>
 const wrappedText=value=><span className="egm-research-description">{value??'—'}</span>
@@ -96,7 +98,7 @@ function ResearchCandidates({queries}) {
 export function Research() {
   const {queries}=useDataApp()
   const peers=queries.peers?.rows??[],emerging=queries.emerging?.rows??[]
-  if(!peers.length) return <><p className="egm-note">Repo research has not completed its first source collection.</p><DiscussionSignals queries={queries}/><ResearchCandidates queries={queries}/><SearchVisibility queries={queries}/></>
+  if(!peers.length) return <><PageSummary page="research" queries={queries}/><p className="egm-note">Repo research has not completed its first source collection.</p><DiscussionSignals queries={queries}/><ResearchCandidates queries={queries}/><SearchVisibility queries={queries}/></>
   const egm=peers.find(r=>r.repo==='google/elephant-goldfish-model')
   const alternatives=peers.filter(r=>r!==egm)
   const media=alternatives.filter(r=>r.demo).length
@@ -112,12 +114,13 @@ export function Research() {
       {title:'First-run discovery',evidence:`${quick} of ${alternatives.length} peer READMEs match a quick-start or installation heading. EGM: ${yesNo(egm.quickStart).toLowerCase()}.`,action:egm.quickStart?'Test the existing first-run path with new users and measure completion.':'Test a short, prominent first-run section before expanding the documentation.',source:egm.readmeUrl},
       {title:'Show the workflow',evidence:`${media} of ${alternatives.length} peer READMEs contain a matched video or animated media link. EGM: ${yesNo(egm.demo).toLowerCase()}.`,action:egm.demo?'Measure clicks and first successful runs from the existing demo.':'Test a short workflow demonstration showing a concrete input, review, and resulting change.',source:egm.readmeUrl}
     ]:[]),
-    ...(total?[{title:'Channel concentration',evidence:`Google and YouTube account for ${(searchVideo/total*100).toFixed(1)}% of reported referral views.`,action:'Test one additional distribution channel and compare attributed views. This is an experiment proposal, not evidence of causal lift.',source:'https://github.com/google/elephant-goldfish-model/graphs/traffic'}]:[]),
+    ...(total?[{title:'Channel concentration',evidence:`Google and YouTube account for ${percentage(searchVideo/total)} of reported referral views.`,action:'Test one additional distribution channel and compare attributed views. This is an experiment proposal, not evidence of causal lift.',source:'https://github.com/google/elephant-goldfish-model/graphs/traffic'}]:[]),
     ...(popular?[{title:'Follow observed content interest',evidence:`${popular.path.replace('/google/elephant-goldfish-model','').replace('/blob/main','')} received ${popular.count.toLocaleString('en-US')} views.`,action:'Test a clearer route from this documentation page to installation and the first successful workflow.',source:'https://github.com'+popular.path}]:[])
   ]
   const recommendationIcons={'First-run discovery':'arrowUpRight','Show the workflow':'monitor','Channel concentration':'link','Follow observed content interest':'textDocument'}
   return <>
-    <Section title="Comparable repos" id="research-peers" spacing="none">
+    <PageSummary page="research" queries={queries}/>
+    <Section id="research-peers" spacing="none">
       <DataComponent id="research-peer-table" queryId="peers" title="Reach and first-run discovery" kind="table" variant="card" displayRows={peers} sourceRows={peers}>
         <DataTable rows={peers} searchable={false} label="Comparable repo signals" columns={[{field:'repo',label:'Repo',renderCell:repoLink},{field:'stars',label:'Stars',renderCell:starCount},{field:'observedDelta',label:'Since monitoring',renderCell:observedGrowth},{field:'quickStart',label:'Quick start',renderCell:readmeMatch},{field:'demo',label:'Demo',renderCell:readmeMatch}]} />
         <p className="egm-note">Growth since monitoring began.</p>
