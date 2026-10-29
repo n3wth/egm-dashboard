@@ -3509,3 +3509,8 @@ main[data-data-app-content="report"] .report-recommendations > p {
   .dashboard-ask-anchor[data-phase="compose"] .dashboard-ask-compose footer { animation: none !important; }
   .dashboard-ask-anchor[data-phase="compose"] .dashboard-ask-zero-state-heading { padding-inline: 0; }
 }
+
+.dashboard-logo-body { fill: transparent; transition: fill var(--motion-duration-fast, 150ms) ease; }
+.dashboard-logo-link:focus-visible .dashboard-logo-body { fill: currentColor; }
+@media (hover: hover) and (pointer: fine) { .dashboard-logo-link:hover .dashboard-logo-body { fill: currentColor; } }
+@media (prefers-reduced-motion: reduce) { .dashboard-logo-body { transition: none; } }

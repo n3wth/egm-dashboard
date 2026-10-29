@@ -1054,9 +1054,10 @@ export function DataAppTopbar({
       >
         <div className="dashboard-chrome-inner dashboard-topbar-inner">
           <div className="dashboard-topbar-copy">
-<a href="/overview" aria-label="EGM overview" onClick={event=>{const overviewTab=tabs.find(tab=>tab.id==='reach')??tabs.find(tab=>tab.label==='Overview');if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||!onTabChange||!overviewTab)return;event.preventDefault();onTabChange(overviewTab.id)}} style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
-<path d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2ZM20 12l3-2.6M20 12l3 2.6" />
+<a href="/overview" className="dashboard-logo-link" aria-label="EGM overview" onClick={event=>{const overviewTab=tabs.find(tab=>tab.id==='reach')??tabs.find(tab=>tab.label==='Overview');if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||!onTabChange||!overviewTab)return;event.preventDefault();onTabChange(overviewTab.id)}} style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path className="dashboard-logo-body" d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
+<path className="dashboard-logo-body" d="M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2Z" />
+<path d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M20 12l3-2.6M20 12l3 2.6" />
             </svg></a>
             {published && surface !== "report" && verification && (
               <DataAppVerificationBadge
