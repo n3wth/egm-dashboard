@@ -12,12 +12,14 @@ function move(instance, isPortrait) {
   const names = ['bootstrap', 'brainstorm', 'draft', 'resolve', 'drift', 'review', 'loop', 'elephant', 'goldfish']
   const portraitPositions = [[15, 12], [330, 20], [12, 180], [325, 180], [12, 385], [330, 385], [300, 540], [160, 115], [180, 490]]
   const model = instance.viewModelInstance
+  // The desktop artboard draws its shapes larger than the portrait one, so collision sizes and edge margins follow.
+  const margin = (portraitSize, desktopSize) => isPortrait ? portraitSize : desktopSize
   const bodies = names.map((name, index) => {
     const x = model?.number(`${name}X`), y = model?.number(`${name}Y`), rotation = model?.number(`${name}Rotation`)
     if (!x || !y || !rotation) throw new Error('Missing Rive motion binding')
     if (isPortrait) { x.value = portraitPositions[index][0]; y.value = portraitPositions[index][1]; rotation.value = 0 }
     const mark = index >= 7
-    return { x, y, rotation, homeX: x.value, homeY: y.value, px: x.value, py: y.value, vx: 0, vy: 0, angle: 0, spin: 0, targetX: 0, targetY: 0, targetAngle: 0, next: 0, anchor: index < 4 ? 7 : index < 7 ? 8 : null, upper: index < 4 || index === 7, radius: mark ? 70 : 33, centerOffset: mark ? 0 : 25.2, minX: mark ? 85 : 8, maxX: (isPortrait ? 400 : 600) - (mark ? 85 : 58), minY: mark ? 85 : 8, maxY: (isPortrait ? 600 : 400) - (mark ? 85 : 58) }
+    return { x, y, rotation, homeX: x.value, homeY: y.value, px: x.value, py: y.value, vx: 0, vy: 0, angle: 0, spin: 0, targetX: 0, targetY: 0, targetAngle: 0, next: 0, anchor: index < 4 ? 7 : index < 7 ? 8 : null, upper: index < 4 || index === 7, radius: mark ? (isPortrait ? 70 : 92) : (isPortrait ? 33 : 44), centerOffset: mark ? 0 : (isPortrait ? 25.2 : 33.6), minX: mark ? margin(85, 112) : 8, maxX: (isPortrait ? 400 : 800) - (mark ? margin(85, 112) : margin(58, 77)), minY: mark ? margin(85, 112) : 8, maxY: (isPortrait ? 600 : 400) - (mark ? margin(85, 112) : margin(58, 77)) }
   })
   updateMotionBounds = () => {
     if (!isPortrait) return
