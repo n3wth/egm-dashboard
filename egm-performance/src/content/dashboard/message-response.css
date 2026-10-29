@@ -1,0 +1,12 @@
+.egm-message-response { line-height: 1.7; overflow-wrap: anywhere; }
+.egm-message-response > * { margin: 0 0 1em; }
+.egm-message-response > :first-child { margin-top: 16px; }
+.egm-message-response > :last-child { margin-bottom: 0; }
+.egm-message-response :is(ul,ol) { padding-left: 1.6em; }
+.egm-message-response li + li { margin-top: .35em; }
+.egm-message-response :is(h1,h2,h3,h4,h5,h6) { line-height: 1.3; margin-top: 1.2em; }
+.egm-message-response blockquote { border-left: 3px solid var(--border); padding-left: 1em; color: var(--secondary); }
+.egm-message-response pre { overflow-x: auto; padding: 12px; background: var(--muted); border-radius: 8px; }
+.egm-message-response code { font-size: .9em; }
+.egm-message-response table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.egm-message-response :is(th,td) { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }

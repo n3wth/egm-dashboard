@@ -56,14 +56,15 @@ test('anonymous requests cannot access html, data, APIs, or approval tools',asyn
   assert.equal(assetReads,0)
   assert.match(await response.text(),/Continue with Google/)
 })
-test('growth advice deep links preserve the sign-in flow',async()=>{
+test('the old growth advice links land on Overview', async () => {
   const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret}
-  const page=await handle(new Request(env.APP_URL+'/growth'),env)
-  assert.equal(page.status,200)
-  assert.match(await page.text(),/Continue with Google/)
-  const redirect=await handle(new Request(env.APP_URL+'/?tab=growth'),env)
-  assert.equal(redirect.status,302)
-  assert.equal(new URL(redirect.headers.get('location'),env.APP_URL).pathname,'/growth')
+  for (const path of ['/growth','/reach','/?tab=growth','/?tab=reach']) {
+    const redirect=await handle(new Request(env.APP_URL+path),env)
+    assert.equal(redirect.status,302,path)
+    assert.equal(new URL(redirect.headers.get('location'),env.APP_URL).pathname,'/overview',path)
+  }
+  const kept=await handle(new Request(env.APP_URL+'/?tab=website'),env)
+  assert.equal(new URL(kept.headers.get('location'),env.APP_URL).pathname,'/website')
 })
 test('pending users cannot read private assets',async()=>{
   const token=await seal({sid:'pending-session'},secret,'session')

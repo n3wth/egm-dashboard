@@ -15,3 +15,9 @@ test('only section events are sent and private properties are removed', () => {
   assert.equal(ask.properties.question, undefined)
   assert.equal(ask.properties.answer, undefined)
 })
+test('the starter event keeps only the starter id', () => {
+  const event = filterUsageEvent({ event: 'dashboard_ask_starter', properties: { distinct_id: 'id', starter: 'distribution', question: 'private', $current_url: 'https://example.com/?secret=1' } })
+  assert.equal(event.properties.starter, 'distribution')
+  assert.equal(event.properties.question, undefined)
+  assert.equal(event.properties.$current_url, undefined)
+})
