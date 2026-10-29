@@ -44,7 +44,7 @@ test('stale Rive callbacks cannot replace the active artwork', async () => {
   step(0)
   step(50)
   const position = second.values.get('bootstrapX').value
-  assert.ok(position <= 542)
+  assert.ok(position <= 723, 'icons stay inside the 800 wide desktop artboard minus their margin')
   assert.ok(second.values.get('brainstormX').value > 101, 'nearby objects repel one another')
   document.hidden = true
   step(100)

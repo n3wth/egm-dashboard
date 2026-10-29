@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "install:app": "npm --prefix egm-performance ci",
+    "preview:login": "node scripts/preview-login.mjs",
     "build": "npm --prefix egm-performance run build && node scripts/package-assets.mjs",
     "test": "node --test egm-cloudflare/*.test.mjs egm-performance/src/live-snapshot.test.mjs egm-performance/src/content/dashboard/*.test.mjs && npm --prefix egm-performance test"
   }
