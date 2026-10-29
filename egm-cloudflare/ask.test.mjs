@@ -161,16 +161,33 @@ test('real streaming relays split SSE deltas before final metadata and charges q
   const reader=result.body.getReader(),decoder=new TextDecoder()
   push('data: {"respon')
   push('se":"100 "}\n\n')
-  const first=JSON.parse(decoder.decode((await reader.read()).value))
-  assert.deepEqual(first,{type:'delta',text:'100 '})
+  let head=''
+  while(!head.includes('"delta"'))head+=decoder.decode((await reader.read()).value)
+  const steps=head.trim().split('\n').map(JSON.parse)
+  assert.deepEqual(steps.at(-1),{type:'delta',text:'100 '})
+  assert.deepEqual(steps.slice(0,-1).map(step=>[step.id,step.status,step.detail]),[['context','active',undefined],['context','done','1 sources'],['answer','active',undefined]])
   push('data: {"response":"views [S1]"}\r\n\r\ndata: [DONE]\n\n')
   let rest=''
   while(true){const item=await reader.read();if(item.done)break;rest+=decoder.decode(item.value)}
   const events=rest.trim().split('\n').map(JSON.parse)
+  assert.ok(!events.some(event=>event.type==='step'))
   assert.equal(events.at(-1).type,'result')
   assert.equal(events.at(-1).answer,'100 views [S1]')
   assert.equal(events.at(-1).sources[0].id,'S1')
   assert.equal(quota,1)
+})
+test('stream emits github step around the live check reflecting real toolStatus',async()=>{
+  const env={...environment(),GITHUB_TOKEN:'test-only'}
+  env.AI.run=async()=>new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode('data: {"response":"777 [S1]"}\n\ndata: [DONE]\n\n'));controller.close()}})
+  const live=await handleAsk(request({question:'stars now',stream:true}),env,user,{request:async()=>Response.json({full_name:'google/elephant-goldfish-model',stargazers_count:777,forks_count:1,open_issues_count:1})})
+  const events=(await live.text()).trim().split('\n').map(JSON.parse)
+  assert.deepEqual(events.map(event=>event.type),['step','step','step','step','step','delta','result'])
+  assert.deepEqual(events.slice(0,5).map(step=>[step.id,step.status,step.detail]),[['context','active',undefined],['context','done','1 sources'],['github','active',undefined],['github','done','Live'],['answer','active',undefined]])
+  assert.equal(events[2].label,'Checking GitHub live')
+  assert.equal(events.at(-1).toolStatus.status,'live')
+  const down=await handleAsk(request({question:'stars now',stream:true}),env,user,{request:async()=>new Response(null,{status:500})})
+  const downSteps=(await down.text()).trim().split('\n').map(JSON.parse).filter(event=>event.id==='github')
+  assert.equal(downSteps[1].detail,'Unavailable, saved data shown')
 })
 test('stream timeout emits safe terminal error and cancels upstream reader',async()=>{
   const env=environment()
@@ -178,7 +195,8 @@ test('stream timeout emits safe terminal error and cancels upstream reader',asyn
   env.AI.run=async()=>new ReadableStream({cancel(){cancelled=true}})
   const result=await handleAsk(request({question:'views?',stream:true}),env,user,{timeoutMs:2})
   const events=(await result.text()).trim().split('\n').map(JSON.parse)
-  assert.deepEqual(events,[{type:'error',error:'ask_timeout'}])
+  assert.deepEqual(events.at(-1),{type:'error',error:'ask_timeout'})
+  assert.ok(events.slice(0,-1).every(event=>event.type==='step'))
   assert.equal(cancelled,true)
 })
 test('client stream cancellation cancels the provider',async()=>{

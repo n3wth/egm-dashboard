@@ -1,6 +1,7 @@
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
+import Markdown from 'react-markdown'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
 import {AskTransport,answerText,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
@@ -20,6 +21,24 @@ function ObservedAt({value,dateOnly=false}) {
 
 export function LiveMetricCard({card}) {
   return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}<ObservedAt value={card.observedAt}/></p></section>
+}
+
+const Shimmer=({children})=><span className="egm-shimmer">{children}</span>
+const stepIcon={active:<Icon name="spinner" size={14} className="egm-spin"/>,done:<Icon name="check" size={14}/>,skipped:null}
+export const messageSteps=message=>(message?.parts??[]).filter(part=>part.type==='data-step').map(part=>part.data)
+
+// AI Elements chain-of-thought: open while running, collapses when done, a user toggle wins.
+function Trace({steps,running}) {
+  const [choice,setChoice]=useState(null)
+  const open=choice??running
+  const shown=running?steps:steps.map(step=>step.status==='active'?{...step,status:'done'}:step)
+  return <div className="egm-trace" data-open={open}>
+    <button type="button" className="egm-trace-trigger" aria-expanded={open} onClick={()=>setChoice(!open)}><Icon name="chevronRight" size={14}/><span role="status">{running?<Shimmer>Thinking</Shimmer>:`Thought in ${shown.length} step${shown.length===1?'':'s'}`}</span></button>
+    {open&&<ol className="egm-trace-steps">
+      {!shown.length&&running&&<li><span className="egm-trace-icon">{stepIcon.active}</span><Shimmer>Reading dashboard data…</Shimmer></li>}
+      {shown.map(step=><li key={step.id} data-status={step.status}><span className="egm-trace-icon">{stepIcon[step.status]}</span>{step.status==='active'?<Shimmer>{step.label}</Shimmer>:step.label}{step.detail&&<span className="egm-trace-detail">{step.detail}</span>}</li>)}
+    </ol>}
+  </div>
 }
 
 export function AnswerCard({card,index,turnId}) {
@@ -140,15 +159,17 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           const result=messageResult(message)
           const text=answerText(message)
           const streaming=status==='streaming'&&message.id===lastAssistantId
+          const steps=messageSteps(message)
           return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}><span className="egm-chat-speaker">EGM</span>
+            {(steps.length>0||streaming)&&<Trace steps={steps} running={streaming&&!result}/>}
             {text&&<MessageResponse isAnimating={streaming} components={citationComponents}>{result?linkCitations(text,result.sources,message.id):text}</MessageResponse>}
-            {streaming&&<span className="egm-note">Generating…</span>}
+            {streaming&&<span className="egm-note"><Shimmer>Generating…</Shimmer></span>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
             {result&&<AssistantResult message={message} result={result}/>}
             {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
           </div>
         })())}
-        {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker">EGM</span><span className="egm-note">Reading dashboard data…</span><div className="egm-ask-skeletons" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><span/><span/></div>)}</div></div>}
+        {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker">EGM</span><Trace steps={[]} running/></div>}
         {status==='error'&&<div className="egm-ask-error" role="alert">{error?.message||'Could not reach Ask. Try again.'} <button type="button" onClick={()=>{followBottom.current=true;regenerate()}}>Retry</button></div>}
       </div>
       {status==='ready'&&Array.isArray(latestResult?.suggestedFollowUps)&&<div className="egm-ask-followups">{latestResult.suggestedFollowUps.filter(value=>typeof value==='string'&&value.length<=1200).slice(0,3).map(value=><button type="button" key={value} onClick={()=>send(value)}>{value}<Icon name="arrowUpRight" size={14}/></button>)}</div>}

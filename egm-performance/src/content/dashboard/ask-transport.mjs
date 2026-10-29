@@ -62,6 +62,8 @@ export class AskTransport {
           if(response.headers.get('content-type')?.includes('application/x-ndjson')) {
             await consumeAskStream(response.body,event=>{
               if(event.type==='delta'){textStart();output.enqueue({type:'text-delta',id:'answer',delta:event.text})}
+              // Same data part id replaces the earlier one, so a step moves from active to done in place.
+              else if(event.type==='step'){const {type,...step}=event;output.enqueue({type:'data-step',id:step.id,data:step})}
               else if(event.type==='result') {
                 if(!open){textStart();output.enqueue({type:'text-delta',id:'answer',delta:event.answer})}
                 finish(event)

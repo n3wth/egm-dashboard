@@ -7,12 +7,16 @@ export function streamAsk(run,finalize,signal,timeoutMs=20000) {
     async start(controller) {
       output=controller
       const send=value=>{if(!closed)controller.enqueue(encoder.encode(JSON.stringify(value)+'\n'))}
+      const step=(id,label,status,detail)=>send({type:'step',id,label,status,...(detail?{detail}:{})})
       const timeout=new Promise((_,reject)=>{rejectWait=reject})
       timer=setTimeout(()=>rejectWait(Error('timeout')),timeoutMs)
       signal?.addEventListener('abort',abort,{once:true})
       try {
         if(signal?.aborted){abort();return}
-        const stream=await Promise.race([run(),timeout])
+        const pending=run(step)
+        // A stream that arrives after cancel/timeout must still be released.
+        pending.then(late=>{if(closed)late?.cancel?.().catch(()=>{})},()=>{})
+        const stream=await Promise.race([pending,timeout])
         if(!stream?.getReader)throw Error('invalid_stream')
         reader=stream.getReader()
         if(closed){await reader.cancel();return}
