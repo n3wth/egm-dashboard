@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from 'react'
 import {Icon, Section} from '../../data-app-public.jsx'
 import {AnswerCard} from './AskPanel.jsx'
 import {consumeAskStream} from './ask-stream.mjs'
+import {adviceFailure} from './growth-advice.mjs'
 import {MessageResponse} from './MessageResponse.jsx'
 import './growth-advice.css'
 
@@ -19,10 +20,12 @@ export function GrowthAdvice() {
   const [question,setQuestion] = useState('')
   const [loading,setLoading] = useState(false)
   const [error,setError] = useState('')
+  const [notice,setNotice] = useState('')
   const [history,setHistory] = useState([])
   const request=useRef(null)
   const sequence=useRef(0)
-  useEffect(()=>()=>request.current?.abort(),[])
+  const active=useRef(true)
+  useEffect(()=>()=>{active.current=false;request.current?.abort()},[])
   async function ask(label, text, followUp=false) {
     if(loading||!text.trim())return
     const controller=new AbortController()
@@ -30,16 +33,21 @@ export function GrowthAdvice() {
     const id=++sequence.current
     const prior=followUp?history:[]
     if(!followUp)setHistory([])
-    setSelected(label); setLoading(true); setError(''); setResult(null); setAnswer(''); setQuestion('')
-    const timeout=setTimeout(()=>controller.abort(),60000)
+    setSelected(label); setLoading(true); setError(''); setNotice(''); setResult(null); setAnswer(''); setQuestion('')
+    const timeout=setTimeout(()=>controller.abort('timeout'),60000)
     try {
       const response = await fetch('/api/ask', {method:'POST', credentials:'same-origin', headers:{'content-type':'application/json','accept':'application/x-ndjson'}, body:JSON.stringify({question:text,history:prior,stream:true,format:'markdown'}),signal:controller.signal})
       if (!response.ok) throw new Error(response.status===429?'Question limit reached. Try again later.':response.status===401?'Your session expired. Sign in again.':'Advice is unavailable right now. Try again later.')
       const complete=data=>{if(typeof data.answer!=='string'||!data.answer.trim())throw new Error('The response was incomplete. Try again.');setAnswer(data.answer);setResult({...data,id});setHistory([...prior,{question:text,answer:data.answer.slice(0,2000)}].slice(-4))}
       if(response.headers.get('content-type')?.includes('application/x-ndjson')) await consumeAskStream(response.body,event=>{if(event.type==='delta')setAnswer(previous=>previous+event.text);else if(event.type==='result')complete(event)},{signal:controller.signal})
       else complete(await response.json())
-    } catch (failure) { setError(controller.signal.aborted?'Request stopped or timed out.':failure.message || 'Advice is unavailable right now.') }
-    finally { clearTimeout(timeout); if(request.current===controller)request.current=null; setLoading(false) }
+    } catch (failure) {
+      if(!active.current)return
+      const outcome=adviceFailure(controller.signal,failure)
+      if(outcome.tone==='note')setNotice(outcome.message)
+      else setError(outcome.message)
+    }
+    finally { clearTimeout(timeout); if(request.current===controller)request.current=null; if(active.current)setLoading(false) }
   }
   return <Section id="growth-advice-heading" title="Growth advice" spacing="none">
     <div className="egm-growth-advice">
@@ -48,9 +56,10 @@ export function GrowthAdvice() {
         <label htmlFor="growth-question">{history.length?'Ask a follow-up':'Ask a growth question'}</label><div><input id="growth-question" value={question} onChange={event=>setQuestion(event.target.value)} maxLength={1200} placeholder={history.length?'Ask a follow-up…':'What should we try next?'} /><button type="submit" disabled={loading||!question.trim()} aria-label="Generate advice"><Icon name="sendUp" size={18}/></button></div>
       </form>
       <p className="egm-note">Suggestions are hypotheses for review. Repository views and clones do not measure successful first use or retention.</p>
-      {(loading||answer||error)&&<article className="egm-growth-result" aria-busy={loading}><div className="egm-growth-result-heading"><div><span className="egm-growth-status-dot"/><strong>{selected}</strong></div>{loading&&<button type="button" onClick={()=>request.current?.abort()}>Stop</button>}</div>
+      {(loading||answer||error||notice)&&<article className="egm-growth-result" aria-busy={loading}><div className="egm-growth-result-heading"><div><span className="egm-growth-status-dot"/><strong>{selected}</strong></div>{loading&&<button type="button" onClick={()=>request.current?.abort('stop')}>Stop</button>}</div>
         {loading&&!answer&&<div className="egm-growth-thinking" role="status"><span className="egm-growth-pulse"/><span>Reading the evidence and shaping an experiment…</span></div>}
         {answer&&<MessageResponse isAnimating={loading}>{answer}</MessageResponse>}
+        {notice&&<p className="egm-note">{notice}</p>}
         {error&&<p role="alert">{error}</p>}
         {result&&<><div className="egm-growth-meta">{result.toolStatus?.status==='live'?'GitHub checked live':result.toolStatus?.status==='unavailable'?'Live check unavailable · saved data':'Saved dashboard data'}{result.snapshotAt&&<> · Snapshot <time dateTime={result.snapshotAt}>{new Date(result.snapshotAt).toLocaleString()}</time></>}</div>
           {Array.isArray(result.cards)&&result.cards.length>0&&<div className="egm-growth-cards">{result.cards.slice(0,3).map((card,index)=><AnswerCard key={index} card={card} index={index} turnId={'growth-'+result.id}/>)}</div>}

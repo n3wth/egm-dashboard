@@ -11,6 +11,15 @@ test('the documentation recommendation uses the highest measured view count',()=
   const rows=[{path:'/repo/docs/a',count:2},{path:'/repo/docs/b',count:9},{path:'/repo/docs/c',count:null},{path:null,count:20}]
   assert.equal(mostViewedDoc(rows),rows[1])
   assert.equal(mostViewedDoc([]),undefined)
+  const split=[
+    {path:'/google/elephant-goldfish-model/blob/main/docs/getting_started.md',count:400},
+    {path:'/google/elephant-goldfish-model/blob/HEAD/docs/getting_started.md',count:400},
+    {path:'/google/elephant-goldfish-model/blob/main/docs/harnesses.md',count:500}
+  ]
+  const winner=mostViewedDoc(split)
+  assert.equal(winner.count,800)
+  assert.equal(winner.combined,true)
+  assert.equal(winner.path,'/google/elephant-goldfish-model/blob/main/docs/getting_started.md')
 })
 
 test('uncategorized mentions remain visible in an other group',()=>{

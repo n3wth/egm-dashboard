@@ -31,6 +31,7 @@
 .egm-single-row .dashboard-ask-button { box-shadow: none !important; line-height: 1; color: var(--secondary); }
 .egm-single-row .dashboard-ask-button:not(:hover):not(:focus-visible) { border-color: transparent !important; background: transparent !important; }
 .egm-overview-signals p.egm-overview-action { grid-column: 2; grid-row: 1; color: var(--text); font-size: 13px; }
+.egm-overview-qualifier { display: block; margin-top: 4px; color: var(--secondary); font-size: 12px; line-height: 1.5; }
 .egm-overview-source { grid-column: 2; grid-row: 2; margin: 0; color: var(--secondary); }
 .egm-overview-signals .egm-overview-next { display: inline-flex; align-items: center; justify-self: end; gap: 5px; grid-column: 3; grid-row: 1; margin: 0; padding: 0; }
 .egm-overview-signals article:has(.egm-overview-source) .egm-overview-next { grid-row: 1 / span 2; }
@@ -58,6 +59,12 @@
   .egm-reach-grid > .egm-block--metric,
   .egm-development-grid > .egm-block--metric { grid-column: 1 / -1; }
 }
+.egm-channel-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.egm-channel-name img { flex: none; }
+.egm-view-bar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 105px; }
+.egm-view-bar > span:first-child { display: block; width: 70px; height: 6px; flex: none; background: var(--border); border-radius: 3px; overflow: hidden; }
+.egm-view-bar > span:first-child > span { display: block; height: 100%; background: var(--chart-1); border-radius: 3px; }
+.egm-view-bar > span:last-child { min-width: 38px; font-variant-numeric: tabular-nums; }
 .egm-note { color: var(--secondary); font-size: 12px; line-height: 1.6; margin: 12px 0; }
 .egm-copy { color: var(--text); font-size: 15px; max-width: 900px; line-height: 1.7; }
 .egm-opportunities { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
