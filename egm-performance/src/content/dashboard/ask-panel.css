@@ -9,12 +9,25 @@
 .egm-ask-options { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--secondary); font-size: 12px; }
 .egm-ask-options label { display: inline-flex; align-items: center; gap: 6px; }
 .egm-ask-cards,.egm-ask-skeletons { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; margin-top: 18px; }
+.egm-ask-cards { grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); align-items: start; gap: 12px; }
+.egm-ask-cards > :has(.recharts-wrapper) { grid-column: 1 / -1; }
+.egm-ask-cards table { width: 100%; }
+.egm-ask-cards :has(> table) { overflow-x: auto; }
 .egm-ask-cards > * { min-width: 0; }
 .egm-ask-live-card { padding: 20px; border: 1px solid var(--border); border-radius: var(--card-radius); }
 .egm-ask-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; margin: 0; }
 .egm-ask-metrics dt { color: var(--secondary); font-size: 12px; }
 .egm-ask-metrics dd { margin: 6px 0 0; font-size: 25px; font-variant-numeric: tabular-nums; }
-.egm-ask-sources { margin-top: 16px; color: var(--secondary); font-size: 12px; line-height: 1.7; }
+.egm-ask-sources { display: grid; gap: 2px; margin: 16px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.5; }
+.egm-ask-sources li { display: flex; align-items: flex-start; gap: 10px; padding: 6px 8px; border-radius: var(--control-radius); scroll-margin: 80px; }
+.egm-ask-sources li:target { background: var(--border); }
+.egm-ask-source-body { display: grid; min-width: 0; }
+.egm-ask-source-body > :first-child { color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.egm-ask-source-body a:hover { text-decoration: underline; }
+.egm-ask-source-body a:focus-visible,.egm-ask-cite:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+.egm-ask-source-meta { color: var(--secondary); font-size: 11px; }
+.egm-ask-cite { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin: 0 1px; border-radius: 9px; background: var(--border); color: var(--secondary); font-size: 11px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; text-decoration: none; vertical-align: 1px; box-sizing: border-box; flex: none; }
+a.egm-ask-cite:hover { color: var(--text); }
 .egm-ask-skeletons > div { display: grid; gap: 14px; padding: 20px; border: 1px solid var(--border); border-radius: var(--card-radius); }
 .egm-ask-skeletons span { height: 12px; background: var(--border); border-radius: 3px; }
 .egm-ask-skeletons span:nth-child(2) { width: 55%; height: 28px; }
@@ -23,7 +36,7 @@
 @media(max-width:650px) { .egm-ask-inline-host { position: fixed; right: 16px; top: 8px; } .egm-ask-inline { width: calc(100vw - 32px); } .egm-ask-skeletons { grid-template-columns: 1fr; } }
 @media(prefers-reduced-motion:reduce) { .egm-ask-inline { animation: none; } }
 .egm-ask-page > :not(.egm-ask-body-host) { display: none !important; }
-.egm-ask-followups { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.egm-ask-followups { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; margin-bottom: 4px; }
 .egm-ask-followups button { display: inline-flex; align-items: center; gap: 8px; text-align: left; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; color: var(--text); font: inherit; font-size: 12px; line-height: 1.5; }
 .egm-ask-followups button:hover { background: var(--interaction-hover, var(--border)); }
 .egm-ask-followups button:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
@@ -47,8 +60,8 @@
 .egm-ask-actions button:hover { background: var(--border); color: var(--text); }
 .egm-ask-actions button:focus-visible { outline: 1px solid var(--text); }
 .egm-ask-error button { margin-left: 8px; border: 1px solid var(--border); border-radius: var(--control-radius); padding: 5px 9px; color: var(--text); background: transparent; font: inherit; }
-.egm-ask-composer-wrap { position: sticky; z-index: 2; bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--egm-ask-keyboard, 0px)); display: grid; justify-items: center; gap: 8px; margin-top: auto; padding-top: 24px; }
-.egm-ask-jump { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text); }
+.egm-ask-composer-wrap { position: sticky; z-index: 2; bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--egm-ask-keyboard, 0px)); display: grid; justify-items: center; gap: 6px; margin-top: auto; padding-top: 12px; padding-bottom: 4px; background: var(--dashboard-background, var(--background)); }
+.egm-ask-jump { position: absolute; top: -40px; right: 0; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text); }
 .egm-ask-composer { display: flex; align-items: flex-end; gap: 10px; width: 100%; padding: 10px 10px 10px 14px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); box-sizing: border-box; }
 .egm-ask-composer textarea { flex: 1; min-width: 0; min-height: 32px; max-height: 40vh; padding: 6px 0; border: 0; outline: 0; resize: none; field-sizing: content; background: transparent; color: var(--text); font: inherit; font-size: 14px; line-height: 20px; box-sizing: border-box; }
 .egm-ask-composer:focus-within { outline: 1px solid var(--secondary); outline-offset: 2px; }
@@ -62,3 +75,5 @@
   .egm-ask-followups button,.egm-ask-error button,.egm-ask-new { min-height: 44px; }
 }
 @media(max-width:650px) { .egm-ask-messages { gap: 22px; } .egm-ask-user { max-width: 92%; } }
+/* Sticky composer sits 12px+ above the viewport edge; scroll past it so it never covers the follow-ups. */
+.egm-ask-end { scroll-margin-bottom: calc(max(12px, env(safe-area-inset-bottom)) + 12px); }
