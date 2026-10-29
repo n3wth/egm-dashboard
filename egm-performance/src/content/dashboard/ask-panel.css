@@ -27,6 +27,11 @@
 .egm-ask-followups button { display: inline-flex; align-items: center; gap: 8px; text-align: left; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; color: var(--text); font: inherit; font-size: 12px; line-height: 1.5; }
 .egm-ask-followups button:hover { background: var(--interaction-hover, var(--border)); }
 .egm-ask-followups button:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+.egm-ask-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.egm-ask-new { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; color: var(--text); font: inherit; font-size: 12px; }
+.egm-ask-new:hover { background: var(--border); }
+.egm-ask-new:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+.egm-ask-disclaimer { margin: 0; color: var(--secondary); font-size: 11px; text-align: center; }
 .egm-ask-active-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: var(--border); color: var(--text); }
 .egm-ask-conversation { display: flex; flex-direction: column; width: 100%; max-width: 760px; margin-inline: auto; min-height: calc(100dvh - 120px); overflow-anchor: none; }
 .egm-ask-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -36,8 +41,8 @@
 .egm-ask-user p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
 .egm-ask-assistant { min-width: 0; overflow-wrap: anywhere; }
 .egm-ask-assistant pre { max-width: 100%; overflow-x: auto; }
-.egm-ask-assistant .egm-ask-options { margin-top: 10px; }
-.egm-ask-actions { display: flex; gap: 4px; margin-top: 8px; }
+.egm-ask-actions { display: flex; align-items: center; gap: 4px; margin-top: 10px; }
+.egm-ask-actions .egm-ask-options { margin-right: auto; }
 .egm-ask-actions button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--secondary); }
 .egm-ask-actions button:hover { background: var(--border); color: var(--text); }
 .egm-ask-actions button:focus-visible { outline: 1px solid var(--text); }
@@ -52,8 +57,8 @@
 :is(.egm-ask-composer button,.egm-ask-active-toggle,.egm-ask-jump):focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
 @media(pointer:coarse) {
   .egm-ask-inline input,.egm-ask-composer textarea { font-size: 16px; }
-  .egm-ask-inline button,.egm-ask-actions button,.egm-ask-jump { width: 44px; height: 44px; flex-basis: 44px; }
+  .egm-ask-inline button,.egm-ask-actions button,.egm-ask-jump,.egm-ask-active-toggle { width: 44px; height: 44px; flex-basis: 44px; }
   .egm-ask-composer button { width: 40px; height: 40px; flex-basis: 40px; }
-  .egm-ask-followups button,.egm-ask-error button { min-height: 44px; }
+  .egm-ask-followups button,.egm-ask-error button,.egm-ask-new { min-height: 44px; }
 }
 @media(max-width:650px) { .egm-ask-messages { gap: 22px; } .egm-ask-user { max-width: 92%; } }
