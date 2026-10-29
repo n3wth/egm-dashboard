@@ -165,3 +165,9 @@
 @keyframes egm-thumb-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .egm-thumb[data-loaded] { animation: none; } }
 @media (pointer: coarse) { .egm-mention-link { padding-block: 11px; margin-block: -11px; } }
+
+/* Metric trendlines: larger, flat and in the first chart color so they match the line charts. */
+.egm-metric-reading .data-metric-sparkline { width: 96px; height: 41px; min-width: 64px; flex: 0 1 96px; color: var(--chart-1); }
+.egm-metric-reading .data-metric-sparkline polygon { display: none; }
+.egm-metric-reading .data-metric-sparkline polyline { stroke: currentColor; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.egm-metric-reading .data-metric-sparkline circle { r: 1.6; }

@@ -34,8 +34,9 @@ a.egm-ask-cite:hover { color: var(--text); }
 .egm-trace-trigger:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
 .egm-trace-trigger > .dashboard-icon { transition: transform 120ms; }
 .egm-trace[data-open="true"] .egm-trace-trigger > .dashboard-icon { transform: rotate(90deg); }
-.egm-trace-steps { display: grid; gap: 6px; margin: 8px 0 0 9px; padding: 0 0 0 16px; border-left: 1px solid var(--border); list-style: none; color: var(--text); }
-.egm-trace-steps li { display: flex; align-items: center; gap: 8px; }
+.egm-trace-steps { display: grid; gap: 16px; margin: 12px 0 0 3px; padding: 0; list-style: none; color: var(--text); }
+.egm-trace-steps li { position: relative; display: flex; align-items: center; gap: 10px; min-height: 14px; line-height: 14px; }
+.egm-trace-steps li:not(:last-child)::after { content: ''; position: absolute; left: 6.5px; top: 18px; width: 1px; height: 10px; background: var(--border-strong); }
 .egm-trace-steps li[data-status="skipped"] { color: var(--secondary); }
 .egm-trace-icon { display: inline-flex; flex: 0 0 14px; width: 14px; height: 14px; }
 .egm-trace-detail { color: var(--secondary); }
