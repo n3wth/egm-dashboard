@@ -53,7 +53,7 @@ export function Feedback() {
       {sent ? <div role="status"><p>Thanks for your feedback.</p><Button onClick={close}>Done</Button></div> : unavailable ? <p role="alert">Feedback is unavailable right now. Please try again later.</p> : !survey ? <p role="status">Loading feedback…</p> : <form onSubmit={submit}>
         <p>Tell us about a bug or suggest an improvement. Your feedback is sent to PostHog and connected review tools.</p>
         <fieldset><legend>What would you like to share?</legend><div className="egm-feedback-options">{['Bug report', 'Feature request'].map(value => <label key={value}><input type="radio" name="feedback-kind" value={value} checked={kind === value} onChange={() => setKind(value)} />{value}</label>)}</div></fieldset>
-        <label htmlFor="egm-feedback-message">Tell us more</label><textarea id="egm-feedback-message" value={message} onChange={event => setMessage(event.target.value)} maxLength={2000} required rows={5} placeholder="Describe the problem or idea" />
+        <textarea id="egm-feedback-message" aria-label="Tell us more" value={message} onChange={event => setMessage(event.target.value)} maxLength={2000} required rows={5} placeholder="Describe the problem or idea" />
         {error && <p role="alert">{error}</p>}
         <div className="egm-feedback-actions"><Button onClick={close} disabled={busy}>Cancel</Button><Button type="submit" variant="primary" disabled={busy || !kind || !message.trim()}>{busy ? 'Sending…' : 'Send feedback'}</Button></div>
       </form>}

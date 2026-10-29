@@ -159,3 +159,9 @@
 .egm-account-button:hover,.egm-account-button[data-state="open"] { border: 0 !important; background: transparent !important; box-shadow: none !important; }
 .egm-account-button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-account-menu .dashboard-native-overflow { position: relative; width: 36px; height: 36px; }
+
+.egm-thumb { background: var(--border); }
+.egm-thumb[data-loaded] { animation: egm-thumb-in 200ms ease-out; }
+@keyframes egm-thumb-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .egm-thumb[data-loaded] { animation: none; } }
+@media (pointer: coarse) { .egm-mention-link { padding-block: 11px; margin-block: -11px; } }
