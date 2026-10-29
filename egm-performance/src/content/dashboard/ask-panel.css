@@ -8,7 +8,7 @@
 .egm-ask-inline button:focus-visible { outline: 1px solid var(--text); }
 .egm-ask-options { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--secondary); font-size: 12px; }
 .egm-ask-options label { display: inline-flex; align-items: center; gap: 6px; }
-.egm-ask-cards,.egm-ask-skeletons { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: 18px; }
+.egm-ask-cards,.egm-ask-skeletons { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; margin-top: 18px; }
 .egm-ask-cards > * { min-width: 0; }
 .egm-ask-live-card { padding: 20px; border: 1px solid var(--border); border-radius: var(--card-radius); }
 .egm-ask-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; margin: 0; }
@@ -28,7 +28,7 @@
 .egm-ask-followups button:hover { background: var(--interaction-hover, var(--border)); }
 .egm-ask-followups button:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
 .egm-ask-active-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: var(--border); color: var(--text); }
-.egm-ask-conversation { display: flex; flex-direction: column; min-height: calc(100dvh - 120px); overflow-anchor: none; }
+.egm-ask-conversation { display: flex; flex-direction: column; width: 100%; max-width: 760px; margin-inline: auto; min-height: calc(100dvh - 120px); overflow-anchor: none; }
 .egm-ask-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .egm-ask-messages { display: grid; gap: 28px; min-width: 0; }
 .egm-chat-speaker { display: block; color: var(--secondary); font-size: 11px; font-weight: 500; margin-bottom: 6px; }
