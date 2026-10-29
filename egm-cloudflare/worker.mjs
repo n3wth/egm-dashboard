@@ -2,6 +2,7 @@ import {validatePresentation} from '../egm-performance/src/presentation-state.js
 import {runRefresh} from './refresh-runner.mjs'
 import {approvalEventsRpc,flushApprovalEvents} from './approval-events.mjs'
 import {flushGrokNotifications} from './grok-notify.mjs'
+import {connectTokenIsAdmin} from './mcp-permission.mjs'
 import {feedbackEventsRpc,feedbackSubmittedEvent,flushFeedbackEvents,flushFeedbackToPosthog,loadFeedbackSurvey,recordFeedbackActivity,submitFeedback} from './feedback-events.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
 import {cachedSiteIcon} from './favicon-cache.mjs'
@@ -95,7 +96,10 @@ async function mcpOwner(request,env) {
     if(env.WORKOS_RBAC_ENABLED==='true') {
       if(!rbacConfigured(env)) return mcpDeny('rbac_config',claims)
       if(claims.org_id!==env.WORKOS_RBAC_ORGANIZATION_ID) return mcpDeny(claims.org_id?'org_mismatch':'org_missing',claims)
-      if(!(claims.role==='admin' || (Array.isArray(claims.permissions) && claims.permissions.includes(env.WORKOS_RBAC_PERMISSION || 'egm:dashboard:admin')))) return mcpDeny('role',claims)
+      const tokenAdmin=claims.role==='admin' || (Array.isArray(claims.permissions) && claims.permissions.includes(env.WORKOS_RBAC_PERMISSION || 'egm:dashboard:admin'))
+      // Connect (MCP) tokens have no role claim; resolve it after the signature check below.
+      if(!tokenAdmin && (claims.role!==undefined || claims.permissions!==undefined)) return mcpDeny('role',claims)
+      claims.resolveRole=!tokenAdmin
     }
     if(!jwksCache || jwksCache.expires<Date.now()) {
       const result=await fetch(env.WORKOS_AUTHKIT_DOMAIN+'/oauth2/jwks',{signal:AbortSignal.timeout(10000)})
@@ -106,6 +110,7 @@ async function mcpOwner(request,env) {
     if(!jwk) return mcpDeny('jwks_kid',claims)
     const publicKey=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify'])
     if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',publicKey,un64(s),enc.encode(`${h}.${p}`))) return mcpDeny('signature',claims)
+    if(claims.resolveRole && !await connectTokenIsAdmin(env,claims.sub,claims.org_id)) return mcpDeny('role',claims)
     const user=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(claims.sub).first()
     return isDashboardOwner(user,env) && user.verified===1 && user.status==='approved' ? user : mcpDeny(user?'not_owner':'unknown_user',claims)
   } catch { return mcpDeny('exception',claims) }
