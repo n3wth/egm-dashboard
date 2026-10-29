@@ -107,7 +107,7 @@ export function DashboardContent() {
     const trendValues=field?history.map(row=>row[field]).filter(Number.isFinite):[]
     const historyStale=(queries.star_history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
     const weekly=['total-views','total-clones'].includes(id)?weeklyChange(daily,field):id==='stars'&&!historyStale?starWeeklyChange(history,queries.star_history?.source?.executedAt):null
-    const weeklyText=weeklyChangeLabel(weekly,id==='stars'?'new stars':field)
+    const weeklyText=weeklyChangeLabel(weekly,id==='stars'?'new':'')
     const queryIds=[...new Set([queryId,...(field&&queries[historyQuery]?[historyQuery]:[]),...(websiteMetric?['reach']:[])])]
     const trend = {trendValues,trendLabel:websiteMetric?'Each point is the trailing 14-day referral total at that observation; points overlap':id === 'stars' ? 'Cumulative stargazers by Pacific date' : `Daily ${field}, ${window}`,queryIds,sourceRowsByQuery:Object.fromEntries(queryIds.map(key=>[key,rows(key)]))}
     return <DataComponent {...{id,queryId,title,description}} kind="metric" variant="card" queryIds={trend.queryIds} displayRows={rows(queryId)} sourceRows={rows(queryId)} sourceRowsByQuery={trend.sourceRowsByQuery}>
@@ -224,7 +224,7 @@ export function DashboardContent() {
       {id:'reach:comparison',items:['star-history']},
       {id:'reach:sources',items:['referral-chart','popular-paths']}
     ]}>
-      {item('unique-visitors',3,metric('unique-visitors','reach','Unique visitors',reach.visitors,`Distinct repo visitors GitHub counted over ${window}. Repeat visits by the same visitor count once, so the per-day unique counts in the chart below do not add up to this total.`),'metric')}
+      {item('unique-visitors',3,metric('unique-visitors','reach','Unique visitors',reach.visitors,`Distinct repo visitors GitHub counted over ${window}. Repeat visits by the same visitor count once, so the per-day unique counts in the chart below do not add up to this total.`,`${dateSpan(daily)} · deduplicated`),'metric')}
       {item('total-views',3,metric('total-views','reach','Repo views',reach.views,`GitHub repo page views, including repeat visits, over ${window}.`),'metric')}
       {item('total-clones',3,metric('total-clones','reach','Clone operations',reach.clones,`Times the repo was copied with Git over ${window}, including repeat copies and automated tools. GitHub counted ${n(reach.cloners)} distinct cloners.`),'metric')}
       {item('stars',3,metric('stars','reach','Total stars',reach.stars,`GitHub accounts starring the repo at the last refresh. This is a snapshot total, not stars gained during the traffic window. ${n(reach.forks)} forks; ${n(reach.watchers)} watching.`),'metric')}
