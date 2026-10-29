@@ -23,6 +23,7 @@ export function LiveMetricCard({card}) {
   return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}<ObservedAt value={card.observedAt}/></p></section>
 }
 
+const Mark=()=><svg className="egm-mark" role="img" aria-label="EGM" viewBox="0.5 5.5 23.5 13" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z"/><path d="M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2Z"/><path fill="none" d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M20 12l3-2.6M20 12l3 2.6"/></svg>
 const Shimmer=({children})=><span className="egm-shimmer">{children}</span>
 const stepIcon={active:<Icon name="spinner" size={14} className="egm-spin"/>,done:<Icon name="check" size={14}/>,skipped:null}
 export const messageSteps=message=>(message?.parts??[]).filter(part=>part.type==='data-step').map(part=>part.data)
@@ -161,7 +162,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           const text=answerText(message)
           const streaming=status==='streaming'&&message.id===lastAssistantId
           const steps=messageSteps(message)
-          return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}><span className="egm-chat-speaker">EGM</span>
+          return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}><span className="egm-chat-speaker"><Mark/></span>
             {(steps.length>0||streaming)&&<Trace steps={steps} running={streaming&&!result}/>}
             {text&&<MessageResponse isAnimating={streaming} components={citationComponents}>{result?linkCitations(text,result.sources,message.id):text}</MessageResponse>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
@@ -169,7 +170,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
             {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
           </div>
         })())}
-        {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker">EGM</span><Trace steps={[]} running/></div>}
+        {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker"><Mark/></span><Trace steps={[]} running/></div>}
         {status==='error'&&<div className="egm-ask-error" role="alert">{error?.message||'Could not reach Ask. Try again.'} <button type="button" onClick={()=>{followBottom.current=true;regenerate()}}>Retry</button></div>}
       </div>
       {status==='ready'&&Array.isArray(latestResult?.suggestedFollowUps)&&<div className="egm-ask-followups">{latestResult.suggestedFollowUps.filter(value=>typeof value==='string'&&value.length<=1200).slice(0,3).map(value=><button type="button" key={value} onClick={()=>send(value)}>{value}<Icon name="arrowUpRight" size={14}/></button>)}</div>}
