@@ -208,3 +208,22 @@ test('client stream cancellation cancels the provider',async()=>{
   await new Promise(resolve=>setTimeout(resolve,0))
   assert.equal(cancelled,true)
 })
+test('PostHog AI events record successful and failed generations without the snapshot',async()=>{
+  const sent=[],pending=[]
+  const options={fetcher:async(_,init)=>{sent.push(JSON.parse(init.body));return new Response('',{status:200})},waitUntil:promise=>pending.push(promise)}
+  const env=environment()
+  env.POSTHOG_PROJECT_TOKEN='phc_test';env.POSTHOG_HOST='https://us.i.posthog.com'
+  env.INFER.run=async(_,input)=>{input.onUsage?.({promptTokenCount:12,candidatesTokenCount:5});input.onFirstText?.();return {response:'100 views [S1]'}}
+  assert.equal((await handleAsk(request({question:'How many views?',history:[{question:'hi',answer:'hello'}]}),env,user,options)).status,200)
+  await Promise.all(pending)
+  assert.equal(sent.length,1)
+  const ok=sent[0].properties
+  assert.equal(sent[0].event,'$ai_generation');assert.equal(sent[0].distinct_id,'owner')
+  assert.equal(ok.$ai_input_tokens,12);assert.equal(ok.$ai_is_error,false)
+  assert.deepEqual(ok.$ai_input.map(turn=>turn.content),['hi','hello','How many views?'])
+  assert.ok(!JSON.stringify(sent[0]).includes('rawMarkdown'))
+  env.INFER.run=async()=>{throw Error('provider_failed')}
+  assert.equal((await handleAsk(request({question:'How many views?'}),env,user,options)).status,503)
+  await Promise.all(pending)
+  assert.equal(sent.at(-1).properties.$ai_is_error,true);assert.equal(sent.at(-1).properties.$ai_error,'ask_unavailable')
+})

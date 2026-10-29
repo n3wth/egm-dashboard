@@ -26,7 +26,7 @@ Approval event methods are deployed at /mcp. Dot still needs an authenticated EG
 
 Latest batch: Workers fetch redirect handling uses manual inspection, fixing favicon and provider requests without following credential-bearing redirects. Authenticated live favicon delivery returned HTTP 200 PNG; known brands use bundled theme-colored SVGs. Missing-icon fallback caches five minutes; successful images cache seven days.
 
-Ask runs on Gemini (`gemini-flash-latest`, key in the `GEMINI_API_KEY` Worker secret) and is authenticated, same-origin, capped at ten questions per user/hour, and grounded in saved query records with citations. Native inline answer cards contain server-derived values only. Optional live checking calls the fixed GitHub repository endpoint; other providers remain saved evidence. Anonymous Ask returned 401. A real browser question returned the correct 817 website referrals with source evidence.
+Ask runs on Gemini (`gemini-flash-lite-latest`, key in the `GEMINI_API_KEY` Worker secret) and is authenticated, same-origin, capped at ten questions per user/hour, and grounded in saved query records with citations. Native inline answer cards contain server-derived values only. Optional live checking calls the fixed GitHub repository endpoint; other providers remain saved evidence. Anonymous Ask returned 401. A real browser question returned the correct 817 website referrals with source evidence.
 
 An authorized initial video backfill checked all ten videos successfully. The integrated live refresh completed at 08:43 UTC with provider statuses available/cached. Ten view counts are present, including the seven previously unattempted videos. The 21-check lifetime cap remains, and future days return to three checks daily.
 

@@ -308,7 +308,7 @@ export async function handle(request,env,ctx) {
   }
   if(url.pathname==='/api/workos-widget-token') return issueUserSessionsWidgetToken(request,env,user,user.workosAccessToken)
   if(url.pathname==='/api/site-icon') return cachedSiteIcon(request,env)
-  if(url.pathname==='/api/ask') return handleAsk(request,env,user)
+  if(url.pathname==='/api/ask') return handleAsk(request,env,user,{waitUntil:promise=>ctx?.waitUntil?.(promise)})
   if(url.pathname==='/api/access' || url.pathname==='/api/invitations' || url.pathname==='/api/invitations/revoke') {
     if(request.method==='POST' && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
     user.canManageAccess=await accessManager(user,env)
