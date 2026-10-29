@@ -1,4 +1,4 @@
-.egm-ask-error { color: var(--text); padding: 12px; border: 1px solid var(--border); border-radius: var(--control-radius); font-size: 13px; line-height: 1.6; }
+.egm-ask-error { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; color: var(--text); padding: 12px; border: 1px solid var(--border); border-radius: var(--control-radius); font-size: 13px; line-height: 1.6; }
 .egm-ask-inline-host { display: inline-flex; position: relative; z-index: 3; }
 .egm-ask-inline { display: flex; align-items: center; gap: 8px; width: min(400px,38vw); min-width: 190px; height: 36px; padding: 0 9px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); box-sizing: border-box; animation: egm-ask-open 160ms ease-out; }
 .egm-ask-inline input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; }
@@ -75,7 +75,8 @@ a.egm-ask-cite:hover { color: var(--text); }
 .egm-ask-actions button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--secondary); }
 .egm-ask-actions button:hover { background: var(--border); color: var(--text); }
 .egm-ask-actions button:focus-visible { outline: 1px solid var(--text); }
-.egm-ask-error button { margin-left: 8px; border: 1px solid var(--border); border-radius: var(--control-radius); padding: 5px 9px; color: var(--text); background: transparent; font: inherit; }
+.egm-ask-error p { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.egm-ask-error button {  border: 1px solid var(--border); border-radius: var(--control-radius); padding: 5px 9px; color: var(--text); background: transparent; font: inherit; }
 .egm-ask-composer-wrap { position: sticky; z-index: 2; bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--egm-ask-keyboard, 0px)); display: grid; justify-items: center; gap: 6px; margin-top: auto; padding-top: 12px; padding-bottom: 4px; background: var(--dashboard-background, var(--background)); }
 .egm-ask-jump { position: absolute; top: -40px; right: 0; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text); }
 .egm-ask-composer { display: flex; align-items: flex-end; gap: 10px; width: 100%; padding: 10px 10px 10px 14px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); box-sizing: border-box; }

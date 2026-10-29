@@ -3,7 +3,7 @@ import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
-import {AskTransport,answerText,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
+import {AskTransport,answerText,askNeedsSignIn,askRetryable,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
 import {MessageResponse} from './MessageResponse.jsx'
 import {AskStarters} from './AskStarters.jsx'
 import {tabIdFromLocation} from './ask-starters.mjs'
@@ -60,6 +60,10 @@ export function AnswerCard({card,index,turnId}) {
 
 const statusNote=(status,stopped)=>stopped?'Stopped.':status==='submitted'?'Reading dashboard data…':status==='streaming'?'Generating…':status==='error'?'':''
 const resultLabel=result=>result.toolStatus?.status==='live'?'GitHub checked live':result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'
+export function AskError({message,onRetry}) {
+  const text=message||'Could not reach Ask. Try again.'
+  return <div className="egm-ask-error" role="alert"><p>{text}</p>{askNeedsSignIn(text)?<button type="button" onClick={()=>location.reload()}>Sign in again</button>:askRetryable(text)&&<button type="button" onClick={onRetry}>Retry</button>}</div>
+}
 const coarsePointer=()=>typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches
 
 function CopyButton({text}) {
@@ -165,6 +169,8 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           const text=answerText(message)
           const streaming=status==='streaming'&&message.id===lastAssistantId
           const steps=messageSteps(message)
+          // A stream that failed before any content leaves an empty reply; the error card below explains it.
+          if(!streaming&&!text&&!steps.length&&!result&&!stopped.has(message.id))return null
           return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}>
             {(steps.length>0||streaming)?<><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={steps} running={streaming&&!result}/></>:<span className="egm-chat-speaker"><Mark/></span>}
             {text&&<MessageResponse isAnimating={streaming} components={citationComponents}>{result?linkCitations(text,result.sources,message.id):text}</MessageResponse>}
@@ -174,7 +180,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           </div>
         })())}
         {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={[]} running/></div>}
-        {status==='error'&&<div className="egm-ask-error" role="alert">{error?.message||'Could not reach Ask. Try again.'} <button type="button" onClick={()=>{followBottom.current=true;regenerate()}}>Retry</button></div>}
+        {status==='error'&&<AskError message={error?.message} onRetry={()=>{followBottom.current=true;regenerate()}}/>}
       </div>
       {status==='ready'&&Array.isArray(latestResult?.suggestedFollowUps)&&<div className="egm-ask-followups">{latestResult.suggestedFollowUps.filter(value=>typeof value==='string'&&value.length<=1200).slice(0,3).map(value=><button type="button" key={value} onClick={()=>send(value)}>{value}<Icon name="arrowUpRight" size={14}/></button>)}</div>}
       <div className="egm-ask-composer-wrap">

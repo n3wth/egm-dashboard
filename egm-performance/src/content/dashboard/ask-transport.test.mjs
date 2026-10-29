@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {AskTransport,answerText,askHistory,messageResult,messageText} from './ask-transport.mjs'
+import {AskTransport,answerText,askErrorMessage,askFailureMessage,askHistory,askNeedsSignIn,askRetryable,messageResult,messageText} from './ask-transport.mjs'
 
 const user=(id,text)=>({id,role:'user',parts:[{type:'text',text}]})
 const assistant=(id,text,result={answer:text})=>({id,role:'assistant',parts:[{type:'text',text},...(result?[{type:'data-result',data:result}]:[])]})
@@ -82,4 +82,41 @@ test('linkCitations links only known source markers', async () => {
   const {linkCitations}=await import('./ask-transport.mjs')
   assert.equal(linkCitations('Up [1], not [9], kept [2](x).',[{id:'1'},{id:'2'}],'m:1'),'Up [1](#ask-cite-m1-1), not [9], kept [2](x).')
   assert.equal(linkCitations('No [1].',[],'m'),'No [1].')
+})
+
+test('retry is offered only when trying again can help',()=>{
+  for(const status of [400,401,403,413,429])assert.equal(askRetryable(askErrorMessage(status)),false,String(status))
+  for(const status of [500,502,503,504])assert.equal(askRetryable(askErrorMessage(status)),true,String(status))
+  assert.equal(askRetryable('The answer took too long. Try again.'),true)
+  assert.equal(askNeedsSignIn(askErrorMessage(401)),true)
+  assert.equal(askNeedsSignIn(askErrorMessage(403)),false)
+})
+test('network failures get a plain message instead of the raw fetch error',async()=>{
+  const outcomes=[]
+  const transport=new AskTransport({fetch:async()=>{throw new TypeError('Failed to fetch')},onOutcome:value=>outcomes.push(value)})
+  await assert.rejects(transport.sendMessages({messages:[user('u0','q')]}),/Check your connection/)
+  assert.deepEqual(outcomes,['submitted','failed'])
+  assert.match(askFailureMessage(new TypeError('network error'),{streaming:true}),/connection dropped/)
+  assert.match(askFailureMessage(new SyntaxError('Unexpected token')),/incomplete/)
+  assert.match(askFailureMessage(new Error('x'),{timedOut:true}),/too long/)
+})
+test('a stream that breaks mid-answer reports a dropped connection',async()=>{
+  const stream=new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode('{"type":"delta","text":"Part"}\n'));controller.error(new TypeError('network error'))}})
+  const transport=new AskTransport({fetch:async()=>new Response(stream,{headers:{'content-type':'application/x-ndjson'}})})
+  const chunks=await read(await transport.sendMessages({messages:[user('u0','q')]}))
+  assert.match(chunks.at(-1).errorText,/connection dropped/)
+})
+test('an empty answer is an error, not a blank reply',async()=>{
+  const streamed=new AskTransport({fetch:async()=>ndjson([{type:'result',answer:'  '}])})
+  assert.match((await read(await streamed.sendMessages({messages:[user('u0','q')]}))).at(-1).errorText,/empty answer/)
+  const plain=new AskTransport({fetch:async()=>Response.json({answer:''})})
+  assert.match((await read(await plain.sendMessages({messages:[user('u0','q')]}))).at(-1).errorText,/empty answer/)
+})
+test('a 200 that is not JSON becomes an incomplete-answer error',async()=>{
+  const transport=new AskTransport({fetch:async()=>new Response('<html>',{headers:{'content-type':'text/html'}})})
+  assert.match((await read(await transport.sendMessages({messages:[user('u0','q')]}))).at(-1).errorText,/incomplete/)
+})
+test('the timeout aborts a stalled request with the too-long message',async()=>{
+  const transport=new AskTransport({timeoutMs:20,fetch:(_url,init)=>new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError'))))})
+  await assert.rejects(transport.sendMessages({messages:[user('u0','q')]}),/too long/)
 })

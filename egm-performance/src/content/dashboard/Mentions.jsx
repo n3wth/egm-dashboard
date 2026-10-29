@@ -5,6 +5,7 @@ import {SiteName} from './SiteName.jsx'
 import {InsightCallout} from './InsightCallout.jsx'
 import {EngagementSignals} from './EngagementSignals.jsx'
 import {PageSummary} from './PageSummary.jsx'
+import {EmptyState} from './DataStates.jsx'
 import {VideoThumbnail} from './VideoThumbnail.jsx'
 import {safeExternalUrl,mentionGroup,earliestValidDate,uniqueMentionKey,matchingEngagement} from './research-mentions.mjs'
 
@@ -118,6 +119,7 @@ export function Mentions() {
         </DataComponent>}
       </Section>
     })}
+    {query&&!allRows.length&&<Section id="mentions-empty" spacing="none"><EmptyState title="No mentions found yet">Collection ran but returned no public links. Check the collection status below.</EmptyState></Section>}
     <SupplementaryMentions discovery={discovery}/>
     <Section id="mentions-coverage" spacing="none">
       {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Collection" showHeading={false} showActions={false} className="egm-mentions-summary" kind="custom" variant="plain" displayRows={allRows} sourceRowsByQuery={mentionSummarySources(queries,discovery)}>

@@ -171,3 +171,8 @@
 .egm-metric-reading .data-metric-sparkline polygon { display: none; }
 .egm-metric-reading .data-metric-sparkline polyline { stroke: currentColor; stroke-width: 2px; vector-effect: non-scaling-stroke; }
 .egm-metric-reading .data-metric-sparkline circle { r: 1.6; }
+.egm-empty { display: grid; align-content: center; justify-items: center; gap: 4px; min-height: 120px; padding: 24px 16px; box-sizing: border-box; text-align: center; color: var(--secondary); font-size: 13px; line-height: 1.5; }
+.egm-empty strong { color: var(--text); font-size: 14px; font-weight: 500; }
+.egm-empty--chart { min-height: 260px; }
+.egm-stale { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); color: var(--text); font-size: 13px; line-height: 1.5; }
+.egm-thumb-missing { display: grid; place-items: center; width: 100%; aspect-ratio: 16/9; box-sizing: border-box; border-radius: 8px; background: var(--border); color: var(--secondary); font-size: 12px; text-align: center; }

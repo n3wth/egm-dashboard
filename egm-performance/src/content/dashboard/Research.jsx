@@ -5,6 +5,7 @@ import {DataComponent,DataTable,Icon,MenuItem,Section,Tooltip,useDataApp} from '
 import {researchProposal} from './research-insights.js'
 import {backlinkPages} from './backlink-pages.js'
 import {PageSummary} from './PageSummary.jsx'
+import {EmptyState} from './DataStates.jsx'
 import {safeExternalUrl,mostViewedDoc,validCrawlDate} from './research-mentions.mjs'
 
 const link=(url,label,className)=>{const href=safeExternalUrl(url);return href?<a className={className} href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label||'Source unavailable'}</span>}
@@ -139,14 +140,14 @@ export function Research() {
     </Section>
     <Section title="Gaps and experiments" id="research-opportunities">
       <DataComponent id="research-opportunity-list" queryId="peers" queryIds={opportunityQueryIds} title="Opportunities to test" kind="custom" variant="card" displayRows={suggestions} sourceRowsByQuery={opportunitySourceRows}>
-        <div className="egm-opportunities">{suggestions.map(item=><div key={item.title}><h3 className="egm-recommendation-title"><Icon name={recommendationIcons[item.title]} size={20}/>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} {safeExternalUrl(item.source)&&<a className="egm-evidence-link" href={safeExternalUrl(item.source)} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></a>}</p></div>)}</div>
+        <div className="egm-opportunities">{!suggestions.length&&<EmptyState title="No experiments to suggest yet">Suggestions appear once peer, referral, or page data is collected.</EmptyState>}{suggestions.map(item=><div key={item.title}><h3 className="egm-recommendation-title"><Icon name={recommendationIcons[item.title]} size={20}/>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} {safeExternalUrl(item.source)&&<a className="egm-evidence-link" href={safeExternalUrl(item.source)} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></a>}</p></div>)}</div>
       </DataComponent>
     </Section>
     <DiscussionSignals queries={queries}/>
     <ResearchCandidates queries={queries}/>
     <Section title="Newly popular agent repos" id="research-discovery">
       <DataComponent id="research-emerging-table" queryId="emerging" title="Created in the last 30 days" kind="table" variant="card" displayRows={emerging} sourceRows={emerging}>
-        <DataTable rows={emerging} searchable={false} label="Newly popular agent repos" columns={[{field:'repo',label:'Repo',renderCell:repoLink},{field:'stars',label:'Stars',renderCell:starCount},{field:'created',label:'Created',renderCell:createdDate},{field:'description',label:'Focus',renderCell:focusText}]} />
+        {!emerging.length?<EmptyState title="No new repos found">No agent repos over 100 stars were created in the last 30 days, or the search has not run yet.</EmptyState>:<DataTable rows={emerging} searchable={false} label="Newly popular agent repos" columns={[{field:'repo',label:'Repo',renderCell:repoLink},{field:'stars',label:'Stars',renderCell:starCount},{field:'created',label:'Created',renderCell:createdDate},{field:'description',label:'Focus',renderCell:focusText}]} />}
         <p className="egm-note">GitHub search for agent-related descriptions, over 100 stars, created in the last 30 days. Ranked by current total stars. This is discovery, not GitHub Trending or proof of virality.</p>
       </DataComponent>
     </Section>
