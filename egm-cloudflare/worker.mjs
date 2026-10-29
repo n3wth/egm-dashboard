@@ -1,6 +1,7 @@
 import {validatePresentation} from '../egm-performance/src/presentation-state.js'
 import {runRefresh} from './refresh-runner.mjs'
 import {approvalEventsRpc,flushApprovalEvents} from './approval-events.mjs'
+import {flushGrokNotifications} from './grok-notify.mjs'
 import {feedbackEventsRpc,feedbackSubmittedEvent,flushFeedbackEvents,flushFeedbackToPosthog,loadFeedbackSurvey,recordFeedbackActivity,submitFeedback} from './feedback-events.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
 import {cachedSiteIcon} from './favicon-cache.mjs'
@@ -229,7 +230,7 @@ export async function handle(request,env,ctx) {
     }
     if(!existing && !invited) {
       await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,[user.first_name,user.last_name].filter(Boolean).join(' ')||email,isOwner?'approved':'pending',new Date().toISOString()).run()
-      if(!isOwner) ctx?.waitUntil(flushApprovalEvents(env).catch(error=>console.error('Approval event flush failed',error?.message)))
+      if(!isOwner) ctx?.waitUntil(Promise.allSettled([flushApprovalEvents(env).catch(error=>console.error('Approval event flush failed',error?.message)),flushGrokNotifications(env)]))
       if(!isOwner) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     }
     const sid=random()
@@ -267,7 +268,7 @@ export async function handle(request,env,ctx) {
   if(url.pathname==='/api/feedback') {
     if(request.method==='GET') return loadFeedbackSurvey(env)
     const response=await submitFeedback(request,env,user)
-    if(response.ok) ctx?.waitUntil(Promise.allSettled([flushFeedbackEvents(env),flushFeedbackToPosthog(env)]))
+    if(response.ok) ctx?.waitUntil(Promise.allSettled([flushFeedbackEvents(env),flushFeedbackToPosthog(env),flushGrokNotifications(env)]))
     return response
   }
   if(url.pathname==='/api/feedback/activity') {
@@ -361,6 +362,7 @@ export default {
     try {await flushApprovalEvents(env)} catch {console.error('Approval notification delivery deferred')}
     try {await flushFeedbackEvents(env)} catch {console.error('Feedback notification delivery deferred')}
     try {await flushFeedbackToPosthog(env)} catch {console.error('Feedback survey delivery deferred')}
+    try {await flushGrokNotifications(env)} catch {console.error('Grok notification delivery deferred')}
     try {console.log(JSON.stringify(await runRefresh(env)))}
     catch {console.error('EGM refresh failed; previous complete snapshot retained');throw Error('EGM refresh failed')}
   }
