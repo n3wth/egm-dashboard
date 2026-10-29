@@ -8,8 +8,7 @@
 .egm-ask-inline button:focus-visible { outline: 1px solid var(--text); }
 .egm-ask-options { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--secondary); font-size: 12px; }
 .egm-ask-options label { display: inline-flex; align-items: center; gap: 6px; }
-.egm-ask-cards,.egm-ask-skeletons { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; margin-top: 18px; }
-.egm-ask-cards { grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); align-items: start; gap: 12px; }
+.egm-ask-cards,.egm-ask-cards { grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); align-items: start; gap: 12px; }
 .egm-ask-cards > :has(.recharts-wrapper) { grid-column: 1 / -1; }
 .egm-ask-cards table { width: 100%; }
 .egm-ask-cards :has(> table) { overflow-x: auto; }
@@ -28,13 +27,24 @@
 .egm-ask-source-meta { color: var(--secondary); font-size: 11px; }
 .egm-ask-cite { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin: 0 1px; border-radius: 9px; background: var(--border); color: var(--secondary); font-size: 11px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; text-decoration: none; vertical-align: 1px; box-sizing: border-box; flex: none; }
 a.egm-ask-cite:hover { color: var(--text); }
-.egm-ask-skeletons > div { display: grid; gap: 14px; padding: 20px; border: 1px solid var(--border); border-radius: var(--card-radius); }
-.egm-ask-skeletons span { height: 12px; background: var(--border); border-radius: 3px; }
-.egm-ask-skeletons span:nth-child(2) { width: 55%; height: 28px; }
+.egm-shimmer { display: inline-block; color: transparent; background: linear-gradient(90deg, var(--secondary) 0%, var(--text) 50%, var(--secondary) 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; animation: egm-shimmer 2s linear infinite; }
+.egm-spin { animation: egm-spin 1s linear infinite; }
+.egm-trace { margin: 0 0 12px; font-size: 13px; }
+.egm-trace-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: var(--secondary); font: inherit; font-size: 13px; }
+.egm-trace-trigger:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+.egm-trace-trigger > .dashboard-icon { transition: transform 120ms; }
+.egm-trace[data-open="true"] .egm-trace-trigger > .dashboard-icon { transform: rotate(90deg); }
+.egm-trace-steps { display: grid; gap: 6px; margin: 8px 0 0; padding: 0 0 0 2px; list-style: none; color: var(--text); }
+.egm-trace-steps li { display: flex; align-items: center; gap: 8px; }
+.egm-trace-steps li[data-status="skipped"] { color: var(--secondary); }
+.egm-trace-icon { display: inline-flex; flex: 0 0 14px; width: 14px; height: 14px; }
+.egm-trace-detail { color: var(--secondary); }
 @keyframes egm-ask-open { from { opacity: 0; transform: scaleX(.9); transform-origin: right; } to { opacity: 1; transform: scaleX(1); } }
+@keyframes egm-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes egm-spin { to { transform: rotate(360deg); } }
 @media(max-width:1000px) { .egm-ask-cards { grid-template-columns: 1fr; } }
-@media(max-width:650px) { .egm-ask-inline-host { position: fixed; right: 16px; top: 8px; } .egm-ask-inline { width: calc(100vw - 32px); } .egm-ask-skeletons { grid-template-columns: 1fr; } }
-@media(prefers-reduced-motion:reduce) { .egm-ask-inline { animation: none; } }
+@media(max-width:650px) { .egm-ask-inline-host { position: fixed; right: 16px; top: 8px; } .egm-ask-inline { width: calc(100vw - 32px); } }
+@media(prefers-reduced-motion:reduce) { .egm-ask-inline,.egm-spin { animation: none; } .egm-shimmer { animation: none; color: var(--secondary); } .egm-trace-trigger > .dashboard-icon { transition: none; } }
 .egm-ask-page > :not(.egm-ask-body-host) { display: none !important; }
 .egm-ask-followups { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; margin-bottom: 4px; }
 .egm-ask-followups button { display: inline-flex; align-items: center; gap: 8px; text-align: left; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; color: var(--text); font: inherit; font-size: 12px; line-height: 1.5; }

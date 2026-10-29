@@ -28,6 +28,13 @@ test('maps NDJSON deltas and result to UI message chunks',async()=>{
   assert.deepEqual(result.sources,[])
   assert.deepEqual(outcomes,['submitted','completed'])
 })
+test('maps step events to data-step parts keyed by step id',async()=>{
+  const transport=new AskTransport({fetch:async()=>ndjson([{type:'step',id:'context',label:'Reading saved dashboard data',status:'active'},{type:'step',id:'context',label:'Reading saved dashboard data',status:'done',detail:'3 sources'},{type:'delta',text:'Hi'},{type:'result',answer:'Hi'}])})
+  const chunks=await read(await transport.sendMessages({messages:[user('u0','q')]}))
+  const steps=chunks.filter(chunk=>chunk.type==='data-step')
+  assert.deepEqual(steps.map(chunk=>[chunk.id,chunk.data.status,chunk.data.detail]),[['context','active',undefined],['context','done','3 sources']])
+  assert.equal(chunks.indexOf(steps[1])<chunks.findIndex(chunk=>chunk.type==='text-start'),true)
+})
 test('emits the answer text when the result arrives without deltas',async()=>{
   const transport=new AskTransport({fetch:async()=>ndjson([{type:'result',answer:'Only result'}])})
   const chunks=await read(await transport.sendMessages({messages:[user('u0','q')]}))
