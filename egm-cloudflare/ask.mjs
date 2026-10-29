@@ -144,7 +144,7 @@ export async function handleAsk(request,env,user,options={}) {
     const coverageNote=trending.test(contextQuestion)?'Discovery ranked by total stars is not measured trending growth. Only recorded changes between observation dates support growth comparisons.':null
     return {answer,cards,suggestedFollowUps,coverageNote,toolStatus,sources:context.sources.filter(source=>cited.has(source.id)),snapshotAt:stored.generated_at??snapshot.generatedAt??null,generatedAt:at}
     }
-    const timeoutMs=options.timeoutMs??20000
+    const timeoutMs=options.timeoutMs??45000
     if(payload.stream===true)return streamAsk(async step=>infer.run(model,{messages:await prepare(step),max_tokens:1024,temperature:0.1,stream:true}),finalize,request.signal,timeoutMs)
     const messages=await prepare()
     let timer,result
