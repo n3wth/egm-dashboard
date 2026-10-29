@@ -22,5 +22,5 @@ export function siteMeta(appUrl='https://egm.n3wth.com',title=SITE_NAME) {
     ['name','twitter:description',SITE_DESCRIPTION],
     ['name','twitter:image',image],
   ]
-  return tags.map(([attr,key,value])=>`<meta ${attr}="${key}" content="${escape(value)}">`).join('')
+  return '<link rel="apple-touch-icon" href="/apple-touch-icon.png">'+tags.map(([attr,key,value])=>`<meta ${attr}="${key}" content="${escape(value)}">`).join('')
 }

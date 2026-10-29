@@ -1,5 +1,5 @@
 // Workers AI stream:true returns SSE response tokens, not a completed response.
-export function streamAsk(run,finalize,signal,timeoutMs=20000) {
+export function streamAsk(run,finalize,signal,timeoutMs=30000,hooks={}) {
   const encoder=new TextEncoder()
   let reader,closed=false,timer,output,rejectWait
   const abort=()=>{closed=true;rejectWait?.(Error('cancelled'));reader?.cancel().catch(()=>{});try{output?.close()}catch{}}
@@ -51,7 +51,7 @@ export function streamAsk(run,finalize,signal,timeoutMs=20000) {
           if(!doneEvent||!answer.trim())throw Error('incomplete_stream')
           send({type:'result',...finalize(answer.trim())})
         }
-      }catch(error){send({type:'error',error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'})}
+      }catch(error){hooks.onError?.(error);send({type:'error',error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'})}
       finally {
         clearTimeout(timer)
         signal?.removeEventListener('abort',abort)

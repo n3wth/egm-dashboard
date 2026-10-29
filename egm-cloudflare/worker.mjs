@@ -10,7 +10,7 @@ import {SITE_NAME,siteMeta} from './site-meta.mjs'
 import {handleAsk} from './ask.mjs'
 import {manageAccess} from './access-management.mjs'
 import {invitationForOtherAccount,invitationHash,manageInvitations,redeemInvitation,validInvitationToken} from './invitations.mjs'
-import {rbacConfigured,workosSessionConfigured,storeWorkosSession,validatedWorkosSession,workosAdminPermission} from './workos-session.mjs'
+import {rbacConfigured,workosSessionConfigured,storeWorkosSession,validatedWorkosSession,workosAdminPermission,sessionSecrets,revokeWorkosSession} from './workos-session.mjs'
 import {syncWorkosMember,syncWorkosMemberships} from './workos-membership.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
 import {readVerifiedWorkosEmail,reconcileVerifiedEmail} from './workos-identity.mjs'
@@ -25,18 +25,22 @@ const un64 = value => Uint8Array.from(atob(value.replaceAll('-','+').replaceAll(
 const now = () => Math.floor(Date.now()/1000)
 const random = () => b64(crypto.getRandomValues(new Uint8Array(32)))
 const key = secret => crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign','verify'])
-export async function seal(payload,secret,audience,lifetime=3600) {
+// Sign with the current secret only; a list is accepted so callers can pass sessionSecrets(env).
+export async function seal(payload,secrets,audience,lifetime=3600) {
+  const secret=[].concat(secrets)[0]
   const header=b64(enc.encode(JSON.stringify({alg:'HS256',typ:'JWT'})))
   const body=b64(enc.encode(JSON.stringify({...payload,iss:'egm-growth',aud:audience,iat:now(),exp:now()+lifetime})))
   const data=`${header}.${body}`
   return `${data}.${b64(await crypto.subtle.sign('HMAC',await key(secret),enc.encode(data)))}`
 }
-export async function open(token,secret,audience) {
+export async function open(token,secrets,audience) {
   try {
     if(!token || token.length>8192) return null
     const [h,p,s,...extra]=token.split('.')
     if(extra.length || JSON.parse(new TextDecoder().decode(un64(h))).alg!=='HS256') return null
-    if(!await crypto.subtle.verify('HMAC',await key(secret),un64(s),enc.encode(`${h}.${p}`))) return null
+    let valid=false
+    for(const secret of [].concat(secrets)) if(await crypto.subtle.verify('HMAC',await key(secret),un64(s),enc.encode(`${h}.${p}`))) {valid=true;break}
+    if(!valid) return null
     const value=JSON.parse(new TextDecoder().decode(un64(p)))
     return value.iss==='egm-growth' && value.aud===audience && value.exp>now() ? value : null
   } catch { return null }
@@ -51,7 +55,7 @@ export function profilePhoto(value) {
   try {const url=new URL(value);return typeof value==='string'&&value.length<=2048&&url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.port&&!url.username&&!url.password?url.href:null}catch{return null}
 }
 async function identity(request,env) {
-  const session=await open(cookieValue(request,'__Host-egm_session'),env.SESSION_SECRET,'session')
+  const session=await open(cookieValue(request,'__Host-egm_session'),sessionSecrets(env),'session')
   if(!session || typeof session.sid!=='string') return null
   const user=await env.DB.prepare('SELECT users.* FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id=? AND sessions.expires_at>?').bind(session.sid,now()).first()
   if(!user) return null
@@ -104,12 +108,17 @@ async function mcpOwner(request,env) {
       if(!tokenAdmin && (claims.role!==undefined || claims.permissions!==undefined)) return mcpDeny('role',claims)
       claims.resolveRole=!tokenAdmin
     }
-    if(!jwksCache || jwksCache.expires<Date.now()) {
+    const loadJwks=async()=>{
       const result=await fetch(env.WORKOS_AUTHKIT_DOMAIN+'/oauth2/jwks',{signal:AbortSignal.timeout(10000)})
-      if(!result.ok) return mcpDeny('jwks_fetch',claims)
-      jwksCache={keys:(await result.json()).keys,expires:Date.now()+300000}
+      if(!result.ok) return false
+      jwksCache={keys:(await result.json()).keys,expires:Date.now()+300000,fetched:Date.now()}
+      return true
     }
-    const jwk=jwksCache.keys.find(k=>k.kid===header.kid && k.kty==='RSA')
+    if(!jwksCache || jwksCache.expires<Date.now()) { if(!await loadJwks()) return mcpDeny('jwks_fetch',claims) }
+    const findJwk=()=>jwksCache.keys.find(k=>k.kid===header.kid && k.kty==='RSA')
+    let jwk=findJwk()
+    // An unknown kid after key rotation: refetch, at most once per 30 seconds.
+    if(!jwk && Date.now()-jwksCache.fetched>30000 && await loadJwks()) jwk=findJwk()
     if(!jwk) return mcpDeny('jwks_kid',claims)
     const publicKey=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify'])
     if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',publicKey,un64(s),enc.encode(`${h}.${p}`))) return mcpDeny('signature',claims)
@@ -173,7 +182,7 @@ async function mcp(request,env,ctx) {
 export async function handle(request,env,ctx) {
   const url=new URL(request.url)
   if(url.origin!==env.APP_URL) return new Response('Not found',{status:404})
-  if(['/favicon.svg','/og.png'].includes(url.pathname) && request.method==='GET') return env.ASSETS.fetch(request)
+  if(['/favicon.svg','/og.png','/apple-touch-icon.png'].includes(url.pathname) && request.method==='GET') return env.ASSETS.fetch(request)
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(['/fonts/SuisseIntl-Book.woff2','/fonts/SuisseIntl-Medium.woff2','/fonts/SuisseIntl-Semibold.woff2','/fonts/SuisseIntl-Bold.woff2'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return unavailable(request)
@@ -190,7 +199,8 @@ export async function handle(request,env,ctx) {
   if(url.pathname==='/auth/logout') {
     if(request.method!=='POST') return new Response('Use POST',{status:405})
     if(request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
-    const session=await open(cookieValue(request,'__Host-egm_session'),env.SESSION_SECRET,'session')
+    const session=await open(cookieValue(request,'__Host-egm_session'),sessionSecrets(env),'session')
+    if(session?.sid && (env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true')) await revokeWorkosSession(env,session.sid)
     if(session?.sid && (env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true')) try { await env.DB.prepare('DELETE FROM workos_sessions WHERE session_id=?').bind(session.sid).run() } catch {}
     if(session?.sid) await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(session.sid).run()
     const headers=new Headers({location:'/', 'cache-control':'private, no-store'})
@@ -201,7 +211,7 @@ export async function handle(request,env,ctx) {
   }
   if(url.pathname==='/auth/invite' && request.method==='GET') {
     const supplied=url.searchParams.get('invitation_token')
-    const invitation=supplied ? {token:supplied} : await open(cookieValue(request,'__Host-egm_invite'),env.SESSION_SECRET,'invitation')
+    const invitation=supplied ? {token:supplied} : await open(cookieValue(request,'__Host-egm_invite'),sessionSecrets(env),'invitation')
     if(!validInvitationToken(invitation?.token)) return renderAccessPage('invite_invalid')
     try {
       const active=await env.DB.prepare('SELECT id FROM invitations WHERE token_hash=? AND expires_at>? AND redeemed_at IS NULL AND revoked_at IS NULL').bind(await invitationHash(invitation.token),Date.now()).first()
@@ -213,7 +223,7 @@ export async function handle(request,env,ctx) {
   if((url.pathname==='/auth/login' && request.method==='GET') || (url.pathname==='/auth/invite/continue' && request.method==='POST')) {
     const continuing=url.pathname==='/auth/invite/continue'
     if(continuing && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
-    const invitationToken=continuing?(await open(cookieValue(request,'__Host-egm_invite'),env.SESSION_SECRET,'invitation'))?.token:null
+    const invitationToken=continuing?(await open(cookieValue(request,'__Host-egm_invite'),sessionSecrets(env),'invitation'))?.token:null
     if(continuing) {
       if(!validInvitationToken(invitationToken)) return renderAccessPage('invite_invalid')
       try {
@@ -231,25 +241,26 @@ export async function handle(request,env,ctx) {
     return new Response(null,{status:302,headers})
   }
   if(url.pathname==='/auth/callback' && request.method==='GET') {
-    const flow=await open(cookieValue(request,'__Host-egm_flow'),env.SESSION_SECRET,'login')
+    const flow=await open(cookieValue(request,'__Host-egm_flow'),sessionSecrets(env),'login')
     const clear=cookie('__Host-egm_flow','',0)
-    if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return renderAccessPage(flow?.state===url.searchParams.get('state') && url.searchParams.has('error')?'login_cancelled':'login_expired',{headers:{'set-cookie':clear}})
+    const fail=(page,options)=>{const response=renderAccessPage(page,options);response.headers.append('set-cookie',clear);return response}
+    if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return fail(flow?.state===url.searchParams.get('state') && url.searchParams.has('error')?'login_cancelled':'login_expired')
     // A failed attempt keeps a pending invitation so the person can retry without a new link.
     const back=async()=>flow.invitationToken?{href:'/auth/invite',headers:{'set-cookie':cookie('__Host-egm_invite',await seal({token:flow.invitationToken},env.SESSION_SECRET,'invitation',600),600)}}:{href:'/auth/login'}
     const auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,grant_type:'authorization_code',code:url.searchParams.get('code'),code_verifier:flow.verifier}),signal:AbortSignal.timeout(10000)})
-    if(!auth.ok) return renderAccessPage(auth.status===429?'rate_limited':auth.status>=500?'unavailable':'error',await back())
+    if(!auth.ok) return fail(auth.status===429?'rate_limited':auth.status>=500?'unavailable':'error',await back())
     const {user,access_token:accessToken,refresh_token:refreshToken}=await auth.json()
-    if(!user?.id || !user.email_verified || typeof user.email!=='string') return renderAccessPage('verify')
+    if(!user?.id || !user.email_verified || typeof user.email!=='string') return fail('verify')
     const email=user.email.trim().toLowerCase()
     const existing=await env.DB.prepare('SELECT * FROM users WHERE id=? OR email=?').bind(user.id,email).first()
-    if(existing && existing.id!==user.id) return renderAccessPage('review')
-    if(existing && await reconcileVerifiedEmail(env,existing,email)==='conflict') return renderAccessPage('review')
+    if(existing && existing.id!==user.id) return fail('review')
+    if(existing && await reconcileVerifiedEmail(env,existing,email)==='conflict') return fail('review')
     const isOwner=isDashboardOwner({id:user.id,email},env)
     let invited=false
     if(flow.invitationToken) {
-      try { invited=await redeemInvitation(env,flow.invitationToken,user) } catch { return renderAccessPage('error',await back()) }
-      if(!invited && existing?.status==='denied') return renderAccessPage('invite_denied')
-      if(!invited) return await invitationForOtherAccount(env,flow.invitationToken,user).catch(()=>false) ? renderAccessPage('invite_account',await back()) : renderAccessPage('invite_invalid')
+      try { invited=await redeemInvitation(env,flow.invitationToken,user) } catch { return fail('error',await back()) }
+      if(!invited && existing?.status==='denied') return fail('invite_denied')
+      if(!invited) return await invitationForOtherAccount(env,flow.invitationToken,user).catch(()=>false) ? fail('invite_account',await back()) : fail('invite_invalid')
     }
     if(!existing && !invited) {
       await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,[user.first_name,user.last_name].filter(Boolean).join(' ')||email,isOwner?'approved':'pending',new Date().toISOString()).run()
@@ -265,16 +276,16 @@ export async function handle(request,env,ctx) {
       try { stored=await storeWorkosSession(env,sid,user.id,accessToken,refreshToken) } catch {}
       if(env.WORKOS_WIDGETS_ENABLED==='true' && !stored) {
         await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sid).run()
-        return renderAccessPage('error')
+        return fail('error')
       }
       if(rbacConfigured(env) && ctx?.waitUntil) ctx.waitUntil(syncWorkosMember(env,user.id).catch(()=>{}))
     } else if(env.WORKOS_WIDGETS_ENABLED==='true') {
       await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sid).run()
-      return renderAccessPage('error')
+      return fail('error')
     }
     const headers=new Headers({location:'/overview','cache-control':'private, no-store'})
     headers.append('set-cookie',clear)
-    headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid,profilePictureUrl:profilePhoto(user.profile_picture_url)},env.SESSION_SECRET,'session')))
+    headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid,profilePictureUrl:profilePhoto(user.profile_picture_url)},sessionSecrets(env),'session')))
     return new Response(null,{status:302,headers})
   }
   const user=await identity(request,env)
@@ -316,7 +327,7 @@ export async function handle(request,env,ctx) {
   }
   if(url.pathname==='/api/workos-widget-token') return issueUserSessionsWidgetToken(request,env,user,user.workosAccessToken)
   if(url.pathname==='/api/site-icon') return cachedSiteIcon(request,env)
-  if(url.pathname==='/api/ask') return handleAsk(request,env,user)
+  if(url.pathname==='/api/ask') return handleAsk(request,env,user,{waitUntil:promise=>ctx?.waitUntil?.(promise)})
   if(url.pathname==='/api/access' || url.pathname==='/api/invitations' || url.pathname==='/api/invitations/revoke') {
     if(request.method==='POST' && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
     user.canManageAccess=await accessManager(user,env)

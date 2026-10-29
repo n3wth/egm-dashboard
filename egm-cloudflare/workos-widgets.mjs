@@ -1,3 +1,5 @@
+import { workosSigningKey } from './workos-jwks.mjs'
+
 // Widget and session contracts: https://workos.com/docs/widgets/tokens
 // https://workos.com/docs/reference/authkit/session
 const decode = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0))
@@ -18,13 +20,9 @@ export async function verifyWorkosSessionToken(token, { clientId, issuer, userId
     const [head, body, signature] = parts
     const header = JSON.parse(text.decode(decode(head))), claims = JSON.parse(text.decode(decode(body)))
     if (header.alg !== 'RS256' || typeof header.kid !== 'string' || !header.kid || header.crit != null || header.b64 === false || claims.iss !== issuer || claims.client_id !== clientId || claims.sub !== userId || !sessionPattern.test(claims.sid ?? '') || !Number.isFinite(claims.exp) || (!allowExpiredForBinding && claims.exp <= Math.floor(now / 1000)) || (claims.nbf != null && (!Number.isFinite(claims.nbf) || claims.nbf > Math.floor(now / 1000)))) return null
-    const response = await request(`https://api.workos.com/sso/jwks/${clientId}`, { redirect: 'manual', signal: AbortSignal.timeout(5000) })
-    if (!response.ok) return null
-    const bodyJson = await response.json()
-    if (!Array.isArray(bodyJson.keys)) return null
-    const keys = bodyJson.keys.filter(k => k.kid === header.kid && k.kty === 'RSA' && (!k.alg || k.alg === 'RS256') && (!k.use || k.use === 'sig'))
-    if (keys.length !== 1) return null
-    const key = await crypto.subtle.importKey('jwk', keys[0], { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify'])
+    const jwk = await workosSigningKey(clientId, header.kid, request, now)
+    if (!jwk) return null
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify'])
     return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, decode(signature), encoder.encode(`${head}.${body}`)) ? { sessionId: claims.sid } : null
   } catch { return null }
 }
@@ -40,7 +38,7 @@ export async function workosSessionState({ apiKey, userId, sessionId, request = 
     for (let page = 0; page < 3; page++) {
       const url = new URL(`https://api.workos.com/user_management/users/${userId}/sessions`)
       url.searchParams.set('limit', '100')
-      url.searchParams.set('order', 'asc')
+      url.searchParams.set('order', 'desc')
       if (after) url.searchParams.set('after', after)
       const response = await request(url.toString(), { headers: { authorization: `Bearer ${apiKey}` }, redirect: 'manual', signal: AbortSignal.timeout(5000) })
       if (!response.ok) return 'unavailable'

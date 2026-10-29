@@ -68,7 +68,8 @@ export async function collectYouTube(env,request=fetch,previousQueries={},time=D
     const due=videos.filter(video=>!Number.isFinite(attemptedAt(video))||time-attemptedAt(video)>=dayMs).sort((a,b)=>{
       const aTime=attemptedAt(a),bTime=attemptedAt(b)
       return Number(Number.isFinite(aTime))-Number(Number.isFinite(bTime))||(aTime||0)-(bTime||0)
-    }).slice(0,Math.max(0,Math.min(statsDailyLimit-statsAttempts,21-totalStatsAttempts)))
+    }).slice(0,env.YOUTUBE_API_KEY?videos.length:Math.max(0,Math.min(statsDailyLimit-statsAttempts,21-totalStatsAttempts)))
+    // The YouTube Data API returns every tracked video in one 1-unit call, so only the paid Firecrawl fallback is rationed.
     if(env.YOUTUBE_API_KEY&&due.length) {
       statsAttempts+=due.length
       totalStatsAttempts+=due.length

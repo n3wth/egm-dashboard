@@ -1,6 +1,18 @@
-import {consumeAskStream} from './ask-stream.mjs'
+import {EMPTY_ANSWER,consumeAskStream,emptyAnswer} from './ask-stream.mjs'
 
 export const askErrorMessage=status=>status===401?'Your session expired. Sign in again to ask a question.':status===403?'Your account does not have access to Ask.':status===429?'You have reached the hourly question limit. Try again later.':status===400||status===413?'Use a question between 1 and 1,200 characters.':status===504?'The answer took too long. Try a shorter question.':'Ask is temporarily unavailable. Try again shortly.'
+
+const TIMEOUT='The answer took too long. Try again.'
+const OFFLINE='You are offline. Reconnect and try again.'
+const NETWORK='Could not reach Ask. Check your connection and try again.'
+const DROPPED='The connection dropped before the answer finished. Try again.'
+const INCOMPLETE='Ask returned an incomplete answer.'
+// Retrying cannot fix these: sign in, access, the hourly limit, and the question itself.
+const NO_RETRY=new Set([401,403,429,400,413].map(askErrorMessage))
+export const askRetryable=message=>!NO_RETRY.has(message)
+export const askNeedsSignIn=message=>message===askErrorMessage(401)
+// fetch and stream reads reject with TypeError when the network fails; response.json rejects with SyntaxError.
+export const askFailureMessage=(failure,{timedOut=false,streaming=false}={})=>timedOut?TIMEOUT:failure instanceof TypeError?(streaming?DROPPED:NETWORK):failure instanceof SyntaxError?INCOMPLETE:failure?.message||NETWORK
 
 export const messageText=message=>(message?.parts??[]).filter(part=>part.type==='text').map(part=>part.text).join('')
 export const messageResult=message=>(message?.parts??[]).find(part=>part.type==='data-result')?.data??null
@@ -37,13 +49,14 @@ export class AskTransport {
     this.onOutcome('submitted')
     let response
     try {
+      if(globalThis.navigator?.onLine===false)throw new Error(OFFLINE)
       response=await this.fetch('/api/ask',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','accept':'application/x-ndjson'},body:JSON.stringify({question,history:askHistory(messages),stream:true,format:'markdown'}),signal:controller.signal})
       if(!response.ok)throw new Error(askErrorMessage(response.status))
     } catch(failure) {
       cleanup()
       if(abortSignal?.aborted)this.onOutcome('stopped')
       else this.onOutcome('failed')
-      throw timedOut?new Error('The answer took too long. Try again.'):failure
+      throw timedOut||failure instanceof TypeError?new Error(askFailureMessage(failure,{timedOut})):failure
     }
     const onOutcome=this.onOutcome
     return new ReadableStream({
@@ -71,7 +84,8 @@ export class AskTransport {
             },{signal:controller.signal})
           } else {
             const result=await response.json()
-            if(typeof result.answer!=='string')throw new Error('Ask returned an incomplete answer.')
+            if(typeof result.answer!=='string')throw new Error(INCOMPLETE)
+            if(emptyAnswer(result.answer))throw new Error(EMPTY_ANSWER)
             textStart()
             output.enqueue({type:'text-delta',id:'answer',delta:result.answer})
             finish(result)
@@ -80,7 +94,7 @@ export class AskTransport {
           if(abortSignal?.aborted){onOutcome('stopped')}
           else {
             onOutcome('failed')
-            output.enqueue({type:'error',errorText:timedOut?'The answer took too long. Try again.':failure.message||'Could not reach Ask. Try again.'})
+            output.enqueue({type:'error',errorText:askFailureMessage(failure,{timedOut,streaming:true})})
           }
         } finally {
           cleanup()

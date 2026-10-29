@@ -80,9 +80,9 @@
 @media(max-width:850px) { .egm-opportunities { grid-template-columns: 1fr; } }
 .egm-dashboard-grid .table tbody td,
 .data-section .table tbody td { vertical-align: top; }
-.egm-research-repo { display: inline-block; max-width: 260px; white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+.egm-research-repo { display: inline-block; max-width: min(480px,100%); white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
 .egm-mention-link { display: block; max-width: none; white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }
-.egm-research-description { display: block; width: min(260px,40vw); white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }
+.egm-research-description { display: block; max-width: 72ch; white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }
 .egm-research-controls { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .egm-research-controls input { width: min(160px,30vw); min-width: 0; min-height: 32px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font: inherit; font-size: 12px; }
 .egm-research-controls button { display: inline-flex; flex-shrink: 0; justify-content: center; align-items: center; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; color: var(--secondary); cursor: pointer; }
@@ -165,3 +165,14 @@
 @keyframes egm-thumb-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .egm-thumb[data-loaded] { animation: none; } }
 @media (pointer: coarse) { .egm-mention-link { padding-block: 11px; margin-block: -11px; } }
+
+/* Metric trendlines: larger, flat and in the first chart color so they match the line charts. */
+.egm-metric-reading .data-metric-sparkline { width: 96px; height: 41px; min-width: 64px; flex: 0 1 96px; color: var(--chart-1); }
+.egm-metric-reading .data-metric-sparkline polygon { display: none; }
+.egm-metric-reading .data-metric-sparkline polyline { stroke: currentColor; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.egm-metric-reading .data-metric-sparkline circle { r: 1.6; }
+.egm-empty { display: grid; align-content: center; justify-items: center; gap: 4px; min-height: 120px; padding: 24px 16px; box-sizing: border-box; text-align: center; color: var(--secondary); font-size: 13px; line-height: 1.5; }
+.egm-empty strong { color: var(--text); font-size: 14px; font-weight: 500; }
+.egm-empty--chart { min-height: 260px; }
+.egm-stale { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); color: var(--text); font-size: 13px; line-height: 1.5; }
+.egm-thumb-missing { display: grid; place-items: center; width: 100%; aspect-ratio: 16/9; box-sizing: border-box; border-radius: 8px; background: var(--border); color: var(--secondary); font-size: 12px; text-align: center; }
