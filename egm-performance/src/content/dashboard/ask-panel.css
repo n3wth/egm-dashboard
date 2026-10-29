@@ -60,6 +60,7 @@ a.egm-ask-cite:hover { color: var(--text); }
 .egm-ask-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .egm-ask-messages { display: grid; gap: 28px; min-width: 0; }
 .egm-chat-speaker { display: block; color: var(--secondary); font-size: 11px; font-weight: 500; margin-bottom: 6px; }
+.egm-mark { display: block; width: 26px; height: 16px; color: var(--text); }
 .egm-ask-user { justify-self: end; max-width: min(680px,88%); padding: 12px 16px; border-radius: var(--card-radius); background: var(--border); box-sizing: border-box; }
 .egm-ask-user p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
 .egm-ask-assistant { min-width: 0; overflow-wrap: anywhere; }

@@ -6,6 +6,7 @@ import {connectTokenIsAdmin} from './mcp-permission.mjs'
 import {feedbackEventsRpc,feedbackSubmittedEvent,flushFeedbackEvents,flushFeedbackToPosthog,loadFeedbackSurvey,recordFeedbackActivity,submitFeedback} from './feedback-events.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
 import {cachedSiteIcon} from './favicon-cache.mjs'
+import {SITE_NAME,siteMeta} from './site-meta.mjs'
 import {handleAsk} from './ask.mjs'
 import {manageAccess} from './access-management.mjs'
 import {invitationHash,manageInvitations,redeemInvitation,validInvitationToken} from './invitations.mjs'
@@ -170,7 +171,7 @@ async function mcp(request,env,ctx) {
 export async function handle(request,env,ctx) {
   const url=new URL(request.url)
   if(url.origin!==env.APP_URL) return new Response('Not found',{status:404})
-  if(url.pathname==='/favicon.svg' && request.method==='GET') return env.ASSETS.fetch(request)
+  if(['/favicon.svg','/og.png'].includes(url.pathname) && request.method==='GET') return env.ASSETS.fetch(request)
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(['/fonts/SuisseIntl-Book.woff2','/fonts/SuisseIntl-Medium.woff2','/fonts/SuisseIntl-Semibold.woff2','/fonts/SuisseIntl-Bold.woff2'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return new Response('Configuration incomplete',{status:503})
@@ -365,7 +366,7 @@ export async function handle(request,env,ctx) {
   headers.set('referrer-policy','same-origin')
   const response=new Response(asset.body,{status:asset.status,headers})
   return headers.get('content-type')?.includes('text/html')
-? new HTMLRewriter().on('head',{element(element){element.append('<meta name="data-app-snapshot-storage" content="external-v1"><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=trunk-c">',{html:true})}}).transform(response)
+? new HTMLRewriter().on('title',{element(element){element.setInnerContent(SITE_NAME)}}).on('head',{element(element){element.append('<meta name="data-app-snapshot-storage" content="external-v1"><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=trunk-c">'+siteMeta(env.APP_URL),{html:true})}}).transform(response)
     : response
 }
 export default {
