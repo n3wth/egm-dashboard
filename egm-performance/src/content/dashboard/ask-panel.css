@@ -30,11 +30,11 @@ a.egm-ask-cite:hover { color: var(--text); }
 .egm-shimmer { display: inline-block; color: transparent; background: linear-gradient(90deg, var(--secondary) 0%, var(--text) 50%, var(--secondary) 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; animation: egm-shimmer 2s linear infinite; }
 .egm-spin { animation: egm-spin 1s linear infinite; }
 .egm-trace { margin: 0 0 12px; font-size: 13px; }
-.egm-trace-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: var(--secondary); font: inherit; font-size: 13px; }
+.egm-trace-trigger { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: var(--secondary); font: inherit; font-size: 13px; }
 .egm-trace-trigger:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
 .egm-trace-trigger > .dashboard-icon { transition: transform 120ms; }
 .egm-trace[data-open="true"] .egm-trace-trigger > .dashboard-icon { transform: rotate(90deg); }
-.egm-trace-steps { display: grid; gap: 6px; margin: 8px 0 0; padding: 0 0 0 2px; list-style: none; color: var(--text); }
+.egm-trace-steps { display: grid; gap: 6px; margin: 8px 0 0 9px; padding: 0 0 0 16px; border-left: 1px solid var(--border); list-style: none; color: var(--text); }
 .egm-trace-steps li { display: flex; align-items: center; gap: 8px; }
 .egm-trace-steps li[data-status="skipped"] { color: var(--secondary); }
 .egm-trace-icon { display: inline-flex; flex: 0 0 14px; width: 14px; height: 14px; }
@@ -62,7 +62,9 @@ a.egm-ask-cite:hover { color: var(--text); }
 .egm-ask-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .egm-ask-messages { display: grid; gap: 28px; min-width: 0; }
 .egm-chat-speaker { display: block; color: var(--secondary); font-size: 11px; font-weight: 500; margin-bottom: 6px; }
-.egm-mark { display: block; width: 26px; height: 16px; color: var(--text); }
+.egm-mark { display: block; flex: none; width: 20px; height: 12px; color: var(--text); }
+.egm-mark--working { -webkit-mask: linear-gradient(90deg, rgb(0 0 0 / .3) 30%, #000 50%, rgb(0 0 0 / .3) 70%) 100% 0 / 300% 100%; mask: linear-gradient(90deg, rgb(0 0 0 / .3) 30%, #000 50%, rgb(0 0 0 / .3) 70%) 100% 0 / 300% 100%; animation: egm-mark-shimmer 1.6s linear infinite; }
+@keyframes egm-mark-shimmer { to { -webkit-mask-position: 0 0; mask-position: 0 0; } }
 .egm-ask-user { justify-self: end; max-width: min(680px,88%); padding: 12px 16px; border-radius: var(--card-radius); background: var(--border); box-sizing: border-box; }
 .egm-ask-user p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
 .egm-ask-assistant { min-width: 0; overflow-wrap: anywhere; }
@@ -90,3 +92,4 @@ a.egm-ask-cite:hover { color: var(--text); }
 @media(max-width:650px) { .egm-ask-messages { gap: 22px; } .egm-ask-user { max-width: 92%; } }
 /* Sticky composer sits 12px+ above the viewport edge; scroll past it so it never covers the follow-ups. */
 .egm-ask-end { scroll-margin-bottom: calc(max(12px, env(safe-area-inset-bottom)) + 12px); }
+@media(prefers-reduced-motion:reduce) { .egm-mark--working { animation: none; -webkit-mask: none; mask: none; } }
