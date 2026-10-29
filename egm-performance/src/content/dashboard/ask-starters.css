@@ -13,7 +13,6 @@
 .egm-ask-starter-group button > svg { flex: none; color: var(--secondary); opacity: 0; transform: translate(-3px,3px); transition: opacity .15s ease, transform .15s ease; }
 .egm-ask-starter-group button:hover > svg, .egm-ask-starter-group button:focus-visible > svg { opacity: 1; transform: none; }
 .egm-ask-starters button:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
-.egm-ask-starter-note { margin: 4px 0 0; padding: 8px 10px 4px; border-top: 1px solid var(--border); color: var(--secondary); font-size: 12px; line-height: 1.5; text-wrap: pretty; }
 @media(hover:none) { .egm-ask-starter-group button > svg { opacity: 1; transform: none; } }
 @media(max-width:700px) { .egm-ask-starters { right: 0; left: auto; } }
 @media(prefers-reduced-motion:reduce) { .egm-ask-starter-group button, .egm-ask-starter-group button > svg { transition: none; } }

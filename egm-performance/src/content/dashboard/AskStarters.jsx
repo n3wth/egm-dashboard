@@ -26,6 +26,5 @@ export function AskStarters({tabId, onPick}) {
         </button>
       </li>)}</ul>
     </section>
-    <p className="egm-ask-starter-note">Suggestions are hypotheses for review. Repository views and clones do not measure successful first use or retention.</p>
   </div>
 }

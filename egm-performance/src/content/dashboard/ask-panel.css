@@ -41,10 +41,12 @@ a.egm-ask-cite:hover { color: var(--text); }
 .egm-trace-detail { color: var(--secondary); }
 @keyframes egm-ask-open { from { opacity: 0; transform: scaleX(.9); transform-origin: right; } to { opacity: 1; transform: scaleX(1); } }
 @keyframes egm-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.egm-ask-user,.egm-ask-assistant { animation: egm-msg-in 180ms ease-out; }
+@keyframes egm-msg-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes egm-spin { to { transform: rotate(360deg); } }
 @media(max-width:1000px) { .egm-ask-cards { grid-template-columns: 1fr; } }
 @media(max-width:650px) { .egm-ask-inline-host { position: fixed; right: 16px; top: 8px; } .egm-ask-inline { width: calc(100vw - 32px); } }
-@media(prefers-reduced-motion:reduce) { .egm-ask-inline,.egm-spin { animation: none; } .egm-shimmer { animation: none; color: var(--secondary); } .egm-trace-trigger > .dashboard-icon { transition: none; } }
+@media(prefers-reduced-motion:reduce) { .egm-ask-inline,.egm-spin,.egm-ask-user,.egm-ask-assistant { animation: none; } .egm-shimmer { animation: none; color: var(--secondary); } .egm-trace-trigger > .dashboard-icon { transition: none; } }
 .egm-ask-page > :not(.egm-ask-body-host) { display: none !important; }
 .egm-ask-followups { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; margin-bottom: 4px; }
 .egm-ask-followups button { display: inline-flex; align-items: center; gap: 8px; text-align: left; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; color: var(--text); font: inherit; font-size: 12px; line-height: 1.5; }
