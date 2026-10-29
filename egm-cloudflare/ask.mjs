@@ -1,5 +1,5 @@
 import {streamAsk} from './ask-stream.mjs'
-const model='@cf/meta/llama-3.3-70b-instruct-fp8-fast'
+import {GEMINI_MODEL as model,geminiRunner} from './gemini.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
 const safeLink=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
 const trending=/trend|viral|popular|momentum/i
@@ -103,7 +103,9 @@ export async function handleAsk(request,env,user,options={}) {
   try {history=askHistory(payload.history)}catch{return reply({error:'invalid_history'},400)}
   const followUp=history.length&&(question.split(/\s+/).length<8||/\b(?:that|those|it|them|more|why)\b/i.test(question))
   const contextQuestion=followUp?history.at(-1).question+' '+question:question
-  if(!env.AI?.run)return reply({error:'ask_unavailable'},503)
+  // env.INFER lets tests inject a model; production uses Gemini through GEMINI_API_KEY.
+  const infer=env.INFER??geminiRunner(env)
+  if(!infer?.run)return reply({error:'ask_unavailable'},503)
   const now=options.now??Date.now()
   const at=new Date(now).toISOString()
   try {
@@ -143,10 +145,10 @@ export async function handleAsk(request,env,user,options={}) {
     return {answer,cards,suggestedFollowUps,coverageNote,toolStatus,sources:context.sources.filter(source=>cited.has(source.id)),snapshotAt:stored.generated_at??snapshot.generatedAt??null,generatedAt:at}
     }
     const timeoutMs=options.timeoutMs??20000
-    if(payload.stream===true)return streamAsk(async step=>env.AI.run(model,{messages:await prepare(step),max_tokens:650,temperature:0.1,stream:true}),finalize,request.signal,timeoutMs)
+    if(payload.stream===true)return streamAsk(async step=>infer.run(model,{messages:await prepare(step),max_tokens:1024,temperature:0.1,stream:true}),finalize,request.signal,timeoutMs)
     const messages=await prepare()
     let timer,result
-    try {result=await Promise.race([env.AI.run(model,{messages,max_tokens:650,temperature:0.1,stream:false}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),timeoutMs)})])}finally{clearTimeout(timer)}
+    try {result=await Promise.race([infer.run(model,{messages,max_tokens:1024,temperature:0.1,stream:false}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),timeoutMs)})])}finally{clearTimeout(timer)}
     if(typeof result?.response!=='string'||!result.response.trim())return reply({error:'ask_unavailable'},503)
     return reply(finalize(result.response.trim().slice(0,6000)))
   }catch(error){return reply({error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'},error?.message==='timeout'?504:503)}

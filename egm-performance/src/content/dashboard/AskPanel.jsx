@@ -141,8 +141,8 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   const keyDown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing&&!coarsePointer()){event.preventDefault();send(question)}}
   const action=busy?<button type="button" onClick={stop} aria-label="Stop generating" title="Stop generating"><Icon name="stop" size={18}/></button>:<button type="submit" aria-label="Send question" disabled={!question.trim()}><Icon name="sendUp" size={18}/></button>
   const inline=<form className="egm-ask-inline" onSubmit={submit}>
-    <Icon name="chatBubble" size={16}/><input ref={input} aria-label="Ask EGM" value={question} onChange={event=>setQuestion(event.target.value)} maxLength={1200} placeholder="Ask about EGM…" enterKeyHint="send" required/>
-    {action}<button type="button" aria-label="Close Ask" onClick={close}><Icon name="cross" size={16}/></button>
+    <Icon name="gemini" size={16}/><input ref={input} aria-label="Ask Gemini" value={question} onChange={event=>setQuestion(event.target.value)} maxLength={1200} placeholder="Ask about EGM…" enterKeyHint="send" required/>
+    {action}<button type="button" aria-label="Close Ask Gemini" onClick={close}><Icon name="cross" size={16}/></button>
   </form>
   const composer=<form className="egm-ask-composer" onSubmit={submit}>
     <textarea ref={input} rows={1} aria-label="Ask a follow-up" value={question} onChange={event=>setQuestion(event.target.value)} onKeyDown={keyDown} maxLength={1200} placeholder="Ask a follow-up…" enterKeyHint="send"/>
@@ -151,8 +151,8 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   const lastAssistantId=latest?.role==='assistant'?latest.id:null
   const starters=!question.trim()&&<AskStarters tabId={tabIdFromLocation(location.pathname,location.search)} onPick={starter=>{trackAskStarter(starter.id);send(starter.question)}}/>
   return <>
-    {createPortal(messages.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask" title="Close Ask"><Icon name="chatBubble" size={18}/></button>:<>{inline}{starters}</>,hosts.headerHost)}
-    {messages.length>0&&createPortal(<section className="egm-ask-conversation" aria-label="Ask EGM conversation">
+    {createPortal(messages.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask Gemini" title="Close Ask Gemini"><Icon name="gemini" size={18}/></button>:<>{inline}{starters}</>,hosts.headerHost)}
+    {messages.length>0&&createPortal(<section className="egm-ask-conversation" aria-label="Ask Gemini conversation">
       <div className="egm-ask-toolbar"><button className="egm-ask-new" type="button" onClick={()=>{stop();setStopped(new Set());setMessages([])}}><Icon name="plus" size={16}/>New chat</button></div>
       <span className="egm-ask-live" aria-live="polite">{statusNote(status,latest&&stopped.has(latest.id))}{status==='ready'&&latestResult?' Answer complete.':''}</span>
       <div className="egm-ask-messages">{messages.map(message=>message.role==='user'
