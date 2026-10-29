@@ -1213,7 +1213,6 @@ export function DataAppTopbar({
               </div>
             )}
             <div className="dashboard-topbar-actions">
-              {mode !== "edit" && surface === "dashboard" && <Feedback />}
               {mode !== "edit" && (
                 <>
                   <span className="egm-account-menu">
@@ -1241,6 +1240,7 @@ export function DataAppTopbar({
                     surface={surface}
                   />
                   </span>
+                  {surface === "dashboard" && <Feedback />}
 
                 </>
               )}

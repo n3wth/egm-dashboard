@@ -1,13 +1,13 @@
-import React,{useEffect,useLayoutEffect,useRef,useState} from 'react'
+import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
+import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
-import {consumeAskStream} from './ask-stream.mjs'
+import {AskTransport,answerText,messageResult,messageText} from './ask-transport.mjs'
 import {MessageResponse} from './MessageResponse.jsx'
 import './growth-advice.css'
 import {trackAskOutcome} from './usage-analytics.js'
 
-const errorMessage=status=>status===401?'Your session expired. Sign in again to ask a question.':status===403?'Your account does not have access to Ask.':status===429?'You have reached the hourly question limit. Try again later.':status===400||status===413?'Use a question between 1 and 1,200 characters.':status===504?'The answer took too long. Try a shorter question.':'Ask is temporarily unavailable. Try again shortly.'
 const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
 const format=value=>typeof value==='number'?value.toLocaleString('en-US'):String(value??'Unavailable')
 export const shouldDismissAsk=active=>!active
@@ -35,31 +35,36 @@ export function AnswerCard({card,index,turnId}) {
   return null
 }
 
+const statusNote=(status,stopped)=>stopped?'Stopped.':status==='submitted'?'Reading dashboard data…':status==='streaming'?'Generating…':status==='error'?'':''
+const coarsePointer=()=>typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches
+
+function CopyButton({text}) {
+  const [copied,setCopied]=useState(false)
+  useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),1500);return ()=>clearTimeout(timer)},[copied])
+  return <button type="button" onClick={()=>navigator.clipboard?.writeText(text).then(()=>setCopied(true),()=>{})} aria-label={copied?'Copied':'Copy answer'} title={copied?'Copied':'Copy answer'}><Icon name={copied?'check':'copy'} size={16}/></button>
+}
+
+function AssistantResult({message,result}) {
+  return <><div className="egm-ask-options">{result.toolStatus?.status==='live'?'GitHub checked live':result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'}</div>
+    {result.cards.length>0&&<div className="egm-ask-cards">{result.cards.map((card,index)=><AnswerCard key={`${message.id}-${card.queryId}-${index}`} turnId={message.id} card={card} index={index}/>)}</div>}
+    {typeof result.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
+    {result.sources.length>0&&<details className="egm-ask-sources"><summary>Sources ({result.sources.length})</summary><ul>{result.sources.map((source,index)=>{const href=sourceHref(source.url);const label=`[${source.id??index+1}] ${source.label??source.title??source.queryId??'Saved data'}`;return <li key={`${source.id??index}-${source.queryId??''}`}>{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<ObservedAt value={source.observedAt} dateOnly/></li>})}</ul></details>}</>
+}
+
 export function AskPanel({open,onClose,initialQuestion=''}) {
   const [question,setQuestion]=useState(initialQuestion)
-  const [turns,setTurns]=useState([])
-  const [loading,setLoading]=useState(false)
   const [hosts,setHosts]=useState(null)
-  const request=useRef(null)
+  const [stopped,setStopped]=useState(()=>new Set())
+  const [atBottom,setAtBottom]=useState(true)
+  const transport=useMemo(()=>new AskTransport({onOutcome:trackAskOutcome}),[])
+  const {messages,sendMessage,regenerate,stop,status,error}=useChat({transport,throttle:50,onFinish:({message,isAbort})=>{if(isAbort)setStopped(previous=>new Set(previous).add(message.id))}})
   const input=useRef(null)
   const bottom=useRef(null)
   const followBottom=useRef(true)
-  const sequence=useRef(0)
-  const latest=turns.at(-1)
+  const busy=status==='submitted'||status==='streaming'
+  const latest=messages.at(-1)
+  const latestResult=latest?.role==='assistant'?messageResult(latest):null
   const nearBottom=()=>window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-160
-  function updateTurn(id,change) {
-    followBottom.current=nearBottom()
-    setTurns(previous=>previous.map(turn=>turn.id===id?{...turn,...(typeof change==='function'?change(turn):change)}:turn))
-  }
-  function stop() {
-    const active=request.current
-    if(!active)return
-    active.stopped=true
-    trackAskOutcome('stopped')
-    active.controller.abort()
-    updateTurn(active.id,{status:'stopped'})
-    setLoading(false)
-  }
   const close=()=>{stop();onClose()}
   useEffect(()=>{
     if(!open)return
@@ -70,90 +75,84 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
     headerHost.className='egm-ask-inline-host'
     const bodyHost=document.createElement('div')
     bodyHost.className='egm-ask-body-host'
-    trigger.parentElement.append(headerHost)
+    // Phones hide the desktop trigger and open Ask from the account menu; mount in the visible top bar instead.
+    const headerParent=trigger.offsetParent?trigger.parentElement:trigger.closest('.dashboard-topbar')??trigger.parentElement
+    headerParent.append(headerHost)
     const previousDisplay=trigger.style.display
     trigger.style.display='none'
     main.prepend(bodyHost)
+    // iOS keeps the layout viewport under the keyboard; lift the sticky composer by the covered height.
+    const viewport=window.visualViewport
+    const keyboard=()=>bodyHost.style.setProperty('--egm-ask-keyboard',`${Math.max(0,Math.round(window.innerHeight-viewport.height-viewport.offsetTop))}px`)
+    viewport?.addEventListener('resize',keyboard)
+    viewport?.addEventListener('scroll',keyboard)
     setHosts({headerHost,bodyHost,main})
-    return ()=>{headerHost.remove();bodyHost.remove();main.classList.remove('egm-ask-page');trigger.style.display=previousDisplay;setHosts(null);trigger.focus()}
+    return ()=>{viewport?.removeEventListener('resize',keyboard);viewport?.removeEventListener('scroll',keyboard);headerHost.remove();bodyHost.remove();main.classList.remove('egm-ask-page');trigger.style.display=previousDisplay;setHosts(null);trigger.focus()}
   },[open])
   useEffect(()=>{if(open&&initialQuestion)setQuestion(initialQuestion)},[open,initialQuestion])
-  useEffect(()=>()=>request.current?.controller.abort(),[])
-  useEffect(()=>{if(hosts)input.current?.focus()},[hosts])
-  useEffect(()=>{hosts?.main.classList.toggle('egm-ask-page',turns.length>0)},[hosts,turns.length])
-  useLayoutEffect(()=>{if(open&&followBottom.current&&turns.length)bottom.current?.scrollIntoView({block:'end',behavior:'instant'})},[open,turns])
+  useEffect(()=>{if(hosts)input.current?.focus()},[hosts,messages.length>0])
+  useEffect(()=>{hosts?.main.classList.toggle('egm-ask-page',messages.length>0)},[hosts,messages.length])
+  useLayoutEffect(()=>{if(open&&followBottom.current&&messages.length)bottom.current?.scrollIntoView({block:'end',behavior:'instant'})},[open,messages,status])
   useEffect(()=>{
     if(!open||!hosts)return
-    const outside=event=>{if(event.target.closest?.('[role="menu"],[role="dialog"],.source-sidebar'))return;if(!hosts.headerHost.contains(event.target)&&!hosts.bodyHost.contains(event.target)&&shouldDismissAsk(Boolean(request.current&&!request.current.stopped)))onClose()}
+    const outside=event=>{if(event.target.closest?.('[role="menu"],[role="dialog"],.source-sidebar'))return;if(!hosts.headerHost.contains(event.target)&&!hosts.bodyHost.contains(event.target)&&shouldDismissAsk(busy))onClose()}
     const escape=event=>{if(event.key==='Escape'){event.preventDefault();stop();onClose()}}
-    const scroll=()=>{followBottom.current=nearBottom()}
+    const scroll=()=>{const at=nearBottom();followBottom.current=at;setAtBottom(at)}
     document.addEventListener('pointerdown',outside)
     document.addEventListener('keydown',escape)
     window.addEventListener('scroll',scroll,{passive:true})
     return ()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape);window.removeEventListener('scroll',scroll)}
-  },[open,hosts,onClose])
-  async function send(submitted,retryId) {
-    submitted=submitted.trim()
-    if(!submitted||submitted.length>1200||loading)return
-    trackAskOutcome('submitted')
-    request.current?.controller.abort()
-    const id=retryId??++sequence.current
-    const controller=new AbortController()
-    const active={controller,id,stopped:false,timedOut:false}
-    request.current=active
+  },[open,hosts,onClose,busy,stop])
+  function send(value) {
+    const text=value.trim()
+    if(!text||text.length>1200||busy)return
     followBottom.current=true
-    const pending={id,question:submitted,text:'',status:'pending',result:null,error:null}
-    setTurns(previous=>retryId?previous.map(turn=>turn.id===retryId?pending:turn):[...previous,pending])
-    setQuestion('');setLoading(true)
-    const timeout=setTimeout(()=>{active.timedOut=true;controller.abort()},60000)
-    const complete=result=>{trackAskOutcome('completed');updateTurn(id,{text:result.answer,status:'complete',result:{...result,sources:Array.isArray(result.sources)?result.sources:[],cards:Array.isArray(result.cards)?result.cards.slice(0,3):[]}})}
-    try {
-      const history=turns.filter(turn=>turn.status==='complete'&&turn.id!==id).slice(-4).map(turn=>({question:turn.question,answer:turn.text.slice(0,2000)}))
-      const response=await fetch('/api/ask',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','accept':'application/x-ndjson'},body:JSON.stringify({question:submitted,history,stream:true,format:'markdown'}),signal:controller.signal})
-      if(!response.ok)throw new Error(errorMessage(response.status))
-      if(response.headers.get('content-type')?.includes('application/x-ndjson')) {
-        await consumeAskStream(response.body,event=>{
-          if(controller.signal.aborted)return
-          if(event.type==='delta')updateTurn(id,turn=>({text:turn.text+event.text,status:'streaming'}))
-          else if(event.type==='result')complete(event)
-        },{signal:controller.signal})
-      } else {
-        const result=await response.json()
-        if(typeof result.answer!=='string')throw new Error('Ask returned an incomplete answer.')
-        if(!controller.signal.aborted)complete(result)
-      }
-    } catch(failure) {
-      if(active.stopped)updateTurn(id,{status:'stopped'})
-      else {trackAskOutcome('failed');updateTurn(id,{status:'error',error:active.timedOut?'The answer took too long. Try again.':failure.message||'Could not reach Ask. Try again.'})}
-    } finally {
-      clearTimeout(timeout)
-      if(request.current===active){request.current=null;setLoading(false)}
-    }
+    setQuestion('')
+    sendMessage({text})
+  }
+  function jumpToLatest() {
+    followBottom.current=true
+    bottom.current?.scrollIntoView({block:'end',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})
   }
   if(!open||!hosts)return null
   const submit=event=>{event.preventDefault();send(question)}
-  const composer=<form className={turns.length?'egm-ask-composer':'egm-ask-inline'} onSubmit={submit}>
-    <Icon name="chatBubble" size={16}/><input ref={input} aria-label={turns.length?'Ask a follow-up':'Ask EGM'} value={question} onChange={event=>setQuestion(event.target.value)} maxLength={1200} placeholder={turns.length?'Ask a follow-up…':'Ask about EGM…'} required/>
-    {loading?<button type="button" onClick={stop} aria-label="Stop generating" title="Stop generating"><Icon name="stop" size={18}/></button>:<button type="submit" aria-label="Send question" disabled={!question.trim()}><Icon name="sendUp" size={18}/></button>}
-    {!turns.length&&<button type="button" aria-label="Close Ask" onClick={close}><Icon name="cross" size={16}/></button>}
+  const keyDown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing&&!coarsePointer()){event.preventDefault();send(question)}}
+  const action=busy?<button type="button" onClick={stop} aria-label="Stop generating" title="Stop generating"><Icon name="stop" size={18}/></button>:<button type="submit" aria-label="Send question" disabled={!question.trim()}><Icon name="sendUp" size={18}/></button>
+  const inline=<form className="egm-ask-inline" onSubmit={submit}>
+    <Icon name="chatBubble" size={16}/><input ref={input} aria-label="Ask EGM" value={question} onChange={event=>setQuestion(event.target.value)} maxLength={1200} placeholder="Ask about EGM…" enterKeyHint="send" required/>
+    {action}<button type="button" aria-label="Close Ask" onClick={close}><Icon name="cross" size={16}/></button>
   </form>
+  const composer=<form className="egm-ask-composer" onSubmit={submit}>
+    <textarea ref={input} rows={1} aria-label="Ask a follow-up" value={question} onChange={event=>setQuestion(event.target.value)} onKeyDown={keyDown} maxLength={1200} placeholder="Ask a follow-up…" enterKeyHint="send"/>
+    {action}
+  </form>
+  const lastAssistantId=latest?.role==='assistant'?latest.id:null
   return <>
-    {createPortal(turns.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask" title="Close Ask"><Icon name="chatBubble" size={18}/></button>:composer,hosts.headerHost)}
-    {turns.length>0&&createPortal(<section className="egm-ask-conversation" aria-label="Ask EGM conversation">
-      <div className="egm-ask-messages">{turns.map(turn=><article className="egm-ask-turn" key={turn.id}>
-        <div className="egm-ask-user"><span className="egm-chat-speaker">You</span><p>{turn.question}</p></div>
-        <div className="egm-ask-assistant" aria-busy={['pending','streaming'].includes(turn.status)}><span className="egm-chat-speaker">EGM</span>
-          {turn.text&&<MessageResponse isAnimating={turn.status==='streaming'}>{turn.text}</MessageResponse>}
-          {turn.status==='pending'&&<div role="status"><span className="egm-note">Reading dashboard data…</span><div className="egm-ask-skeletons" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><span/><span/></div>)}</div></div>}
-          {turn.status==='streaming'&&<span className="egm-note" role="status">Generating…</span>}
-          <AskCompletion status={turn.status}/>
-          {turn.status==='stopped'&&<p className="egm-note" role="status">Stopped. {turn.text?'Partial response.':'No response generated.'}</p>}
-          {turn.status==='error'&&<div className="egm-ask-error" role="alert">{turn.error} <button type="button" disabled={loading} onClick={()=>send(turn.question,turn.id)}>Retry</button></div>}
-          {turn.result&&<><div className="egm-ask-options">{turn.result.toolStatus?.status==='live'?'GitHub checked live':turn.result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'}</div>{turn.result.cards.length>0&&<div className="egm-ask-cards">{turn.result.cards.map((card,index)=><AnswerCard key={`${turn.id}-${card.queryId}-${index}`} turnId={turn.id} card={card} index={index}/>)}</div>}{typeof turn.result.coverageNote==='string'&&turn.result.coverageNote&&<p className="egm-note">{turn.result.coverageNote}</p>}{turn.result.sources.length>0&&<details className="egm-ask-sources"><summary>Sources ({turn.result.sources.length})</summary><ul>{turn.result.sources.map((source,index)=>{const href=sourceHref(source.url);const label=`[${source.id??index+1}] ${source.label??source.title??source.queryId??'Saved data'}`;return <li key={`${source.id??index}-${source.queryId??''}`}>{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<ObservedAt value={source.observedAt} dateOnly/></li>})}</ul></details>}</>}
-        </div>
-      </article>)}</div>
-      {!loading&&latest?.status==='complete'&&Array.isArray(latest.result?.suggestedFollowUps)&&<div className="egm-ask-followups">{latest.result.suggestedFollowUps.filter(value=>typeof value==='string'&&value.length<=1200).slice(0,3).map(value=><button type="button" key={value} onClick={()=>send(value)}>{value}<Icon name="arrowUpRight" size={14}/></button>)}</div>}
-      <div className="egm-ask-composer-wrap">{composer}</div><div ref={bottom}/>
+    {createPortal(messages.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask" title="Close Ask"><Icon name="chatBubble" size={18}/></button>:inline,hosts.headerHost)}
+    {messages.length>0&&createPortal(<section className="egm-ask-conversation" aria-label="Ask EGM conversation">
+      <span className="egm-ask-live" aria-live="polite">{statusNote(status,latest&&stopped.has(latest.id))}{status==='ready'&&latestResult?' Answer complete.':''}</span>
+      <div className="egm-ask-messages">{messages.map(message=>message.role==='user'
+        ?<div className="egm-ask-user" key={message.id}><span className="egm-chat-speaker">You</span><p>{messageText(message)}</p></div>
+        :(()=>{
+          const result=messageResult(message)
+          const text=answerText(message)
+          const streaming=status==='streaming'&&message.id===lastAssistantId
+          return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}><span className="egm-chat-speaker">EGM</span>
+            {text&&<MessageResponse isAnimating={streaming}>{text}</MessageResponse>}
+            {streaming&&<span className="egm-note">Generating…</span>}
+            {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
+            {result&&<AssistantResult message={message} result={result}/>}
+            {!streaming&&text&&<div className="egm-ask-actions"><CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
+          </div>
+        })())}
+        {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker">EGM</span><span className="egm-note">Reading dashboard data…</span><div className="egm-ask-skeletons" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><span/><span/></div>)}</div></div>}
+        {status==='error'&&<div className="egm-ask-error" role="alert">{error?.message||'Could not reach Ask. Try again.'} <button type="button" onClick={()=>{followBottom.current=true;regenerate()}}>Retry</button></div>}
+      </div>
+      {status==='ready'&&Array.isArray(latestResult?.suggestedFollowUps)&&<div className="egm-ask-followups">{latestResult.suggestedFollowUps.filter(value=>typeof value==='string'&&value.length<=1200).slice(0,3).map(value=><button type="button" key={value} onClick={()=>send(value)}>{value}<Icon name="arrowUpRight" size={14}/></button>)}</div>}
+      <div className="egm-ask-composer-wrap">
+        {!atBottom&&<button type="button" className="egm-ask-jump" onClick={jumpToLatest} aria-label="Jump to latest"><Icon name="arrowDown" size={16}/></button>}
+        {composer}
+      </div><div ref={bottom}/>
     </section>,hosts.bodyHost)}
   </>
 }
