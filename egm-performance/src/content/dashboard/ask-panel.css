@@ -8,8 +8,8 @@
 .egm-ask-inline button:focus-visible { outline: 1px solid var(--text); }
 .egm-ask-options { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--secondary); font-size: 12px; }
 .egm-ask-options label { display: inline-flex; align-items: center; gap: 6px; }
-.egm-ask-cards,.egm-ask-cards { grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); align-items: start; gap: 12px; }
-.egm-ask-cards > :has(.recharts-wrapper) { grid-column: 1 / -1; }
+.egm-ask-cards { display: grid; margin: 16px 0 20px; grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); align-items: start; gap: 12px; }
+.egm-ask-cards > :is(:has(.recharts-wrapper),:has(table)) { grid-column: 1 / -1; }
 .egm-ask-cards table { width: 100%; }
 .egm-ask-cards :has(> table) { overflow-x: auto; }
 .egm-ask-cards > * { min-width: 0; }
@@ -96,3 +96,5 @@ a.egm-ask-cite:hover { color: var(--text); }
 .egm-ask-end { scroll-margin-bottom: calc(max(12px, env(safe-area-inset-bottom)) + 12px); }
 @media(prefers-reduced-motion:reduce) { .egm-mark--working { animation: none; -webkit-mask: none; mask: none; } }
 .egm-ask-attribution { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; min-height: 18px; }
+.egm-cell-clip { display: block; max-width: min(48ch,100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.egm-cell-clip a { color: inherit; }
