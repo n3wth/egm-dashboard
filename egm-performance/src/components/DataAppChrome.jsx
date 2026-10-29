@@ -966,7 +966,7 @@ export function DataAppTopbar({
   const moreButtonRef = useRef(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const [refreshScheduleOpen, setRefreshScheduleOpen] = useState(false);
-  const { openDashboardComposer } = useDashboardAsk();
+  const { openDashboardComposer, headerComposerOpen } = useDashboardAsk();
   function openAskComposer(anchor = askButtonRef.current) {
     if (build.active) return;
     openDashboardComposer(
@@ -1248,6 +1248,7 @@ export function DataAppTopbar({
                 <HeaderActionButton
                   disabled={mode === "edit" ? saving : build.active}
                   data-mode-action="secondary"
+                  data-state={mode !== "edit" && headerComposerOpen ? "open" : undefined}
                   aria-describedby={mode !== "edit" && build.active ? askTooltipId : undefined}
                   ref={askButtonRef}
                   label={mode === "edit" ? "Cancel" : "Ask Gemini"}

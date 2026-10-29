@@ -13,7 +13,6 @@ export function AskStarters({tabId, onPick}) {
         <button type="button" onClick={() => onPick({id: starter.id, question: starter.question})}>
           <span className="egm-ask-starter-icon"><Icon name={starter.icon} size={18}/></span>
           <span className="egm-ask-starter-text"><strong>{starter.label}</strong><small>{starter.detail}</small></span>
-          <Icon name="arrowUpRight" size={14}/>
         </button>
       </li>)}</ul>
     </section>
@@ -22,7 +21,6 @@ export function AskStarters({tabId, onPick}) {
       <ul>{questions.map(question => <li key={question}>
         <button type="button" onClick={() => onPick({id: 'tab-question', question})}>
           <span className="egm-ask-starter-text"><span>{question}</span></span>
-          <Icon name="arrowUpRight" size={14}/>
         </button>
       </li>)}</ul>
     </section>

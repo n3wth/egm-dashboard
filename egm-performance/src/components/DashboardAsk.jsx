@@ -15,6 +15,7 @@ export function DashboardAskIcon({ name, size = 16 }) {
 }
 
 const DashboardAskContext = createContext({
+  headerComposerOpen: false,
   selectionEnabled: false,
   openDashboardComposer: () => {},
   selectChartSection: () => {},
@@ -860,9 +861,10 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
 
   const contextValue = useMemo(
     () => ({ openDashboardComposer, selectChartMark, selectChartSection, selectionEnabled, canSelectChartMark: canSelect, dismissChartMark,
+      headerComposerOpen: nativeAskOpen || selection?.source === "header",
       selectedMarkElement: selection ? anchorSourceRef.current?.markElement : null,
       pinnedChartElement: selection ? pinnedChartRef.current : null }),
-    [selectionEnabled, dashboardTitle, selection, explorationEnabled],
+    [selectionEnabled, dashboardTitle, selection, explorationEnabled, nativeAskOpen],
   );
   const minimumComposerHeight = selection?.source === "header"
     ? question.trim()

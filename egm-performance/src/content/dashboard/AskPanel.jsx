@@ -23,7 +23,7 @@ export function LiveMetricCard({card}) {
   return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}<ObservedAt value={card.observedAt}/></p></section>
 }
 
-const Mark=()=><svg className="egm-mark" role="img" aria-label="EGM" viewBox="1.5 5.5 21 13" fill="currentColor" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M10.30,6.80 A5.20,5.20 0 0 0 10.30,17.20 A1.20,1.20 0 0 0 11.50,16.00 L11.50,8.00 A1.20,1.20 0 0 0 10.30,6.80Z"/><path stroke="none" d="M13.70,6.80 A5.20,5.20 0 0 1 13.70,17.20 A1.20,1.20 0 0 1 12.50,16.00 L12.50,8.00 A1.20,1.20 0 0 1 13.70,6.80Z"/><path fill="none" d="M7.20,12.00 C6.80,14.60 3.40,14.70 3.20,12.60 C3.10,11.20 3.30,10.20 3.60,9.40"/><path fill="none" d="M16.80,12.00 L18.00,12.00 C18.80,12.00 19.40,10.60 20.90,9.40 M18.00,12.00 C18.80,12.00 19.40,13.40 20.90,14.60"/></svg>
+const Mark=({working=false,decorative=false})=><svg className={working?"egm-mark egm-mark--working":"egm-mark"} {...(decorative?{"aria-hidden":true}:{role:"img","aria-label":"EGM"})} viewBox="1.5 5.5 21 13" fill="currentColor" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M10.30,6.80 A5.20,5.20 0 0 0 10.30,17.20 A1.20,1.20 0 0 0 11.50,16.00 L11.50,8.00 A1.20,1.20 0 0 0 10.30,6.80Z"/><path stroke="none" d="M13.70,6.80 A5.20,5.20 0 0 1 13.70,17.20 A1.20,1.20 0 0 1 12.50,16.00 L12.50,8.00 A1.20,1.20 0 0 1 13.70,6.80Z"/><path fill="none" d="M7.20,12.00 C6.80,14.60 3.40,14.70 3.20,12.60 C3.10,11.20 3.30,10.20 3.60,9.40"/><path fill="none" d="M16.80,12.00 L18.00,12.00 C18.80,12.00 19.40,10.60 20.90,9.40 M18.00,12.00 C18.80,12.00 19.40,13.40 20.90,14.60"/></svg>
 const Shimmer=({children})=><span className="egm-shimmer">{children}</span>
 const stepIcon={active:<Icon name="spinner" size={14} className="egm-spin"/>,done:<Icon name="check" size={14}/>,skipped:null}
 export const messageSteps=message=>(message?.parts??[]).filter(part=>part.type==='data-step').map(part=>part.data)
@@ -34,7 +34,7 @@ function Trace({steps,running}) {
   const open=choice??running
   const shown=running?steps:steps.map(step=>step.status==='active'?{...step,status:'done'}:step)
   return <div className="egm-trace" data-open={open}>
-    <button type="button" className="egm-trace-trigger" aria-expanded={open} onClick={()=>setChoice(!open)}><Icon name="chevronRight" size={14}/><span role="status">{running?<Shimmer>Thinking</Shimmer>:`Thought in ${shown.length} step${shown.length===1?'':'s'}`}</span></button>
+    <button type="button" className="egm-trace-trigger" aria-expanded={open} onClick={()=>setChoice(!open)}><Mark working={running} decorative/><span role="status">{running?<Shimmer>Thinking</Shimmer>:`Thought in ${shown.length} step${shown.length===1?'':'s'}`}</span><Icon name="chevronRight" size={14}/></button>
     {open&&<ol className="egm-trace-steps">
       {!shown.length&&running&&<li><span className="egm-trace-icon">{stepIcon.active}</span><Shimmer>Reading dashboard data…</Shimmer></li>}
       {shown.map(step=><li key={step.id} data-status={step.status}><span className="egm-trace-icon">{stepIcon[step.status]}</span>{step.status==='active'?<Shimmer>{step.label}</Shimmer>:step.label}{step.detail&&<span className="egm-trace-detail">{step.detail}</span>}</li>)}
@@ -162,15 +162,15 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           const text=answerText(message)
           const streaming=status==='streaming'&&message.id===lastAssistantId
           const steps=messageSteps(message)
-          return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}><span className="egm-chat-speaker"><Mark/></span>
-            {(steps.length>0||streaming)&&<Trace steps={steps} running={streaming&&!result}/>}
+          return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}>
+            {(steps.length>0||streaming)?<><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={steps} running={streaming&&!result}/></>:<span className="egm-chat-speaker"><Mark/></span>}
             {text&&<MessageResponse isAnimating={streaming} components={citationComponents}>{result?linkCitations(text,result.sources,message.id):text}</MessageResponse>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
             {result&&<AssistantResult message={message} result={result}/>}
             {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
           </div>
         })())}
-        {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker"><Mark/></span><Trace steps={[]} running/></div>}
+        {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={[]} running/></div>}
         {status==='error'&&<div className="egm-ask-error" role="alert">{error?.message||'Could not reach Ask. Try again.'} <button type="button" onClick={()=>{followBottom.current=true;regenerate()}}>Retry</button></div>}
       </div>
       {status==='ready'&&Array.isArray(latestResult?.suggestedFollowUps)&&<div className="egm-ask-followups">{latestResult.suggestedFollowUps.filter(value=>typeof value==='string'&&value.length<=1200).slice(0,3).map(value=><button type="button" key={value} onClick={()=>send(value)}>{value}<Icon name="arrowUpRight" size={14}/></button>)}</div>}
