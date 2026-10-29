@@ -1,3 +1,5 @@
+import { workosSigningKey } from './workos-jwks.mjs'
+
 // WorkOS AuthKit session tokens: https://workos.com/docs/reference/authkit/session-tokens
 const encoder = new TextEncoder()
 const decoder = new TextDecoder('utf-8', { fatal: true })
@@ -20,13 +22,9 @@ export async function verifyWorkosPermission(token, { clientId, issuer, subject,
     const claims = JSON.parse(decoder.decode(decode(p)))
     if (header.alg !== 'RS256' || typeof header.kid !== 'string' || !header.kid || header.crit != null || header.b64 === false) return null
     if (claims.iss !== issuer || claims.client_id !== clientId || claims.sub !== subject || claims.org_id !== organizationId || !Number.isFinite(claims.exp) || claims.exp <= Math.floor(time / 1000) || (claims.nbf != null && (!Number.isFinite(claims.nbf) || claims.nbf > Math.floor(time / 1000))) || !(claims.role === 'admin' || (Array.isArray(claims.permissions) && claims.permissions.includes(permission)))) return null
-    const response = await request(`https://api.workos.com/sso/jwks/${clientId}`, { redirect: 'manual', signal: AbortSignal.timeout(5000) })
-    if (!response.ok) return null
-    const body = await response.json()
-    if (!Array.isArray(body.keys)) return null
-    const matches = body.keys.filter(k => k.kid === header.kid && k.kty === 'RSA' && (!k.alg || k.alg === 'RS256') && (!k.use || k.use === 'sig'))
-    if (matches.length !== 1) return null
-    const key = await crypto.subtle.importKey('jwk', matches[0], { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify'])
+    const jwk = await workosSigningKey(clientId, header.kid, request, time)
+    if (!jwk) return null
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify'])
     return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, decode(signature), encoder.encode(`${h}.${p}`)) ? claims : null
   } catch { return null }
 }
