@@ -9,7 +9,7 @@ import {cachedSiteIcon} from './favicon-cache.mjs'
 import {SITE_NAME,siteMeta} from './site-meta.mjs'
 import {handleAsk} from './ask.mjs'
 import {manageAccess} from './access-management.mjs'
-import {invitationHash,manageInvitations,redeemInvitation,validInvitationToken} from './invitations.mjs'
+import {invitationForOtherAccount,invitationHash,manageInvitations,redeemInvitation,validInvitationToken} from './invitations.mjs'
 import {rbacConfigured,workosSessionConfigured,storeWorkosSession,validatedWorkosSession,workosAdminPermission} from './workos-session.mjs'
 import {syncWorkosMember,syncWorkosMemberships} from './workos-membership.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
@@ -43,6 +43,8 @@ export async function open(token,secret,audience) {
 }
 const cookie = (name,value,age=3600) => `${name}=${value}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${age}`
 const cookieValue = (request,name) => request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1)
+const navigation = (request,url) => request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
+const unavailable = request => navigation(request,new URL(request.url)) ? renderAccessPage('unavailable',new URL(request.url).pathname==='/auth/callback'?{href:'/auth/login'}:{}) : new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})
 const json = (value,status=200,headers={}) => new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json','cache-control':'private, no-store',...headers}})
 const escape = value => String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
 export function profilePhoto(value) {
@@ -174,7 +176,7 @@ export async function handle(request,env,ctx) {
   if(['/favicon.svg','/og.png'].includes(url.pathname) && request.method==='GET') return env.ASSETS.fetch(request)
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(['/fonts/SuisseIntl-Book.woff2','/fonts/SuisseIntl-Medium.woff2','/fonts/SuisseIntl-Semibold.woff2','/fonts/SuisseIntl-Bold.woff2'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
-  if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return new Response('Configuration incomplete',{status:503})
+  if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return unavailable(request)
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})
   if(url.pathname==='/mcp') return mcp(request,env,ctx)
   const pagePaths=['overview','reach','website','development','acquisition','adoption','research','mentions']
@@ -231,9 +233,11 @@ export async function handle(request,env,ctx) {
   if(url.pathname==='/auth/callback' && request.method==='GET') {
     const flow=await open(cookieValue(request,'__Host-egm_flow'),env.SESSION_SECRET,'login')
     const clear=cookie('__Host-egm_flow','',0)
-    if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return new Response('Invalid sign-in state',{status:400,headers:{'set-cookie':clear,'cache-control':'no-store'}})
+    if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return renderAccessPage(flow?.state===url.searchParams.get('state') && url.searchParams.has('error')?'login_cancelled':'login_expired',{headers:{'set-cookie':clear}})
+    // A failed attempt keeps a pending invitation so the person can retry without a new link.
+    const back=async()=>flow.invitationToken?{href:'/auth/invite',headers:{'set-cookie':cookie('__Host-egm_invite',await seal({token:flow.invitationToken},env.SESSION_SECRET,'invitation',600),600)}}:{href:'/auth/login'}
     const auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,grant_type:'authorization_code',code:url.searchParams.get('code'),code_verifier:flow.verifier}),signal:AbortSignal.timeout(10000)})
-    if(!auth.ok) return renderAccessPage('error')
+    if(!auth.ok) return renderAccessPage(auth.status===429?'rate_limited':auth.status>=500?'unavailable':'error',await back())
     const {user,access_token:accessToken,refresh_token:refreshToken}=await auth.json()
     if(!user?.id || !user.email_verified || typeof user.email!=='string') return renderAccessPage('verify')
     const email=user.email.trim().toLowerCase()
@@ -243,8 +247,9 @@ export async function handle(request,env,ctx) {
     const isOwner=isDashboardOwner({id:user.id,email},env)
     let invited=false
     if(flow.invitationToken) {
-      try { invited=await redeemInvitation(env,flow.invitationToken,user) } catch { return renderAccessPage('error') }
-      if(!invited) return renderAccessPage('invite_invalid')
+      try { invited=await redeemInvitation(env,flow.invitationToken,user) } catch { return renderAccessPage('error',await back()) }
+      if(!invited && existing?.status==='denied') return renderAccessPage('invite_denied')
+      if(!invited) return await invitationForOtherAccount(env,flow.invitationToken,user).catch(()=>false) ? renderAccessPage('invite_account',await back()) : renderAccessPage('invite_invalid')
     }
     if(!existing && !invited) {
       await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,[user.first_name,user.last_name].filter(Boolean).join(' ')||email,isOwner?'approved':'pending',new Date().toISOString()).run()
@@ -274,13 +279,16 @@ export async function handle(request,env,ctx) {
   }
   const user=await identity(request,env)
   if(user?.sessionUnavailable) {
-    const document=request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
-    return document?renderAccessPage('session_unavailable'):json({error:'session_verification_unavailable'},503)
+    return navigation(request,url)?renderAccessPage('session_unavailable'):json({error:'session_verification_unavailable'},503)
   }
   if(user?.identityConflict) return url.pathname.startsWith('/api/')?json({error:'identity_review_required'},403):renderAccessPage('review')
   if(!user) {
-    if((url.pathname!=='/' && !pagePaths.includes(url.pathname.slice(1))) || request.method!=='GET') return json({error:'sign_in_required'},401)
-    return renderAccessPage('signin')
+    const appPath=url.pathname==='/' || pagePaths.includes(url.pathname.slice(1))
+    if(request.method==='GET' && !appPath && !/^\/(api|_data)\//.test(url.pathname) && !/\.[a-z0-9]+$/i.test(url.pathname)) return renderAccessPage('not_found')
+    if(request.method==='GET' && url.pathname.startsWith('/_data/') && request.headers.get('accept')?.includes('text/html')) return renderAccessPage('signin')
+    if(!appPath || request.method!=='GET') return json({error:'sign_in_required'},401)
+    // A valid session cookie with no live session means it ended elsewhere (sign-out, revoked).
+    return renderAccessPage(await open(cookieValue(request,'__Host-egm_session'),env.SESSION_SECRET,'session')?'session_expired':'signin')
   }
   if(user.status!=='approved') return renderAccessPage(user.status==='pending'?'pending':'denied')
   if(url.pathname==='/api/feedback') {
@@ -356,6 +364,7 @@ export async function handle(request,env,ctx) {
   }
   if(request.method!=='GET' && request.method!=='HEAD') return new Response('Method not allowed',{status:405})
   if(url.pathname.startsWith('/api/')) return json({error:'not_found'},404)
+  if(!/\.[a-z0-9]+$/i.test(url.pathname) && url.pathname!=='/' && !pagePaths.includes(url.pathname.slice(1)) && !url.pathname.startsWith('/_data/')) return renderAccessPage('not_found')
   const assetUrl=new URL(request.url)
   if(!/\.[a-z0-9]+$/i.test(url.pathname)) assetUrl.pathname='/index.html'
   const asset=await env.ASSETS.fetch(new Request(assetUrl,{method:request.method}))
@@ -370,7 +379,7 @@ export async function handle(request,env,ctx) {
     : response
 }
 export default {
-  async fetch(request,env,ctx) {try {return await handle(request,env,ctx)} catch(error) {console.error('Request failed',new URL(request.url).pathname,error?.message);return new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})}},
+  async fetch(request,env,ctx) {try {return await handle(request,env,ctx)} catch(error) {console.error('Request failed',new URL(request.url).pathname,error?.message);return unavailable(request)}},
   async scheduled(controller,env) {
     if(env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true') {
       try { await env.DB.prepare('DELETE FROM workos_sessions WHERE NOT EXISTS (SELECT 1 FROM sessions WHERE sessions.id=workos_sessions.session_id AND sessions.expires_at>?)').bind(now()).run() }

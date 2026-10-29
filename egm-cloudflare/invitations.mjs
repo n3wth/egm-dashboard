@@ -95,4 +95,10 @@ export async function redeemInvitation(env, token, user) {
   ])
   return results[0].meta?.changes === 1
 }
+// True only when a still-active invitation is addressed to another email, so the page can say so without revealing which one.
+export async function invitationForOtherAccount(env, token, user) {
+  if (!validInvitationToken(token) || typeof user?.email !== 'string') return false
+  const row = await env.DB.prepare('SELECT email FROM invitations WHERE token_hash=? AND expires_at>? AND redeemed_at IS NULL AND revoked_at IS NULL').bind(await invitationHash(token), Date.now()).first()
+  return Boolean(row?.email) && row.email !== user.email.trim().toLowerCase()
+}
 import { isDashboardOwner } from './owner-identity.mjs'

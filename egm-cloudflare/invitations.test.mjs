@@ -187,7 +187,7 @@ test('invite landing hides token and requires explicit same-origin continuation'
   assert.equal((await handle(new Request(env.APP_URL+'/auth/invite/continue', { method:'POST', headers:{ origin:'https://evil.example' } }), env)).status,403)
   const invalid = await handle(new Request(env.APP_URL+'/auth/invite?invitation_token=bad'), env)
   assert.equal(invalid.status, 403)
-  assert.equal(invalid.headers.get('referrer-policy'), 'no-referrer')
+  assert.equal(invalid.headers.get('referrer-policy'), 'same-origin')
   assert.match(await invalid.text(), /This invitation is unavailable/)
 })
 test('callback redeems only after verified sign-in and replay does not grant another account', async () => {
@@ -214,4 +214,46 @@ test('expired or revoked invitation is rejected before and after the landing pag
   db.prepare('UPDATE invitations SET revoked_at=? WHERE id=?').run(Date.now(),revoked.id)
   assert.equal((await handle(new Request(env.APP_URL+'/auth/invite',{headers:{cookie:`__Host-egm_invite=${inviteCookie}`}}),env)).status,403)
   assert.equal((await handle(new Request(env.APP_URL+'/auth/invite/continue',{method:'POST',headers:{origin:env.APP_URL,cookie:`__Host-egm_invite=${inviteCookie}`}}),env)).status,403)
+})
+test('wrong-account redemption gets its own page, keeps the invitation, and unrelated failures stay generic', async () => {
+  const { db, env: base } = setup(), env = emailEnv(base)
+  let invitationUrl
+  const sent = await manageInvitations(emailRequest(), env, owner, async (url, init) => { invitationUrl = JSON.parse(init.body).text.match(/https:\/\/[^\s]+/)[0]; return Response.json({ id: 'email_123' }) })
+  const invite = { id: (await sent.json()).id, url: invitationUrl }
+  const { flowCookie } = await startInvitation(env, invite.url)
+  const flow = await open(flowCookie, env.SESSION_SECRET, 'login')
+  const priorFetch = globalThis.fetch
+  const callback = async user => {
+    globalThis.fetch = async () => Response.json({ user })
+    return handle(new Request(`${env.APP_URL}/auth/callback?state=${encodeURIComponent(flow.state)}&code=test`, { headers: { cookie: `__Host-egm_flow=${flowCookie}` } }), env)
+  }
+  try {
+    const wrong = await callback(person('other', 'other@example.org'))
+    assert.equal(wrong.status, 403)
+    const html = await wrong.text()
+    assert.match(html, /Use the invited account/)
+    assert.match(html, /href="\/auth\/invite" class="action">Try again/)
+    assert.doesNotMatch(html, /guest@example\.org|other@example\.org/)
+    assert.match(wrong.headers.get('set-cookie'), /__Host-egm_invite=/)
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM users WHERE id='other'").get().n, 0)
+    db.prepare('UPDATE invitations SET revoked_at=? WHERE id=?').run(Date.now(), invite.id)
+    const revoked = await callback(person('other', 'other@example.org'))
+    assert.match(await revoked.text(), /This invitation is unavailable/)
+  } finally { globalThis.fetch = priorFetch }
+})
+test('a previously denied person with a valid invitation sees accurate copy and is not approved', async () => {
+  const { db, env } = setup(), invite = await create(env)
+  db.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').run('guest', 'guest@example.org', 'Guest', 'denied', new Date().toISOString())
+  const { flowCookie } = await startInvitation(env, invite.url)
+  const flow = await open(flowCookie, env.SESSION_SECRET, 'login')
+  const priorFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async () => Response.json({ user: person() })
+    const response = await handle(new Request(`${env.APP_URL}/auth/callback?state=${encodeURIComponent(flow.state)}&code=test`, { headers: { cookie: `__Host-egm_flow=${flowCookie}` } }), env)
+    assert.equal(response.status, 403)
+    const html = await response.text()
+    assert.match(html, /declined earlier/)
+    assert.doesNotMatch(html, /invitation is unavailable/)
+    assert.equal(db.prepare("SELECT status FROM users WHERE id='guest'").get().status, 'denied')
+  } finally { globalThis.fetch = priorFetch }
 })
