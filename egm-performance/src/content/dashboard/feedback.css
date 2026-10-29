@@ -7,3 +7,6 @@
 .egm-feedback-options label { display: flex; align-items: center; gap: 7px; }
 .egm-feedback-dialog textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font: inherit; }
 .egm-feedback-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.egm-feedback-dialog [role="alert"] { display: grid; gap: 16px; }
+.egm-feedback-dialog [role="alert"] p { margin: 0; line-height: 1.5; }
+@media(pointer:coarse),(max-width:600px) { .egm-feedback-dialog textarea { font-size: 16px; } .egm-feedback-actions button { min-height: 44px; } }

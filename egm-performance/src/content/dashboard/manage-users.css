@@ -37,3 +37,6 @@
 .egm-access-actions{display:flex;gap:8px;flex-shrink:0}
 @media(max-width:600px){.egm-manage-users input,.egm-manage-users .button{min-height:44px}}
 @media(max-width:360px){.egm-invite-created{grid-template-columns:minmax(0,1fr)}.egm-invite-created button{align-self:auto;justify-self:start}.egm-invite-created p{grid-column:auto}.egm-manage-users li:has(.egm-access-actions){align-items:flex-start;flex-direction:column;gap:10px}}
+.egm-manage-users .egm-manage-message{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
+.egm-manage-users .egm-manage-message p{min-width:0;color:var(--text);overflow-wrap:anywhere}
+.egm-manage-users .egm-empty{padding:20px 8px}
