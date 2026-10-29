@@ -1,5 +1,5 @@
 // Workers AI stream:true returns SSE response tokens, not a completed response.
-export function streamAsk(run,finalize,signal,timeoutMs=20000) {
+export function streamAsk(run,finalize,signal,timeoutMs=45000) {
   const encoder=new TextEncoder()
   let reader,closed=false,timer,output,rejectWait
   const abort=()=>{closed=true;rejectWait?.(Error('cancelled'));reader?.cancel().catch(()=>{});try{output?.close()}catch{}}
