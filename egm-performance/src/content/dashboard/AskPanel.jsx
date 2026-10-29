@@ -36,6 +36,7 @@ export function AnswerCard({card,index,turnId}) {
 }
 
 const statusNote=(status,stopped)=>stopped?'Stopped.':status==='submitted'?'Reading dashboard data…':status==='streaming'?'Generating…':status==='error'?'':''
+const resultLabel=result=>result.toolStatus?.status==='live'?'GitHub checked live':result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'
 const coarsePointer=()=>typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches
 
 function CopyButton({text}) {
@@ -45,8 +46,7 @@ function CopyButton({text}) {
 }
 
 function AssistantResult({message,result}) {
-  return <><div className="egm-ask-options">{result.toolStatus?.status==='live'?'GitHub checked live':result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'}</div>
-    {result.cards.length>0&&<div className="egm-ask-cards">{result.cards.map((card,index)=><AnswerCard key={`${message.id}-${card.queryId}-${index}`} turnId={message.id} card={card} index={index}/>)}</div>}
+  return <>{result.cards.length>0&&<div className="egm-ask-cards">{result.cards.map((card,index)=><AnswerCard key={`${message.id}-${card.queryId}-${index}`} turnId={message.id} card={card} index={index}/>)}</div>}
     {typeof result.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
     {result.sources.length>0&&<details className="egm-ask-sources"><summary>Sources ({result.sources.length})</summary><ul>{result.sources.map((source,index)=>{const href=sourceHref(source.url);const label=`[${source.id??index+1}] ${source.label??source.title??source.queryId??'Saved data'}`;return <li key={`${source.id??index}-${source.queryId??''}`}>{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<ObservedAt value={source.observedAt} dateOnly/></li>})}</ul></details>}</>
 }
@@ -57,7 +57,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   const [stopped,setStopped]=useState(()=>new Set())
   const [atBottom,setAtBottom]=useState(true)
   const transport=useMemo(()=>new AskTransport({onOutcome:trackAskOutcome}),[])
-  const {messages,sendMessage,regenerate,stop,status,error}=useChat({transport,throttle:50,onFinish:({message,isAbort})=>{if(isAbort)setStopped(previous=>new Set(previous).add(message.id))}})
+  const {messages,sendMessage,regenerate,stop,status,error,setMessages}=useChat({transport,throttle:50,onFinish:({message,isAbort})=>{if(isAbort)setStopped(previous=>new Set(previous).add(message.id))}})
   const input=useRef(null)
   const bottom=useRef(null)
   const followBottom=useRef(true)
@@ -130,9 +130,10 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   return <>
     {createPortal(messages.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask" title="Close Ask"><Icon name="chatBubble" size={18}/></button>:inline,hosts.headerHost)}
     {messages.length>0&&createPortal(<section className="egm-ask-conversation" aria-label="Ask EGM conversation">
+      <div className="egm-ask-toolbar"><button className="egm-ask-new" type="button" onClick={()=>{stop();setStopped(new Set());setMessages([])}}><Icon name="plus" size={16}/>New chat</button></div>
       <span className="egm-ask-live" aria-live="polite">{statusNote(status,latest&&stopped.has(latest.id))}{status==='ready'&&latestResult?' Answer complete.':''}</span>
       <div className="egm-ask-messages">{messages.map(message=>message.role==='user'
-        ?<div className="egm-ask-user" key={message.id}><span className="egm-chat-speaker">You</span><p>{messageText(message)}</p></div>
+        ?<div className="egm-ask-user" key={message.id}><span className="egm-chat-speaker egm-ask-live">You</span><p>{messageText(message)}</p></div>
         :(()=>{
           const result=messageResult(message)
           const text=answerText(message)
@@ -142,7 +143,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
             {streaming&&<span className="egm-note">Generating…</span>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
             {result&&<AssistantResult message={message} result={result}/>}
-            {!streaming&&text&&<div className="egm-ask-actions"><CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
+            {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
           </div>
         })())}
         {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker">EGM</span><span className="egm-note">Reading dashboard data…</span><div className="egm-ask-skeletons" aria-hidden="true">{[0,1,2].map(i=><div key={i}><span/><span/><span/></div>)}</div></div>}
@@ -152,6 +153,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
       <div className="egm-ask-composer-wrap">
         {!atBottom&&<button type="button" className="egm-ask-jump" onClick={jumpToLatest} aria-label="Jump to latest"><Icon name="arrowDown" size={16}/></button>}
         {composer}
+        <p className="egm-ask-disclaimer">Answers use dashboard data and can be wrong. Check the sources.</p>
       </div><div ref={bottom}/>
     </section>,hosts.bodyHost)}
   </>
