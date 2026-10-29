@@ -164,7 +164,6 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}><span className="egm-chat-speaker">EGM</span>
             {(steps.length>0||streaming)&&<Trace steps={steps} running={streaming&&!result}/>}
             {text&&<MessageResponse isAnimating={streaming} components={citationComponents}>{result?linkCitations(text,result.sources,message.id):text}</MessageResponse>}
-            {streaming&&<span className="egm-note"><Shimmer>Generating…</Shimmer></span>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
             {result&&<AssistantResult message={message} result={result}/>}
             {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
