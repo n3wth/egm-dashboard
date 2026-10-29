@@ -13,14 +13,17 @@ const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='htt
 const format=value=>typeof value==='number'?value.toLocaleString('en-US'):String(value??'Unavailable')
 export const shouldDismissAsk=active=>!active
 export function AskCompletion({status}) { return <span role="status" className="egm-note">{status==='complete'?'Answer complete.':''}</span> }
-function ObservedAt({value,dateOnly=false}) {
+function ObservedAt({value,dateOnly=false,bare=false}) {
   if(typeof value!=='string'||!Number.isFinite(Date.parse(value)))return null
   const options={month:'short',day:'numeric',...(dateOnly?{timeZone:'America/Los_Angeles'}:{hour:'numeric',minute:'2-digit'})}
-  return <time dateTime={value} title={value}> · {dateOnly?new Date(value).toLocaleDateString('en-US',options):new Date(value).toLocaleString('en-US',options)}</time>
+  return <time dateTime={value} title={value}>{bare?'':' · '}{dateOnly?new Date(value).toLocaleDateString('en-US',options):new Date(value).toLocaleString('en-US',options)}</time>
 }
 
+// Same chip and meta text as the source list so card attribution matches it.
+const Attribution=({sourceId,observedAt})=><p className="egm-ask-attribution">{sourceId&&<span className="egm-ask-cite">{sourceId}</span>}<span className="egm-ask-source-meta"><ObservedAt value={observedAt} dateOnly bare/></span></p>
+
 export function LiveMetricCard({card}) {
-  return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}<ObservedAt value={card.observedAt}/></p></section>
+  return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><Attribution sourceId={card.sourceId} observedAt={card.observedAt}/></section>
 }
 
 const Mark=({working=false,decorative=false})=><svg className={working?"egm-mark egm-mark--working":"egm-mark"} {...(decorative?{"aria-hidden":true}:{role:"img","aria-label":"EGM"})} viewBox="1.5 5.5 21 13" fill="currentColor" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M10.30,6.80 A5.20,5.20 0 0 0 10.30,17.20 A1.20,1.20 0 0 0 11.50,16.00 L11.50,8.00 A1.20,1.20 0 0 0 10.30,6.80Z"/><path stroke="none" d="M13.70,6.80 A5.20,5.20 0 0 1 13.70,17.20 A1.20,1.20 0 0 1 12.50,16.00 L12.50,8.00 A1.20,1.20 0 0 1 13.70,6.80Z"/><path fill="none" d="M7.20,12.00 C6.80,14.60 3.40,14.70 3.20,12.60 C3.10,11.20 3.30,10.20 3.60,9.40"/><path fill="none" d="M16.80,12.00 L18.00,12.00 C18.80,12.00 19.40,10.60 20.90,9.40 M18.00,12.00 C18.80,12.00 19.40,13.40 20.90,14.60"/></svg>
@@ -48,7 +51,7 @@ export function AnswerCard({card,index,turnId}) {
   const source=queries[card.queryId]
   if(!source)return card.type==='metric'?<LiveMetricCard card={card}/>:null
   const props={id:`ask-result-${turnId}-${index}-${card.queryId}`,title:card.title,queryId:source?card.queryId:undefined,sourceRows:source?.rows??rows,displayRows:rows,variant:'card',showActions:Boolean(source)}
-  const foot=<p className="egm-note">{card.sourceId&&`[${card.sourceId}]`}<ObservedAt value={card.observedAt}/></p>
+  const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt}/>
   if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
   if(card.type==='table')return <DataComponent {...props} kind="table"><DataTable rows={rows} searchable={false} pageSize={5} columns={(card.columns??[]).map(field=>({field,label:card.columnLabels?.[field]??field}))} label={card.title}/>{card.rowsTruncated&&<p className="egm-note">Showing {rows.length} of {card.rowCount} rows.</p>}{foot}</DataComponent>
   if(card.type==='metric')return <DataComponent {...props} kind="custom"><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl>{foot}</DataComponent>

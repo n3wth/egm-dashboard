@@ -118,6 +118,15 @@ export function DashboardContent() {
   }
   const popularPages = id => <Table id={id} queryId="paths" title="Popular repo pages" rows={rows('paths')} columns={pageColumns} />
   const clonePlot = id => <Plot id={id} queryId="traffic" title="Daily clone activity" rows={daily} spec={{...line('clones',['clones','cloners']),legend:{labels:{clones:'Clone operations',cloners:'Unique cloners per day'}}}} description={`${window}. Clone operations include repeat and automated clones; daily unique cloners cannot be summed.`} />
+  // Same ranked table as Acquisition, compact for the overview.
+  const referrerTable = (id,title) => {
+    const channels = combinedReferralViews(rows('referrers'))
+    const max = channels[0]?.count ?? 0
+    const tableRows = channels.map(row=>({...row,shareOfRepoViews:reach.views>0?row.count/reach.views:null}))
+    return <DataComponent id={id} queryId="referrers" queryIds={['referrers','reach']} title={title} kind="table" variant="card" displayRows={tableRows} sourceRowsByQuery={{referrers:rows('referrers'),reach:rows('reach')}}>
+      <DataTable rows={tableRows} searchable={false} label={title} pageSize={8} columns={[{field:'source',label:'Channel',renderCell:(value,row)=><span style={{display:'inline-flex',alignItems:'center',gap:8,whiteSpace:'nowrap'}}>{row.__categoryIcon&&<img src={row.__categoryIcon} width="16" height="16" alt=""/>}{value}</span>},{field:'count',label:'Views',renderCell:value=><span style={{display:'flex',alignItems:'center',gap:10,minWidth:105,justifyContent:'flex-end'}}><span aria-hidden="true" style={{display:'block',width:70,height:6,background:'var(--border)',borderRadius:3,overflow:'hidden'}}><span style={{display:'block',height:'100%',width:`${max?value/max*100:0}%`,background:'var(--chart-1)',borderRadius:3}}/></span><span style={{minWidth:38,fontVariantNumeric:'tabular-nums'}}>{n(value)}</span></span>},{field:'shareOfRepoViews',label:'Share of all repo views',renderCell:v=>percentage(v)}]} />
+    </DataComponent>
+  }
   const referrerPlot = (id,title) => <Plot id={id} queryId="referrers" title={title} rows={combinedReferralViews(rows('referrers'))} sourceRows={rows('referrers')} spec={referrerSpec} description={referrerDescription} />
   const downloadsTable = id => <Table id={id} queryId="downloads" title="Release asset downloads" rows={rows('downloads')} columns={downloadColumns} />
   if(activeTabId==='acquisition') {
@@ -232,7 +241,7 @@ export function DashboardContent() {
       {item('visitor-trend',6,<Plot id="visitor-trend" queryId="traffic" title="Daily views and unique visitors" rows={daily} spec={{...line('views',['views','visitors']),legend:{labels:{views:'Views',visitors:'Unique visitors per day'}}}} description={`${window}. GitHub reports each day separately; daily unique visitors cannot be summed.`} />)}
       {item('clone-trend',6,clonePlot('clone-trend'))}
       {item('star-history',12,<Plot id="star-history" queryId="star_history" title="Star accumulation" rows={starDisplayRows} sourceRows={starHistory} spec={starSpec} chartOptions={{tooltipContent:<StarTooltip/>}}><p className="egm-note">Cumulative stars by Pacific date, reconstructed from current stargazers; stars removed before collection are unavailable.{partialStarDay?' The faded final segment is the partial current day.':''}</p></Plot>)}
-      {item('referral-chart',6,referrerPlot('referral-chart','Top referring sources by repo views'))}
+      {item('referral-chart',6,referrerTable('referral-chart','Top referring sources by repo views'))}
       {item('popular-paths',6,popularPages('popular-paths'))}
     </SortableRegion>
   </>
