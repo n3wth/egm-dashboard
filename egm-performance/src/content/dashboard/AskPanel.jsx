@@ -48,8 +48,16 @@ function CopyButton({text}) {
 function AssistantResult({message,result}) {
   return <>{result.cards.length>0&&<div className="egm-ask-cards">{result.cards.map((card,index)=><AnswerCard key={`${message.id}-${card.queryId}-${index}`} turnId={message.id} card={card} index={index}/>)}</div>}
     {typeof result.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
-    {result.sources.length>0&&<details className="egm-ask-sources"><summary>Sources ({result.sources.length})</summary><ul>{result.sources.map((source,index)=>{const href=sourceHref(source.url);const label=`[${source.id??index+1}] ${source.label??source.title??source.queryId??'Saved data'}`;return <li key={`${source.id??index}-${source.queryId??''}`}>{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<ObservedAt value={source.observedAt} dateOnly/></li>})}</ul></details>}</>
+    {result.sources.length>0&&<ol className="egm-ask-sources" aria-label="Sources">{result.sources.map((source,index)=>{const id=String(source.id??index+1);const href=sourceHref(source.url);const label=source.label??source.title??source.queryId??'Saved data';return <li key={`${id}-${source.queryId??''}`} id={citeId(message.id,id)}><span className="egm-ask-cite">{id}</span><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data'}<ObservedAt value={source.observedAt} dateOnly/></span></span></li>})}</ol>}</>
 }
+
+const citeId=(messageId,id)=>`ask-cite-${String(messageId).replace(/[^\w-]/g,'')}-${id}`
+// Turns [n] markers that match a source into links the response renders as citation chips.
+export function linkCitations(text,sources,messageId) {
+  const ids=new Set((sources??[]).map((source,index)=>String(source.id??index+1)))
+  return ids.size?text.replace(/\[(\d+)\](?!\()/g,(match,id)=>ids.has(id)?`[${id}](#${citeId(messageId,id)})`:match):text
+}
+const citationComponents={a:({href,children,node,...props})=>href?.startsWith('#ask-cite-')?<a {...props} href={href} className="egm-ask-cite" aria-label={`Source ${children}`}>{children}</a>:<a {...props} href={href} target="_blank" rel="noreferrer">{children}</a>}
 
 export function AskPanel({open,onClose,initialQuestion=''}) {
   const [question,setQuestion]=useState(initialQuestion)
@@ -139,7 +147,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           const text=answerText(message)
           const streaming=status==='streaming'&&message.id===lastAssistantId
           return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}><span className="egm-chat-speaker">EGM</span>
-            {text&&<MessageResponse isAnimating={streaming}>{text}</MessageResponse>}
+            {text&&<MessageResponse isAnimating={streaming} components={citationComponents}>{result?linkCitations(text,result.sources,message.id):text}</MessageResponse>}
             {streaming&&<span className="egm-note">Generating…</span>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
             {result&&<AssistantResult message={message} result={result}/>}
@@ -154,7 +162,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
         {!atBottom&&<button type="button" className="egm-ask-jump" onClick={jumpToLatest} aria-label="Jump to latest"><Icon name="arrowDown" size={16}/></button>}
         {composer}
         <p className="egm-ask-disclaimer">Answers use dashboard data and can be wrong. Check the sources.</p>
-      </div><div ref={bottom}/>
+      </div><div className="egm-ask-end" ref={bottom}/>
     </section>,hosts.bodyHost)}
   </>
 }
