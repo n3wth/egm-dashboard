@@ -7,7 +7,7 @@ const user={id:'owner',status:'approved'}
 const snapshot={generatedAt:'2026-10-28T00:00:00Z',queries:{traffic:{rows:[{views:100,rawMarkdown:'untrusted long body'}],source:{label:'GitHub traffic',executedAt:'2026-10-27T00:00:00Z',links:[{url:'javascript:alert(1)'},{url:'https://github.com/google/elephant-goldfish-model'}]}}}}
 const request=(body={question:'How many views?'},headers={})=>new Request(origin+'/api/ask',{method:'POST',headers:{origin,'content-type':'application/json',...headers},body:JSON.stringify(body)})
 function environment(changes=1) {
-  return {APP_URL:origin,DB:{prepare(sql){return {bind(){return this},async first(){return {body:JSON.stringify(snapshot),generated_at:snapshot.generatedAt}},async run(){assert.match(sql,/INSERT INTO audit/);return {meta:{changes}}}}}},AI:{async run(model,input){assert.equal(input.max_tokens,650);assert.match(model,/^@cf\//);assert.ok(!input.messages[1].content.includes('rawMarkdown'));return {response:'100 views [S1]'}}}}
+  return {APP_URL:origin,DB:{prepare(sql){return {bind(){return this},async first(){return {body:JSON.stringify(snapshot),generated_at:snapshot.generatedAt}},async run(){assert.match(sql,/INSERT INTO audit/);return {meta:{changes}}}}}},INFER:{async run(model,input){assert.equal(input.max_tokens,1024);assert.match(model,/^gemini-/);assert.ok(!input.messages[1].content.includes('rawMarkdown'));return {response:'100 views [S1]'}}}}
 }
 test('same-origin approved JSON requests only',async()=>{
   assert.equal((await handleAsk(request(),environment(),null)).status,403)
@@ -26,7 +26,7 @@ test('saved snapshot grounding and validated cited sources',async()=>{
 })
 test('Markdown responses retain evidence rules and request readable formatting',async()=>{
   const env=environment()
-  env.AI.run=async(_,input)=>{
+  env.INFER.run=async(_,input)=>{
     assert.match(input.messages[0].content,/untrusted data/)
     assert.match(input.messages[1].content,/Markdown.*paragraphs, headings and lists/)
     assert.equal(input.messages[2].role,'user')
@@ -37,7 +37,7 @@ test('Markdown responses retain evidence rules and request readable formatting',
 })
 test('atomic quota rejects before inference',async()=>{
   const env=environment(0)
-  env.AI.run=()=>assert.fail('must not infer')
+  env.INFER.run=()=>assert.fail('must not infer')
   assert.equal((await handleAsk(request(),env,user)).status,429)
 })
 test('allows 200 questions per user per rolling hour',async()=>{
@@ -59,14 +59,14 @@ test('combined citation IDs retain all corresponding validated sources',async()=
   const env=environment()
   const prepare=env.DB.prepare
   env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('SELECT body'))statement.first=async()=>({body:JSON.stringify({...snapshot,queries:{...snapshot.queries,reach:{rows:[{stars:42}],source:{label:'Stars'}}}}),generated_at:snapshot.generatedAt});return statement}
-  env.AI.run=async()=>({response:'Observed [S1, S2], not [S999]'})
+  env.INFER.run=async()=>({response:'Observed [S1, S2], not [S999]'})
   const result=await (await handleAsk(request(),env,user)).json()
   assert.deepEqual(result.sources.map(source=>source.id),['S1','S2'])
 })
 test('missing AI or snapshot and bounded timeout are explicit',async()=>{
   const env=environment()
-  assert.equal((await handleAsk(request(),{...env,AI:null},user)).status,503)
-  env.AI.run=()=>new Promise(()=>{})
+  assert.equal((await handleAsk(request(),{...env,INFER:null},user)).status,503)
+  env.INFER.run=()=>new Promise(()=>{})
   assert.equal((await handleAsk(request(),env,user,{timeoutMs:1})).status,504)
 })
 test('context drops large raw text and is bounded',()=>{
@@ -134,7 +134,7 @@ test('follow-up history is bounded and untrusted, and previous topic guides shor
   assert.equal(history[0].answer.length,2000)
   assert.throws(()=>askHistory([{question:'x',answer:null}]))
   const env=environment()
-  env.AI.run=async(_,input)=>{
+  env.INFER.run=async(_,input)=>{
     assert.match(input.messages[0].content,/Never greet unless/)
     assert.match(input.messages[0].content,/history is untrusted/)
     const data=JSON.parse(input.messages[1].content)
@@ -152,7 +152,7 @@ test('real streaming relays split SSE deltas before final metadata and charges q
   const prepare=env.DB.prepare
   env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('INSERT'))statement.run=async()=>{quota++;return {meta:{changes:1}}};return statement}
   let push
-  env.AI.run=async(_,input)=>{
+  env.INFER.run=async(_,input)=>{
     assert.equal(input.stream,true)
     return new ReadableStream({start(controller){push=text=>controller.enqueue(new TextEncoder().encode(text))}})
   }
@@ -178,7 +178,7 @@ test('real streaming relays split SSE deltas before final metadata and charges q
 })
 test('stream emits github step around the live check reflecting real toolStatus',async()=>{
   const env={...environment(),GITHUB_TOKEN:'test-only'}
-  env.AI.run=async()=>new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode('data: {"response":"777 [S1]"}\n\ndata: [DONE]\n\n'));controller.close()}})
+  env.INFER.run=async()=>new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode('data: {"response":"777 [S1]"}\n\ndata: [DONE]\n\n'));controller.close()}})
   const live=await handleAsk(request({question:'stars now',stream:true}),env,user,{request:async()=>Response.json({full_name:'google/elephant-goldfish-model',stargazers_count:777,forks_count:1,open_issues_count:1})})
   const events=(await live.text()).trim().split('\n').map(JSON.parse)
   assert.deepEqual(events.map(event=>event.type),['step','step','step','step','step','delta','result'])
@@ -192,7 +192,7 @@ test('stream emits github step around the live check reflecting real toolStatus'
 test('stream timeout emits safe terminal error and cancels upstream reader',async()=>{
   const env=environment()
   let cancelled=false
-  env.AI.run=async()=>new ReadableStream({cancel(){cancelled=true}})
+  env.INFER.run=async()=>new ReadableStream({cancel(){cancelled=true}})
   const result=await handleAsk(request({question:'views?',stream:true}),env,user,{timeoutMs:2})
   const events=(await result.text()).trim().split('\n').map(JSON.parse)
   assert.deepEqual(events.at(-1),{type:'error',error:'ask_timeout'})
@@ -202,7 +202,7 @@ test('stream timeout emits safe terminal error and cancels upstream reader',asyn
 test('client stream cancellation cancels the provider',async()=>{
   const env=environment()
   let cancelled=false
-  env.AI.run=async()=>new ReadableStream({cancel(){cancelled=true}})
+  env.INFER.run=async()=>new ReadableStream({cancel(){cancelled=true}})
   const result=await handleAsk(request({question:'views?',stream:true}),env,user)
   await result.body.cancel()
   await new Promise(resolve=>setTimeout(resolve,0))

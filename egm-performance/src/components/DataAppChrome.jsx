@@ -676,13 +676,13 @@ function DataAppOverflowMenu({
           <Dropdown.Group className="dashboard-mobile-menu-group">
             <Dropdown.Label className="menu-group-label">Actions</Dropdown.Label>
             <MenuItem
-              icon="chatBubble"
+              icon="gemini"
               className="dashboard-action-menu-item"
               onSelect={() => {
                 requestAnimationFrame(() => onAsk?.());
               }}
             >
-              Ask
+              Ask Gemini
             </MenuItem>
             {canEdit && (
               <MenuItem icon="edit" className="dashboard-action-menu-item" onSelect={onEdit}>
@@ -1250,16 +1250,16 @@ export function DataAppTopbar({
                   data-mode-action="secondary"
                   aria-describedby={mode !== "edit" && build.active ? askTooltipId : undefined}
                   ref={askButtonRef}
-                  label={mode === "edit" ? "Cancel" : "Ask"}
+                  label={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   iconOnly={mode !== "edit"}
-                  icon={mode === "edit" ? null : "chatBubble"}
-                  compactLabel={mode === "edit" ? "Cancel" : "Ask"}
+                  icon={mode === "edit" ? null : "gemini"}
+                  compactLabel={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   className="dashboard-ask-button"
                   onClick={mode === "edit" ? onCancel : () => openAskComposer()}
                 />
                 {mode !== 'edit' && (
                   <Tooltip id={askTooltipId} className="topbar-mode-tooltip">
-                    {build.active?`Available when this ${noun} is ready.`:'Ask'}
+                    {build.active?`Available when this ${noun} is ready.`:'Ask Gemini'}
                   </Tooltip>
                 )}
               </span>
