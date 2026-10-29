@@ -17,6 +17,7 @@
     "VIDEO_INITIAL_BACKFILL_LIMIT": "10",
     "OWNER_EMAIL": "oliver@newth.ai",
     "APPROVAL_WEBHOOK_HOSTS": "connectors.api.openai.com",
+    "GROK_WEBHOOK_HOSTS": "api2.cursor.sh",
     "REFRESH_UNTIL": "2026-11-04T06:33:01Z",
     "WORKOS_CLIENT_ID": "client_01M60K01HRESAKEPD135F3KAMM",
     "WORKOS_AUTHKIT_DOMAIN": "https://striking-ripple-85.authkit.app",
