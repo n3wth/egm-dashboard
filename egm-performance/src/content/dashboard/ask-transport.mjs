@@ -89,3 +89,10 @@ export class AskTransport {
   }
   async reconnectToStream() { return null }
 }
+
+export const citeId=(messageId,id)=>`ask-cite-${String(messageId).replace(/[^\w-]/g,'')}-${id}`
+// Turns [n] markers that match a source into links the response renders as citation chips.
+export function linkCitations(text,sources,messageId) {
+  const ids=new Set((sources??[]).map((source,index)=>String(source.id??index+1)))
+  return ids.size?text.replace(/\[(\d+)\](?!\()/g,(match,id)=>ids.has(id)?`[${id}](#${citeId(messageId,id)})`:match):text
+}

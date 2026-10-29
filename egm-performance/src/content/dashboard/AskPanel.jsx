@@ -3,7 +3,7 @@ import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
-import {AskTransport,answerText,messageResult,messageText} from './ask-transport.mjs'
+import {AskTransport,answerText,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
 import {MessageResponse} from './MessageResponse.jsx'
 import './growth-advice.css'
 import {trackAskOutcome} from './usage-analytics.js'
@@ -51,12 +51,6 @@ function AssistantResult({message,result}) {
     {result.sources.length>0&&<ol className="egm-ask-sources" aria-label="Sources">{result.sources.map((source,index)=>{const id=String(source.id??index+1);const href=sourceHref(source.url);const label=source.label??source.title??source.queryId??'Saved data';return <li key={`${id}-${source.queryId??''}`} id={citeId(message.id,id)}><span className="egm-ask-cite">{id}</span><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data'}<ObservedAt value={source.observedAt} dateOnly/></span></span></li>})}</ol>}</>
 }
 
-const citeId=(messageId,id)=>`ask-cite-${String(messageId).replace(/[^\w-]/g,'')}-${id}`
-// Turns [n] markers that match a source into links the response renders as citation chips.
-export function linkCitations(text,sources,messageId) {
-  const ids=new Set((sources??[]).map((source,index)=>String(source.id??index+1)))
-  return ids.size?text.replace(/\[(\d+)\](?!\()/g,(match,id)=>ids.has(id)?`[${id}](#${citeId(messageId,id)})`:match):text
-}
 const citationComponents={a:({href,children,node,...props})=>href?.startsWith('#ask-cite-')?<a {...props} href={href} className="egm-ask-cite" aria-label={`Source ${children}`}>{children}</a>:<a {...props} href={href} target="_blank" rel="noreferrer">{children}</a>}
 
 export function AskPanel({open,onClose,initialQuestion=''}) {

@@ -70,3 +70,9 @@ test('abort reports stopped once and emits no error chunk',async()=>{
   assert.equal(chunks.some(chunk=>chunk.type==='error'),false)
   assert.deepEqual(outcomes,['submitted','stopped'])
 })
+
+test('linkCitations links only known source markers', async () => {
+  const {linkCitations}=await import('./ask-transport.mjs')
+  assert.equal(linkCitations('Up [1], not [9], kept [2](x).',[{id:'1'},{id:'2'}],'m:1'),'Up [1](#ask-cite-m1-1), not [9], kept [2](x).')
+  assert.equal(linkCitations('No [1].',[],'m'),'No [1].')
+})
