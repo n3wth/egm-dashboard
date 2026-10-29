@@ -5,8 +5,9 @@ import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-
 import './ask-panel.css'
 import {AskTransport,answerText,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
 import {MessageResponse} from './MessageResponse.jsx'
-import './growth-advice.css'
-import {trackAskOutcome} from './usage-analytics.js'
+import {AskStarters} from './AskStarters.jsx'
+import {tabIdFromLocation} from './ask-starters.mjs'
+import {trackAskOutcome,trackAskStarter} from './usage-analytics.js'
 
 const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
 const format=value=>typeof value==='number'?value.toLocaleString('en-US'):String(value??'Unavailable')
@@ -129,8 +130,9 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
     {action}
   </form>
   const lastAssistantId=latest?.role==='assistant'?latest.id:null
+  const starters=!question.trim()&&<AskStarters tabId={tabIdFromLocation(location.pathname,location.search)} onPick={starter=>{trackAskStarter(starter.id);send(starter.question)}}/>
   return <>
-    {createPortal(messages.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask" title="Close Ask"><Icon name="chatBubble" size={18}/></button>:inline,hosts.headerHost)}
+    {createPortal(messages.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask" title="Close Ask"><Icon name="chatBubble" size={18}/></button>:<>{inline}{starters}</>,hosts.headerHost)}
     {messages.length>0&&createPortal(<section className="egm-ask-conversation" aria-label="Ask EGM conversation">
       <div className="egm-ask-toolbar"><button className="egm-ask-new" type="button" onClick={()=>{stop();setStopped(new Set());setMessages([])}}><Icon name="plus" size={16}/>New chat</button></div>
       <span className="egm-ask-live" aria-live="polite">{statusNote(status,latest&&stopped.has(latest.id))}{status==='ready'&&latestResult?' Answer complete.':''}</span>

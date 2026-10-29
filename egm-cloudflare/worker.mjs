@@ -176,11 +176,13 @@ export async function handle(request,env,ctx) {
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return new Response('Configuration incomplete',{status:503})
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})
   if(url.pathname==='/mcp') return mcp(request,env,ctx)
-  const pagePaths=['overview','reach','growth','website','development','acquisition','adoption','research','mentions']
-  if(url.pathname==='/reach' && request.method==='GET') return new Response(null,{status:302,headers:{location:'/overview','cache-control':'no-store'}})
-  if(url.pathname==='/' && url.searchParams.has('tab') && request.method==='GET' && pagePaths.includes(url.searchParams.get('tab'))) {
+  const pagePaths=['overview','reach','website','development','acquisition','adoption','research','mentions']
+  // Renamed pages: Overview was Reach, and Growth advice moved into Ask.
+  const moved=['reach','growth']
+  if(moved.includes(url.pathname.slice(1)) && request.method==='GET') return new Response(null,{status:302,headers:{location:'/overview','cache-control':'no-store'}})
+  if(url.pathname==='/' && url.searchParams.has('tab') && request.method==='GET' && [...pagePaths,'growth'].includes(url.searchParams.get('tab'))) {
     const tab=url.searchParams.get('tab')
-    return new Response(null,{status:302,headers:{location:tab==='reach'?'/overview':'/'+tab,'cache-control':'no-store'}})
+    return new Response(null,{status:302,headers:{location:moved.includes(tab)?'/overview':'/'+tab,'cache-control':'no-store'}})
   }
   if(url.pathname==='/auth/logout') {
     if(request.method!=='POST') return new Response('Use POST',{status:405})
