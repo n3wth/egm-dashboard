@@ -1,7 +1,6 @@
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
-import Markdown from 'react-markdown'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
 import {AskTransport,answerText,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
