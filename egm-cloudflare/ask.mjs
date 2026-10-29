@@ -1,5 +1,6 @@
 import {streamAsk} from './ask-stream.mjs'
 import {GEMINI_MODEL as model,geminiRunner} from './gemini.mjs'
+import {captureAiGeneration} from './ai-analytics.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
 const safeLink=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
 const trending=/trend|viral|popular|momentum/i
@@ -108,6 +109,7 @@ export async function handleAsk(request,env,user,options={}) {
   if(!infer?.run)return reply({error:'ask_unavailable'},503)
   const now=options.now??Date.now()
   const at=new Date(now).toISOString()
+  let track=()=>{}
   try {
     const stored=await env.DB.prepare('SELECT body,generated_at FROM snapshots WHERE id=1').first()
     if(!stored)return reply({error:'snapshot_unavailable'},503)
@@ -144,12 +146,23 @@ export async function handleAsk(request,env,user,options={}) {
     const coverageNote=trending.test(contextQuestion)?'Discovery ranked by total stars is not measured trending growth. Only recorded changes between observation dates support growth comparisons.':null
     return {answer,cards,suggestedFollowUps,coverageNote,toolStatus,sources:context.sources.filter(source=>cited.has(source.id)),snapshotAt:stored.generated_at??snapshot.generatedAt??null,generatedAt:at}
     }
-    const timeoutMs=options.timeoutMs??45000
-    if(payload.stream===true)return streamAsk(async step=>infer.run(model,{messages:await prepare(step),max_tokens:1024,temperature:0.1,stream:true}),finalize,request.signal,timeoutMs)
+    const timeoutMs=options.timeoutMs??30000
+    // PostHog LLM analytics: question turns and the answer only, never the snapshot context.
+    const started=Date.now(),traceId=crypto.randomUUID(),stream=payload.stream===true
+    let usage,firstTokenMs
+    const input=[...history.flatMap(turn=>[{role:'user',content:turn.question},{role:'assistant',content:turn.answer}]),{role:'user',content:question}]
+    track=extra=>{
+      const pending=captureAiGeneration(env,{traceId,userId:user.id,model,input,stream,temperature:0.1,maxTokens:1024,usage,firstTokenMs,latencyMs:Date.now()-started,contextSources:context.records.length,liveGithub:toolStatus.status,...extra},options.fetcher)
+      options.waitUntil?.(pending)
+    }
+    const hooks={onUsage:value=>{usage=value},onFirstText:()=>{firstTokenMs=Date.now()-started}}
+    const tracked=answer=>{const result=finalize(answer);track({output:answer});return result}
+    const errorCode=error=>error?.message==='timeout'?'ask_timeout':'ask_unavailable'
+    if(stream)return streamAsk(async step=>infer.run(model,{messages:await prepare(step),max_tokens:1024,temperature:0.1,stream:true,...hooks}),tracked,request.signal,timeoutMs,{onError:error=>track({error:errorCode(error)})})
     const messages=await prepare()
     let timer,result
-    try {result=await Promise.race([infer.run(model,{messages,max_tokens:1024,temperature:0.1,stream:false}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),timeoutMs)})])}finally{clearTimeout(timer)}
-    if(typeof result?.response!=='string'||!result.response.trim())return reply({error:'ask_unavailable'},503)
-    return reply(finalize(result.response.trim().slice(0,6000)))
-  }catch(error){return reply({error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'},error?.message==='timeout'?504:503)}
+    try {result=await Promise.race([infer.run(model,{messages,max_tokens:1024,temperature:0.1,stream:false,...hooks}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),timeoutMs)})])}finally{clearTimeout(timer)}
+    if(typeof result?.response!=='string'||!result.response.trim()){track({error:'ask_unavailable'});return reply({error:'ask_unavailable'},503)}
+    return reply(tracked(result.response.trim().slice(0,6000)))
+  }catch(error){track({error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'});return reply({error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'},error?.message==='timeout'?504:503)}
 }
