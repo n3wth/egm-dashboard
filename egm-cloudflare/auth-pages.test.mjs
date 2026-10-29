@@ -28,7 +28,7 @@ test('unavailable invitations explain the next step without exposing a token',as
   assert.match(html,/expired, been used, been revoked, or been sent to a different email address/)
   assert.match(html,/Without an invitation, access requires approval/)
   assert.equal(response.headers.get('cache-control'),'private, no-store')
-  assert.equal(response.headers.get('referrer-policy'),'no-referrer')
+  assert.equal(response.headers.get('referrer-policy'),'same-origin')
 })
 test('restricted account states retain sign-out POST and private uncached responses',async()=>{
   for(const state of ['pending','denied']) {
@@ -48,5 +48,32 @@ test('temporary session failure offers a same-page retry without signing out',as
   assert.match(html,/href="" class="action">Try again<\/a>/)
   assert.doesNotMatch(html,/\/auth\/logout|\/auth\/login/)
   assert.equal(response.headers.get('cache-control'),'private, no-store')
-  assert.equal(response.headers.get('referrer-policy'),'no-referrer')
+  assert.equal(response.headers.get('referrer-policy'),'same-origin')
+})
+test('every dead-end state has its status, no-store headers, noindex and one action',async()=>{
+  const expected={not_found:404,invite_denied:403,login_cancelled:401,login_expired:400,session_expired:401,rate_limited:429,unavailable:503,invite_account:403,invite_invalid:403,pending:403,denied:403,error:401}
+  for(const [state,status] of Object.entries(expected)) {
+    const response=renderAccessPage(state)
+    const html=await response.text()
+    assert.equal(response.status,status,state)
+    assert.equal(response.headers.get('cache-control'),'private, no-store',state)
+    assert.match(html,/<meta name="robots" content="noindex, nofollow">/,state)
+    assert.equal((html.match(/class="action[ "]/g)??[]).length,1,state)
+    assert.doesNotMatch(html,/—/,state)
+    assert.doesNotMatch(html,/egm-login\.js/,state)
+  }
+})
+test('not found, wrong account and retry pages link to the right next step',async()=>{
+  assert.match(await renderAccessPage('not_found').text(),/href="\/" class="action">Open the dashboard/)
+  assert.match(await renderAccessPage('invite_account').text(),/href="\/auth\/invite" class="action">Try again/)
+  const limited=renderAccessPage('rate_limited')
+  assert.equal(limited.headers.get('retry-after'),'60')
+  assert.match(await limited.text(),/href="" class="action">Try again/)
+  const retry=renderAccessPage('unavailable',{href:'/auth/login',headers:{'set-cookie':'a=b'}})
+  assert.equal(retry.headers.get('set-cookie'),'a=b')
+  assert.match(await retry.text(),/href="\/auth\/login" class="action">Try again/)
+  assert.equal(renderAccessPage('login_expired',{headers:{'content-type':'text/plain'}}).headers.get('content-type'),'text/html;charset=utf-8')
+})
+test('pages that host POST forms keep the origin so same-origin checks pass',async()=>{
+  for(const state of ['invite','pending','denied']) assert.equal(renderAccessPage(state).headers.get('referrer-policy'),'same-origin',state)
 })

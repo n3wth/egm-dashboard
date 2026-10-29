@@ -137,3 +137,12 @@ test('a failed sign-in callback clears the single-use flow cookie', async () => 
     assert.match(response.headers.get('set-cookie'), /__Host-egm_flow=;.*Max-Age=0/)
   } finally { globalThis.fetch = previous }
 })
+
+test('seal signs with the current secret when given the rotation list', async () => {
+  const current = 'c'.repeat(64), previous = 'p'.repeat(64)
+  const list = sessionSecrets({ SESSION_SECRET: current, SESSION_SECRET_PREVIOUS: previous })
+  const cookie = await seal({ sid: 's2' }, list, 'session')
+  assert.equal((await open(cookie, current, 'session')).sid, 's2')
+  assert.equal(await open(cookie, previous, 'session'), null)
+  assert.equal((await open(cookie, list, 'session')).sid, 's2')
+})
