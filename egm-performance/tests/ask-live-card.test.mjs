@@ -11,7 +11,7 @@ test('live GitHub metrics render without a saved snapshot query', async () => {
     const html = renderToStaticMarkup(React.createElement(LiveMetricCard, { card: { title: 'EGM right now', sourceId: 'S1', metrics: [{ label: 'Stars', value: 1234 }] } }))
     assert.match(html, /EGM right now/)
     assert.match(html, /1,234/)
-    assert.match(html, /\[S1\]/)
+    assert.match(html, /<span class="egm-ask-cite">S1<\/span>/)
   } finally { await server.close() }
 })
 
