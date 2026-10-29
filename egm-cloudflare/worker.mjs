@@ -78,27 +78,37 @@ async function accessManager(user,env) {
   try { return (await workosAdminPermission(env,user.sessionId,user.id)).status==='allowed' } catch { return false }
 }
 let jwksCache
+// Logs only a reason code and claim shape (audience, issuer match, org/role presence), never the token or user identity.
+const mcpDeny=(reason,claims)=>{console.warn('MCP auth rejected',JSON.stringify({reason,aud:claims?[claims.aud].flat().slice(0,4):null,has_role:claims?Boolean(claims.role):null,has_permissions:claims?Array.isArray(claims.permissions):null}));return false}
 async function mcpOwner(request,env) {
+  let claims
   try {
     const token=request.headers.get('authorization')?.match(/^Bearer (\S+)$/)?.[1]
-    if(!token || token.length>8192) return false
+    if(!token || token.length>8192) return mcpDeny('no_token')
     const [h,p,s,...extra]=token.split('.')
     const header=JSON.parse(new TextDecoder().decode(un64(h)))
-    const claims=JSON.parse(new TextDecoder().decode(un64(p)))
-    if(extra.length || header.alg!=='RS256' || claims.iss!==env.WORKOS_AUTHKIT_DOMAIN || ![claims.aud].flat().includes(env.APP_URL+'/mcp') || !Number.isFinite(claims.exp) || claims.exp<=now() || claims.nbf>now()) return false
-    if(env.WORKOS_RBAC_ENABLED==='true' && (!rbacConfigured(env) || claims.org_id!==env.WORKOS_RBAC_ORGANIZATION_ID || !(claims.role==='admin' || (Array.isArray(claims.permissions) && claims.permissions.includes(env.WORKOS_RBAC_PERMISSION || 'egm:dashboard:admin'))))) return false
+    claims=JSON.parse(new TextDecoder().decode(un64(p)))
+    if(extra.length || header.alg!=='RS256') return mcpDeny('format',claims)
+    if(claims.iss!==env.WORKOS_AUTHKIT_DOMAIN) return mcpDeny('issuer',claims)
+    if(![claims.aud].flat().includes(env.APP_URL+'/mcp')) return mcpDeny('audience',claims)
+    if(!Number.isFinite(claims.exp) || claims.exp<=now() || claims.nbf>now()) return mcpDeny('expiry',claims)
+    if(env.WORKOS_RBAC_ENABLED==='true') {
+      if(!rbacConfigured(env)) return mcpDeny('rbac_config',claims)
+      if(claims.org_id!==env.WORKOS_RBAC_ORGANIZATION_ID) return mcpDeny(claims.org_id?'org_mismatch':'org_missing',claims)
+      if(!(claims.role==='admin' || (Array.isArray(claims.permissions) && claims.permissions.includes(env.WORKOS_RBAC_PERMISSION || 'egm:dashboard:admin')))) return mcpDeny('role',claims)
+    }
     if(!jwksCache || jwksCache.expires<Date.now()) {
       const result=await fetch(env.WORKOS_AUTHKIT_DOMAIN+'/oauth2/jwks',{signal:AbortSignal.timeout(10000)})
-      if(!result.ok) return false
+      if(!result.ok) return mcpDeny('jwks_fetch',claims)
       jwksCache={keys:(await result.json()).keys,expires:Date.now()+300000}
     }
     const jwk=jwksCache.keys.find(k=>k.kid===header.kid && k.kty==='RSA')
-    if(!jwk) return false
+    if(!jwk) return mcpDeny('jwks_kid',claims)
     const publicKey=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify'])
-    if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',publicKey,un64(s),enc.encode(`${h}.${p}`))) return false
+    if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',publicKey,un64(s),enc.encode(`${h}.${p}`))) return mcpDeny('signature',claims)
     const user=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(claims.sub).first()
-    return isDashboardOwner(user,env) && user.verified===1 && user.status==='approved' ? user : false
-  } catch { return false }
+    return isDashboardOwner(user,env) && user.verified===1 && user.status==='approved' ? user : mcpDeny(user?'not_owner':'unknown_user',claims)
+  } catch { return mcpDeny('exception',claims) }
 }
 async function mcp(request,env,ctx) {
   const owner=await mcpOwner(request,env)
