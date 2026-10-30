@@ -39,6 +39,11 @@
 .egm-highlight-rule p { margin: 8px 0 0; max-width: 70ch; color: var(--secondary); font-size: 13px; line-height: 1.5; }
 .egm-experiment-evidence { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
 .egm-experiment-evidence a { color: var(--text); font-size: 13px; line-height: 1.4; }
+.egm-experiment-evidence a:focus-visible,
+.egm-unverified-sources a:focus-visible,
+.egm-unverified-sources summary:focus-visible,
+.egm-evidence-link:focus-visible,
+.egm-signal-status:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-overview-videos { display: grid; grid-template-columns: repeat(var(--video-columns, 3), minmax(0, 1fr)); gap: 16px; min-width: 0; }
 .egm-overview-video { display: grid; grid-template-rows: auto 2.8em auto; gap: 6px; align-items: start; min-width: 0; color: var(--text); text-decoration: none; }
 .egm-overview-video-frame { display: block; aspect-ratio: 16 / 9; overflow: hidden; background: var(--surface); }
@@ -89,10 +94,10 @@
 .egm-discussion-list article:last-child { border-bottom: 0; }
 .egm-discussion-list h3 { margin: 0 0 6px; font-size: 14px; line-height: 1.5; font-weight: 500; }
 .egm-discussion-list p { font-size: 13px; line-height: 1.6; margin: 8px 0; }
-.egm-signal-status { display: inline-flex; align-items: center; gap: 4px; color: var(--secondary); font-size: 11px; }
+.egm-signal-status { display: inline-flex; align-items: center; gap: 4px; margin: 0; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 11px; line-height: 1.4; cursor: pointer; }
 .egm-signal-quote { color: var(--secondary); }
 .egm-unverified-sources { margin-top: 16px; color: var(--secondary); font-size: 12px; line-height: 1.6; }
-.egm-unverified-sources summary { cursor: pointer; }
+.egm-unverified-sources summary { cursor: pointer; color: var(--text); }
 @media(max-width:850px) { .egm-opportunities { grid-template-columns: 1fr; } }
 .egm-dashboard-grid .table tbody td,
 .data-section .table tbody td { vertical-align: top; }
