@@ -72,6 +72,26 @@ export function planCollection(name, queries, budget, time) {
   return 'run'
 }
 
+const observedQuery = {
+  contentResearch: 'research_evidence',
+  youtube: 'youtube_videos',
+  youtubeComments: 'youtube_comments',
+  engagement: 'mention_engagement'
+}
+
+// These collectors record lastAttemptAt and the saved rows' executedAt.
+// They do not write lastSuccessAt. A status check with no saved rows is not a success.
+function observedSuccess(queries, id, row) {
+  if (typeof row.lastSuccessAt === 'string' && Number.isFinite(Date.parse(row.lastSuccessAt))) return row.lastSuccessAt
+  const saved = observedQuery[id] ? queries[observedQuery[id]] : null
+  const executedAt = saved?.source?.executedAt
+  if (saved?.rows?.length && typeof executedAt === 'string' && Number.isFinite(Date.parse(executedAt))) return executedAt
+  const checked = ['available', 'cached', 'checked', 'refreshed', 'partial', 'stale'].includes(row.status)
+  const attempted = row.attempts == null || row.attempts > 0 || row.status === 'checked'
+  if (checked && attempted && typeof row.lastAttemptAt === 'string' && Number.isFinite(Date.parse(row.lastAttemptAt))) return row.lastAttemptAt
+  return null
+}
+
 const labels = {
   github: 'GitHub',
   semrush: 'Semrush',
@@ -93,8 +113,10 @@ export function collectionSources({ queries = {}, state = {}, skips = {}, checke
     const row = queries[queryName]?.rows?.[0] ?? {}
     const source = id === 'github' ? queries.traffic?.source : null
     const status = state[id] ?? 'unknown'
-    const reason = windowOpen ? skips[id] ?? row.reason ?? (status === 'failed' ? 'failed' : null) : 'collection_window_ended'
-    const lastSuccessAt = row.lastSuccessAt ?? source?.executedAt ?? (id === 'github' && status === 'refreshed' ? checkedAt : null)
+    const reason = windowOpen ? skips[id] ?? row.reason ?? (row.status === 'unconfigured' ? 'unconfigured' : null) ?? (status === 'failed' ? 'failed' : null) : 'collection_window_ended'
+    const lastSuccessAt = id === 'github'
+      ? row.lastSuccessAt ?? source?.executedAt ?? (status === 'refreshed' ? checkedAt : null)
+      : observedSuccess(queries, id, row)
     return { id, label: labels[id], status, reason, lastSuccessAt }
   })
 }

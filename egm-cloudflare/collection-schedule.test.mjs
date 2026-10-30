@@ -38,3 +38,26 @@ test('source rows keep the last success and name a closed window', () => {
   assert.equal(sources.find(source => source.id === 'semrush').lastSuccessAt, '2026-10-01T00:00:00Z')
   assert.equal(sources.find(source => source.id === 'github').lastSuccessAt, '2026-10-28T00:00:00Z')
 })
+
+test('content research, YouTube, comments, and engagement use saved observation times', () => {
+  const sources = collectionSources({
+    queries: {
+      research_evidence: { rows: [{ url: 'https://example.com' }], source: { executedAt: '2026-10-20T01:00:00Z' } },
+      research_status: { rows: [{ status: 'cached', lastAttemptAt: '2026-10-28T00:00:00Z' }] },
+      youtube_videos: { rows: [{ videoId: 'abcdefghijk' }], source: { executedAt: '2026-10-21T01:00:00Z' } },
+      youtube_status: { rows: [{ status: 'available', lastAttemptAt: '2026-10-28T00:00:00Z' }] },
+      youtube_comments: { rows: [{ videoId: 'abcdefghijk' }], source: { executedAt: '2026-10-22T01:00:00Z' } },
+      youtube_comments_status: { rows: [{ status: 'unconfigured' }] },
+      mention_engagement: { rows: [], source: { executedAt: '2026-10-28T00:00:00Z' } },
+      mention_engagement_status: { rows: [{ status: 'cached', attempts: 0, lastAttemptAt: '2026-10-28T00:00:00Z' }] }
+    },
+    state: {},
+    windowOpen: true
+  })
+  const at = id => sources.find(source => source.id === id).lastSuccessAt
+  assert.equal(at('contentResearch'), '2026-10-20T01:00:00Z')
+  assert.equal(at('youtube'), '2026-10-21T01:00:00Z')
+  assert.equal(at('youtubeComments'), '2026-10-22T01:00:00Z')
+  assert.equal(at('engagement'), null)
+  assert.equal(sources.find(source => source.id === 'youtubeComments').reason, 'unconfigured')
+})
