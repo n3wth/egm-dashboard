@@ -174,11 +174,8 @@
 @media (prefers-reduced-motion: reduce) { .egm-thumb[data-loaded] { animation: none; } }
 @media (pointer: coarse) { .egm-mention-link { padding-block: 11px; margin-block: -11px; } }
 
-/* Metric trendlines: larger, flat and in the first chart color so they match the line charts. */
+/* Metric trendlines: larger, smooth and in the first chart color so they match the line charts. */
 .egm-metric-reading .data-metric-sparkline { width: 96px; height: 41px; min-width: 64px; flex: 0 1 96px; color: var(--chart-1); }
-.egm-metric-reading .data-metric-sparkline polygon { display: none; }
-.egm-metric-reading .data-metric-sparkline polyline { stroke: currentColor; stroke-width: 2px; vector-effect: non-scaling-stroke; }
-.egm-metric-reading .data-metric-sparkline circle { r: 1.6; }
 .egm-empty { display: grid; align-content: center; justify-items: center; gap: 4px; min-height: 120px; padding: 24px 16px; box-sizing: border-box; text-align: center; color: var(--secondary); font-size: 13px; line-height: 1.5; }
 .egm-empty strong { color: var(--text); font-size: 14px; font-weight: 500; }
 .egm-empty--chart { min-height: 260px; }
