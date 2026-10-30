@@ -5,6 +5,8 @@
 @font-face { font-family: 'Suisse Intl'; src: url('/fonts/SuisseIntl-Bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
 :root { --font-sans: 'Suisse Intl', system-ui, sans-serif; --font-sans-default: 'Suisse Intl', system-ui, sans-serif; }
 .egm-chart-home { margin: 0 0 8px; color: var(--text); font-size: 13px; line-height: 1.5; }
+.egm-experiment-evidence { margin: 8px 0 0; padding: 0; list-style: none; }
+.egm-experiment-evidence a { color: var(--text); }
 .egm-collection-status { margin: 0 0 20px; }
 .egm-collection-status h2 { margin: 0 0 8px; font-size: 13px; font-weight: 500; }
 .egm-collection-status ul { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 8px 16px; margin: 0; padding: 0; list-style: none; }
