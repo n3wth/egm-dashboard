@@ -3,12 +3,19 @@ import {isSearchVideo} from './referrer-channels.mjs'
 const count=value=>Number.isFinite(value)&&value>=0
 const number=value=>value.toLocaleString('en-US')
 const shortDate=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
+export function reportingRange(queries={}) {
+  const traffic=[...(queries.traffic?.rows??[])].filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date??'')).sort((a,b)=>a.date.localeCompare(b.date))
+  if(traffic.length<2)return null
+  return {label:`${shortDate(traffic[0].date)} – ${shortDate(traffic.at(-1).date)}`,note:'UTC'}
+}
 export function overviewSummary(queries={}) {
   const reach=queries.reach?.rows?.[0]
   const traffic=[...(queries.traffic?.rows??[])].filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date??'')).sort((a,b)=>a.date.localeCompare(b.date))
   const refs=queries.referrers?.rows??[]
   const ids=new Set()
   const sentences=[]
+  const facts=[]
+  let headline=null
   const stars=count(reach?.stars)?`EGM has ${number(reach.stars)} recorded stars`:null
   if(stars)ids.add('reach')
   const total=traffic.length&&traffic.every(row=>count(row.views))?traffic.reduce((sum,row)=>sum+row.views,0):null
@@ -18,6 +25,9 @@ export function overviewSummary(queries={}) {
     // An even spread over the window would put 3/N of the views in the last three days; stating that baseline lets the reader judge the share.
     const even=percentage(3/traffic.length)
     sentences.push(`${stars?stars+'; ':''}${percentage(recent/total)} of the ${number(total)} repo views between ${shortDate(traffic[0].date)} and ${shortDate(traffic.at(-1).date)} (UTC) arrived in the last three days, ${shortDate(recentDays[0].date)}–${shortDate(recentDays.at(-1).date)}; an even spread would be ${even}.`)
+    headline=`${percentage(recent/total)} of the ${number(total)} repo views arrived in the last three days.`
+    if(count(reach?.stars))facts.push(`${number(reach.stars)} recorded stars`)
+    facts.push(`An even spread would be ${even}`)
     ids.add('traffic')
   } else if(stars||count(reach?.views)) {
     sentences.push(`${stars??'The snapshot records'}${count(reach?.views)?`${stars?' and ':' '}${number(reach.views)} repo views in GitHub’s two-week traffic window`:''}.`)
@@ -27,7 +37,9 @@ export function overviewSummary(queries={}) {
     const totalReferrals=refs.reduce((sum,row)=>sum+row.count,0)
     const searchVideo=refs.filter(row=>isSearchVideo(row.referrer)).reduce((sum,row)=>sum+row.count,0)
     if(totalReferrals>0&&searchVideo>0) {
+      const attributed=`Google + YouTube = ${percentage(searchVideo/totalReferrals)} of attributed views`
       sentences.push(`Google and YouTube sent ${percentage(searchVideo/totalReferrals)} of the views GitHub attributes to its top ten referrers${reach?.views>0?` (${percentage(searchVideo/reach.views)} of all repo views)`:''}.`)
+      if(facts.length<3)facts.push(attributed)
       ids.add('referrers');if(reach?.views>0)ids.add('reach')
     }
   }
@@ -36,5 +48,5 @@ export function overviewSummary(queries={}) {
     if(video){sentences.push(`The most-viewed YouTube video about EGM has ${number(video.views)} views.`);ids.add('youtube_videos')}
   }
   if(!sentences.length)return null
-  return {sentences:sentences.slice(0,2),queryIds:[...ids]}
+  return {sentences:sentences.slice(0,2),queryIds:[...ids],headline:headline??sentences[0],facts:facts.slice(0,3),range:reportingRange(queries)}
 }
