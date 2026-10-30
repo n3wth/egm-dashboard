@@ -77,16 +77,34 @@ function Table({id,queryId,title,rows,columns,searchable=false,sourceRows=rows,n
 function AcrossEgm({queries,reach,web}) {
   const ids=['website','reach','youtube_videos','research_evidence','issue_queue','mentions'].filter(id=>queries[id])
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
-  const popularVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views).slice(0,3)
+  const popularVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views).slice(0,12)
   const experiment=suggestExperiment(queries)
   const viewShare=ratio(web.referralViews,reach.views)
   const visitorShare=ratio(web.referralVisitors,reach.visitors)
   const displayRows=[{signal:'Website referrals',views:web?.referralViews??null,viewShare,visitorShare},...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(experiment?[{signal:'Suggested experiment',url:experiment.winner.url,score:experiment.winner.score}]:[])]
   return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
-    <div className="egm-overview-signals" data-reviewed-rows>
-      <article><h3>egm.dev referrals</h3><p className="egm-overview-website-copy">{viewShare!=null&&visitorShare!=null?<><strong>{percentage(viewShare)}</strong> of repo views and <strong>{percentage(visitorShare)}</strong> of unique visitors arrived from egm.dev.</>:'egm.dev was not among GitHub’s top ten referrers, so its share is unknown.'}</p><a className="egm-overview-next" href="/website">Website <Icon name="arrowUpRight" size={14}/></a></article>
-      <article><h3>Popular videos</h3>{popularVideos.length?<div className="egm-overview-videos">{popularVideos.map(video=><a className="egm-overview-video" key={video.videoId} href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noreferrer" aria-label={`${video.title??'YouTube video'}. ${n(video.views)} YouTube views. Open YouTube.`}><span className="egm-overview-video-thumb"><VideoThumbnail id={video.videoId} sizes="(max-width: 600px) 50vw, 140px"/><span className="egm-overview-video-views" aria-hidden="true">{compact(video.views)}</span></span><span className="egm-overview-video-title" title={video.title}>{video.title??'YouTube video'}</span></a>)}</div>:<p>No YouTube view counts collected yet.</p>}<a className="egm-overview-next" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a></article>
-      <article><h3>Suggested experiment</h3>{experiment?<><p className="egm-overview-action">{experiment.action}</p><p className="egm-overview-qualifier">{experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><p className="egm-overview-qualifier">{experiment.rule}</p></>:<p>No issue, verified quote, or mention is available yet.</p>}</article>
+    <div className="egm-highlights" data-reviewed-rows>
+      <article className="egm-highlight egm-highlight-referrals">
+        <h3>egm.dev referrals</h3>
+        <p className="egm-highlight-value">{viewShare!=null&&visitorShare!=null?<><strong>{percentage(viewShare)}</strong> of repo views and <strong>{percentage(visitorShare)}</strong> of unique visitors arrived from egm.dev.</>:'egm.dev was not among GitHub’s top ten referrers, so its share is unknown.'}</p>
+        <a className="egm-highlight-link" href="/website">Website <Icon name="arrowUpRight" size={14}/></a>
+      </article>
+      <article className="egm-highlight egm-highlight-videos">
+        <h3>Popular videos</h3>
+        {popularVideos.length?<div className="egm-overview-videos">{popularVideos.map(video=>{
+          const title=video.title??'YouTube video'
+          return <a className="egm-overview-video" key={video.videoId} href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noreferrer">
+            <VideoThumbnail id={video.videoId} sizes="(max-width: 700px) 33vw, (max-width: 1600px) 16vw, 12vw" alt={`${title} preview`}/>
+            <span className="egm-overview-video-title" title={title}>{title}</span>
+            <span className="egm-overview-video-views">{compact(video.views)} views</span>
+          </a>
+        })}</div>:<p className="egm-highlight-value">No YouTube view counts collected yet.</p>}
+        <a className="egm-highlight-link" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a>
+      </article>
+      <article className="egm-highlight egm-highlight-experiment">
+        <h3>Suggested experiment</h3>
+        {experiment?<><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success">Success: {experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><p>{experiment.rule}</p></details></>:<p className="egm-highlight-value">No issue, verified quote, or mention is available yet.</p>}
+      </article>
     </div>
   </DataComponent>
 }

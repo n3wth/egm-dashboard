@@ -1,5 +1,5 @@
 // One deterministic ranking. Do not pick the first verified source.
-export const experimentRule = 'Rank observed problems by discussion. An open issue scores its comment count. A verified research source with an excerpt scores 1. A mention scores 1. The highest score wins. Ties break by issues, then research quotes, then mentions, then the lowest URL. Ask three people to try the workflow that source describes and record the first step that stops each one. Success is two of the three finishing without help, with any shared stopping step written down.'
+export const experimentRule = 'Rank observed problems by discussion. An open issue scores its comment count. A verified research source with an excerpt scores 1. A mention scores 1. The highest score wins. Ties break by issues, then research quotes, then mentions, then the lowest URL.'
 
 const success = 'Two of three people finish without help, and any step that stops more than one person is written down.'
 const action = 'Ask three people to try the workflow this source describes. Record whether each finishes and the first step that stops them.'
