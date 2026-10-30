@@ -148,7 +148,7 @@
 .egm-mentions-collection-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; color: var(--secondary); font-size: 12px; line-height: 1.6; }
 .egm-mentions-collection-line .egm-mentions-collection { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
 .egm-account-menu { display: flex; align-items: center; order: 99; }
-.egm-account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 50%; overflow: hidden; color: var(--foreground); font-size: 13px; font-weight: 500; }
+.egm-account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 50%; overflow: hidden; color: var(--foreground); font-size: 13px; font-weight: 500; transition: border-color 120ms ease-out, box-shadow 120ms ease-out; }
 .egm-account-avatar-wrap { position: relative; display: inline-flex; }
 .egm-account-pending { position: absolute; top: 0; right: 0; width: 9px; height: 9px; border: 2px solid var(--background); border-radius: 50%; background: var(--blue); }
 @media (prefers-reduced-motion: no-preference) {
@@ -156,7 +156,8 @@
   @keyframes egm-live-update { 0% { opacity: .55; } 100% { opacity: 1; } }
 }
 .egm-account-button { padding: 4px; border: 0 !important; border-radius: 50% !important; background: transparent !important; box-shadow: none !important; }
-.egm-account-button:hover,.egm-account-button[data-state="open"] { border: 0 !important; background: transparent !important; box-shadow: none !important; }
+.egm-account-button:is(:hover,[data-state="open"]) .egm-account-avatar { border-color: var(--border-strong); box-shadow: 0 0 0 3px color-mix(in srgb, var(--data-app-safe-chrome-foreground, var(--text)) 12%, transparent); }
+@media (hover: none) { .egm-account-button:hover:not([data-state="open"]) .egm-account-avatar { border-color: var(--border); box-shadow: none; } }
 .egm-account-button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-account-menu .dashboard-native-overflow { position: relative; width: 36px; height: 36px; }
 
