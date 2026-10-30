@@ -21,11 +21,19 @@ function ObservedAt({value,dateOnly=false,bare=false}) {
   return <time dateTime={value} title={value}>{bare?'':' · '}{dateOnly?new Date(value).toLocaleDateString('en-US',options):new Date(value).toLocaleString('en-US',options)}</time>
 }
 
+// Ask primitives: every answer type composes these instead of adding one-off markup.
+// A chip links to its source row when the answer turn is known; card previews without a turn render it inert.
+export function CitationChip({id,messageId,label}) {
+  return messageId?<a className="egm-ask-cite" href={`#${citeId(messageId,id)}`} aria-label={`Source ${id}${label?`: ${label}`:''}`}>{id}</a>:<span className="egm-ask-cite">{id}</span>
+}
+export function MetricGrid({metrics}) {
+  return <dl className="egm-ask-metrics">{(metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value,metric.unit)}</dd></div>)}</dl>
+}
 // Same chip and meta text as the source list so card attribution matches it.
-const Attribution=({sourceId,observedAt})=><p className="egm-ask-attribution">{sourceId&&<span className="egm-ask-cite">{sourceId}</span>}<span className="egm-ask-source-meta"><ObservedAt value={observedAt} dateOnly bare/></span></p>
+const Attribution=({sourceId,observedAt,turnId})=><p className="egm-ask-attribution">{sourceId&&<CitationChip id={sourceId} messageId={turnId}/>}<span className="egm-ask-source-meta"><ObservedAt value={observedAt} dateOnly bare/></span></p>
 
-export function LiveMetricCard({card}) {
-  return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value,metric.unit)}</dd></div>)}</dl><Attribution sourceId={card.sourceId} observedAt={card.observedAt}/></section>
+export function LiveMetricCard({card,turnId}) {
+  return <section className="egm-ask-live-card"><h3>{card.title}</h3><MetricGrid metrics={card.metrics}/><Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId}/></section>
 }
 
 const Mark=({working=false,decorative=false})=><svg className={working?"egm-mark egm-mark--working":"egm-mark"} {...(decorative?{"aria-hidden":true}:{role:"img","aria-label":"EGM"})} viewBox="1.5 5.5 21 13" fill="currentColor" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M10.30,6.80 A5.20,5.20 0 0 0 10.30,17.20 A1.20,1.20 0 0 0 11.50,16.00 L11.50,8.00 A1.20,1.20 0 0 0 10.30,6.80Z"/><path stroke="none" d="M13.70,6.80 A5.20,5.20 0 0 1 13.70,17.20 A1.20,1.20 0 0 1 12.50,16.00 L12.50,8.00 A1.20,1.20 0 0 1 13.70,6.80Z"/><path fill="none" d="M7.20,12.00 C6.80,14.60 3.40,14.70 3.20,12.60 C3.10,11.20 3.30,10.20 3.60,9.40"/><path fill="none" d="M16.80,12.00 L18.00,12.00 C18.80,12.00 19.40,10.60 20.90,9.40 M18.00,12.00 C18.80,12.00 19.40,13.40 20.90,14.60"/></svg>
@@ -39,7 +47,7 @@ function Trace({steps,running}) {
   const open=choice??running
   const shown=running?steps:steps.map(step=>step.status==='active'?{...step,status:'done'}:step)
   return <div className="egm-trace" data-open={open}>
-    <button type="button" className="egm-trace-trigger" aria-expanded={open} onClick={()=>setChoice(!open)}><Mark working={running} decorative/><span role="status">{running?<Shimmer>Thinking</Shimmer>:`Thought in ${shown.length} step${shown.length===1?'':'s'}`}</span><Icon name="chevronRight" size={14}/></button>
+    <button type="button" className="egm-trace-trigger" aria-expanded={open} onClick={()=>setChoice(!open)}><Mark working={running} decorative/><span role="status">{running?<Shimmer>Thinking</Shimmer>:`Done in ${shown.length} step${shown.length===1?'':'s'}`}</span><Icon name="chevronRight" size={14}/></button>
     {open&&<ol className="egm-trace-steps">
       {!shown.length&&running&&<li><span className="egm-trace-icon">{stepIcon.active}</span><Shimmer>Reading dashboard data…</Shimmer></li>}
       {shown.map(step=><li key={step.id} data-status={step.status}><span className="egm-trace-icon">{stepIcon[step.status]}</span>{step.status==='active'?<Shimmer>{step.label}</Shimmer>:step.label}{step.detail&&<span className="egm-trace-detail">{step.detail}</span>}</li>)}
@@ -47,16 +55,17 @@ function Trace({steps,running}) {
   </div>
 }
 
+const seriesColors=['var(--chart-1)','var(--chart-4)','var(--chart-2)']
 export function AnswerCard({card,index,turnId}) {
   const {queries}=useDataApp()
   const rows=Array.isArray(card.rows)?card.rows:[]
   const source=queries[card.queryId]
-  if(!source)return card.type==='metric'?<LiveMetricCard card={card}/>:null
+  if(!source)return card.type==='metric'?<LiveMetricCard card={card} turnId={turnId}/>:null
   const props={id:`ask-result-${turnId}-${index}-${card.queryId}`,title:card.title,queryId:source?card.queryId:undefined,sourceRows:source?.rows??rows,displayRows:rows,variant:'card',showActions:Boolean(source)}
-  const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt}/>
-  if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
+  const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId}/>
+  if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,seriesColors[index%seriesColors.length]])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
   if(card.type==='table')return <DataComponent {...props} kind="table"><DataTable rows={rows} searchable={false} pageSize={5} columns={askTableColumns(card.columns,rows,card.columnLabels).map(column=>({field:column.field,label:column.label,...(column.clip?{renderCell:(value,row)=>{const {text,tooltip}=askCellText(value,row,column);const href=column.link?sourceHref(row?.url):column.field==='url'?sourceHref(value):null;return <span className="egm-cell-clip" title={tooltip}>{href?<a href={href} target="_blank" rel="noreferrer">{text}</a>:text}</span>}}:{})}))} label={card.title}/>{card.rowsTruncated&&<p className="egm-note">Showing {rows.length} of {card.rowCount} rows.</p>}{foot}</DataComponent>
-  if(card.type==='metric')return <DataComponent {...props} kind="custom"><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value,metric.unit)}</dd></div>)}</dl>{foot}</DataComponent>
+  if(card.type==='metric')return <DataComponent {...props} kind="custom"><MetricGrid metrics={card.metrics}/>{foot}</DataComponent>
   return null
 }
 
@@ -74,10 +83,23 @@ function CopyButton({text}) {
   return <button type="button" onClick={()=>navigator.clipboard?.writeText(text).then(()=>setCopied(true),()=>{})} aria-label={copied?'Copied':'Copy answer'} title={copied?'Copied':'Copy answer'}><Icon name={copied?'check':'copy'} size={16}/></button>
 }
 
-function AssistantResult({message,result}) {
-  return <>
-    {typeof result.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
-    {result.sources.length>0&&<ol className="egm-ask-sources" aria-label="Sources">{result.sources.map((source,index)=>{const id=String(source.id??index+1);const href=sourceHref(source.url);const label=source.label??source.title??source.queryId??'Saved data';return <li key={`${id}-${source.queryId??''}`} id={citeId(message.id,id)}><span className="egm-ask-cite">{id}</span><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data'}<ObservedAt value={source.observedAt} dateOnly/></span></span></li>})}</ol>}</>
+function SourceRow({source,index,messageId}) {
+  const id=String(source.id??index+1),href=sourceHref(source.url),label=source.label??source.title??source.queryId??'Saved data'
+  const provider=source.provider&&source.provider!==label?source.provider:null
+  return <li id={citeId(messageId,id)}><CitationChip id={id}/><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{provider&&<>{provider} · </>}{href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data'}<ObservedAt value={source.observedAt} dateOnly/></span></span></li>
+}
+function SourceList({sources,messageId}) {
+  if(!sources.length)return null
+  const heading=`ask-sources-${String(messageId).replace(/[^\w-]/g,'')}`
+  return <section className="egm-ask-sources-block" aria-labelledby={heading}><h3 className="egm-ask-section-label" id={heading}>Sources</h3><ol className="egm-ask-sources">{sources.map((source,index)=><SourceRow key={`${source.id??index}-${source.queryId??''}`} source={source} index={index} messageId={messageId}/>)}</ol></section>
+}
+// Streaming and final answers share one section layout, so finishing only adds cards and links instead of reflowing text.
+function AnswerBody({text,result,messageId,streaming}) {
+  const sections=answerSections(text,result?.cards??[])
+  return sections.map((section,i)=><React.Fragment key={i}>
+    {section.text.trim()&&<MessageResponse isAnimating={streaming&&i===sections.length-1} components={citationComponents}>{result?linkCitations(section.text,result.sources,messageId):section.text}</MessageResponse>}
+    {section.cards.length>0&&<div className="egm-ask-cards">{section.cards.map(({card,index})=><AnswerCard key={`${messageId}-${card.queryId}-${index}`} turnId={messageId} card={card} index={index}/>)}</div>}
+  </React.Fragment>)
 }
 
 const citationComponents={a:({href,children,node,...props})=>href?.startsWith('#ask-cite-')?<a {...props} href={href} className="egm-ask-cite" aria-label={`Source ${children}`}>{children}</a>:<a {...props} href={href} target="_blank" rel="noreferrer">{children}</a>}
@@ -175,14 +197,11 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           if(!streaming&&!text&&!steps.length&&!result&&!stopped.has(message.id))return null
           return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}>
             {(steps.length>0||streaming)?<><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={steps} running={streaming&&!result}/></>:<span className="egm-chat-speaker"><Mark/></span>}
-            {text&&!result&&<MessageResponse isAnimating={streaming} components={citationComponents}>{text}</MessageResponse>}
-            {result&&answerSections(text,result.cards).map((section,sectionIndex)=><React.Fragment key={sectionIndex}>
-              {section.text.trim()&&<MessageResponse isAnimating={false} components={citationComponents}>{linkCitations(section.text,result.sources,message.id)}</MessageResponse>}
-              {section.cards.length>0&&<div className="egm-ask-cards">{section.cards.map(({card,index})=><AnswerCard key={`${message.id}-${card.queryId}-${index}`} turnId={message.id} card={card} index={index}/>)}</div>}
-            </React.Fragment>)}
+            {text&&<AnswerBody text={text} result={result} messageId={message.id} streaming={streaming}/>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
-            {result&&<AssistantResult message={message} result={result}/>}
-            {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
+            {typeof result?.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
+            {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={result?.coverageNote?`${text}\n\n${result.coverageNote}`:text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
+            {result&&<SourceList sources={result.sources} messageId={message.id}/>}
           </div>
         })())}
         {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={[]} running/></div>}

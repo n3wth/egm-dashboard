@@ -1,13 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {DatabaseSync} from 'node:sqlite'
-import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations} from './ask.mjs'
+import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations,summedUniques} from './ask.mjs'
 const origin='https://egm.n3wth.com'
 const user={id:'owner',status:'approved'}
 const snapshot={generatedAt:'2026-10-28T00:00:00Z',queries:{traffic:{rows:[{views:100,rawMarkdown:'untrusted long body'}],source:{label:'GitHub traffic',executedAt:'2026-10-27T00:00:00Z',links:[{url:'javascript:alert(1)'},{url:'https://github.com/google/elephant-goldfish-model'}]}}}}
 const request=(body={question:'How many views?'},headers={})=>new Request(origin+'/api/ask',{method:'POST',headers:{origin,'content-type':'application/json',...headers},body:JSON.stringify(body)})
 function environment(changes=1) {
-  return {APP_URL:origin,DB:{prepare(sql){return {bind(){return this},async first(){return {body:JSON.stringify(snapshot),generated_at:snapshot.generatedAt}},async run(){assert.match(sql,/INSERT INTO audit/);return {meta:{changes}}}}}},INFER:{async run(model,input){assert.equal(input.max_tokens,1024);assert.match(model,/^gemini-/);assert.ok(!input.messages[1].content.includes('rawMarkdown'));return {response:'100 views [S1]'}}}}
+  return {APP_URL:origin,DB:{prepare(sql){return {bind(){return this},async first(){return {body:JSON.stringify(snapshot),generated_at:snapshot.generatedAt}},async run(){assert.match(sql,/INSERT INTO audit/);return {meta:{changes}}}}}},INFER:{async run(model,input){assert.equal(input.max_tokens,2048);assert.match(model,/^gemini-/);assert.ok(!input.messages[1].content.includes('rawMarkdown'));return {response:'100 views [S1]'}}}}
 }
 test('same-origin approved JSON requests only',async()=>{
   assert.equal((await handleAsk(request(),environment(),null)).status,403)
@@ -252,4 +252,24 @@ test('prompt requires neutral verbs and measurable experiment criteria',async()=
   assert.match(system,/never drove, caused, led to or resulted in/)
   assert.match(system,/current cited value as the baseline, the observation window/)
   assert.match(system,/rolling 14-day window/)
+})
+test('summed unique counts are detected per sentence',()=>{
+  assert.equal(summedUniques('LinkedIn sent 2,507 unique visitors (1,718 + 789) [S1].'),true)
+  assert.equal(summedUniques('LinkedIn sent 1,718 unique visitors. Views were 1,969 + 882 overall.'),false)
+  assert.equal(summedUniques('Both apps sent a combined 3,429 unique visitors.'),true)
+  assert.equal(summedUniques('The combined unique count is unknown.'),false)
+  assert.equal(summedUniques('The repo had a total of 14,613 unique visitors.'),false)
+  assert.equal(summedUniques('They sent 7,178 combined unique visitors.'),true)
+})
+test('cards only come from cited records and sources lead with dataset names',async()=>{
+  const env=environment()
+  const prepare=env.DB.prepare
+  env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('SELECT body'))statement.first=async()=>({body:JSON.stringify({...snapshot,queries:{...snapshot.queries,reach:{rows:[{stars:42}],source:{label:'GitHub REST API'}}}}),generated_at:snapshot.generatedAt});return statement}
+  const ids=askContext({...snapshot,queries:{...snapshot.queries,reach:{rows:[{stars:42}],source:{label:'GitHub REST API'}}}},'Repository reach').records.map(record=>[record.queryId,record.id])
+  const reachId=ids.find(([queryId])=>queryId==='reach')[1]
+  env.INFER.run=async()=>({response:`Stars were 42 [${reachId}].`})
+  const result=await (await handleAsk(request({question:'Repository reach'}),env,user)).json()
+  assert.deepEqual(result.cards.map(card=>card.queryId),['reach'])
+  assert.equal(result.sources[0].label,'Repository reach')
+  assert.equal(result.sources[0].provider,'GitHub REST API')
 })
