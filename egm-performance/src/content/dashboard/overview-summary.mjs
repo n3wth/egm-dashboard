@@ -3,10 +3,18 @@ import {isSearchVideo} from './referrer-channels.mjs'
 const count=value=>Number.isFinite(value)&&value>=0
 const number=value=>value.toLocaleString('en-US')
 const shortDate=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
+const monthDay=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
+const dayOnly=value=>new Intl.DateTimeFormat('en-US',{day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
+export function reportingRangeLabel(dates=[]) {
+  const days=[...dates].filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date??'')).sort()
+  if(days.length<2)return null
+  const [start,end]=[days[0],days.at(-1)]
+  const endLabel=start.slice(0,7)===end.slice(0,7)?dayOnly(end):monthDay(end)
+  return `${monthDay(start)} – ${endLabel}`
+}
 export function reportingRange(queries={}) {
-  const traffic=[...(queries.traffic?.rows??[])].filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date??'')).sort((a,b)=>a.date.localeCompare(b.date))
-  if(traffic.length<2)return null
-  return {label:`${shortDate(traffic[0].date)} – ${shortDate(traffic.at(-1).date)}`,note:'UTC'}
+  const label=reportingRangeLabel((queries.traffic?.rows??[]).map(row=>row.date))
+  return label?{label,note:'UTC'}:null
 }
 export function overviewSummary(queries={}) {
   const reach=queries.reach?.rows?.[0]
@@ -25,9 +33,9 @@ export function overviewSummary(queries={}) {
     // An even spread over the window would put 3/N of the views in the last three days; stating that baseline lets the reader judge the share.
     const even=percentage(3/traffic.length)
     sentences.push(`${stars?stars+'; ':''}${percentage(recent/total)} of the ${number(total)} repo views between ${shortDate(traffic[0].date)} and ${shortDate(traffic.at(-1).date)} (UTC) arrived in the last three days, ${shortDate(recentDays[0].date)}–${shortDate(recentDays.at(-1).date)}; an even spread would be ${even}.`)
-    headline=`${percentage(recent/total)} of the ${number(total)} repo views arrived in the last three days.`
+    headline=`${percentage(recent/total)} of ${number(total)} repo views arrived in the last 3 days.`
+    facts.push(`vs ${even} if evenly spread`)
     if(count(reach?.stars))facts.push(`${number(reach.stars)} recorded stars`)
-    facts.push(`An even spread would be ${even}`)
     ids.add('traffic')
   } else if(stars||count(reach?.views)) {
     sentences.push(`${stars??'The snapshot records'}${count(reach?.views)?`${stars?' and ':' '}${number(reach.views)} repo views in GitHub’s two-week traffic window`:''}.`)
