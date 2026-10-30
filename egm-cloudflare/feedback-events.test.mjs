@@ -110,11 +110,12 @@ test('PostHog feedback is retried with one stable survey submission ID', async (
   await flushFeedbackToPosthog(env, async () => assert.fail('duplicate delivery'))
 })
 
-test('survey availability and iteration are verified before accepting feedback', async () => {
+test('feedback is stored when PostHog is down and rejected when the survey iteration changed', async () => {
   const env = environment()
   assert.equal((await loadFeedbackSurvey(env, survey)).status, 200)
-  assert.equal((await submitFeedback(feedback(), env, owner, async () => new Response('error', { status: 503 }))).status, 503)
-  assert.equal(env.sql.prepare('SELECT count(*) n FROM feedback_items').get().n, 0)
+  assert.equal((await submitFeedback(feedback(), env, owner, async () => new Response('error', { status: 503 }))).status, 200)
+  assert.equal(env.sql.prepare('SELECT count(*) n FROM feedback_items').get().n, 1)
+  assert.equal(env.sql.prepare('SELECT posthog_complete FROM feedback_items').get().posthog_complete, 0)
   assert.equal((await submitFeedback(feedback({ id, kind: 'Bug report', message: 'Broken chart', surveyIteration: 5 }), env, owner, survey)).status, 409)
 })
 

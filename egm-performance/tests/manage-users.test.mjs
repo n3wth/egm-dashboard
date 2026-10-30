@@ -12,6 +12,8 @@ test('access actions identify the affected person and invitation', async () => {
     const actions = render(UserAccessActions, {user:{id:'1',name:'Alex',email:'alex@example.com'},busy:false,onDecide:()=>{}})
     assert.match(actions, /aria-label="Approve Alex \(alex@example.com\)"/)
     assert.match(actions, /aria-label="Deny Alex \(alex@example.com\)"/)
+    assert.match(render(UserAccessActions, {user:{id:'1',name:'Alex',email:'alex@example.com',status:'approved'},busy:false,onDecide:()=>{}}), /aria-label="Revoke access for Alex \(alex@example.com\)"/)
+    assert.match(render(UserAccessActions, {user:{id:'1',name:'Alex',email:'alex@example.com',status:'denied'},busy:false,onDecide:()=>{}}), /aria-label="Undo denial for Alex \(alex@example.com\)"/)
     assert.match(render(InvitationRevokeAction,{invitation:{id:'2',email:'alex@example.com'},onRevoke:()=>{}}), /aria-label="Revoke invitation for alex@example.com"/)
     assert.match(render(InvitationRevokeAction,{invitation:{id:'3'},onRevoke:()=>{}}), /aria-label="Revoke shareable link invitation"/)
     assert.match(render(CopyInvitationLink,{copied:true,onCopy:()=>{}}), /role="status"[^>]*>Invitation link copied\./)

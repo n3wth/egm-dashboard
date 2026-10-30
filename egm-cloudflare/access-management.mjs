@@ -59,11 +59,15 @@ export async function manageAccess(request,env,user,fetcher=fetch) {
   let input
   try{input=JSON.parse(body)}catch{return reply({error:'invalid_request'},400)}
   if(!input||Object.keys(input).some(key=>!['id','decision'].includes(key))||typeof input.id!=='string'||!input.id||input.id.length>200||!['approved','denied'].includes(input.decision)||input.id===user.id)return reply({error:'invalid_request'},400)
+  const current=await env.DB.prepare('SELECT status FROM users WHERE id=?').bind(input.id).first()
+  if(!current||current.status===input.decision||!['pending','approved','denied'].includes(current.status))return reply({error:'unchanged'},409)
+  // pending -> approved/denied, approved -> denied (revoke), denied -> approved (undo).
+  const auditAction=current.status==='approved'&&input.decision==='denied'?'revoked':current.status==='denied'&&input.decision==='approved'?'reinstated':input.decision
   const at=new Date().toISOString()
   const ownerId=/^user_[A-Za-z0-9]+$/.test(env.WORKOS_OWNER_USER_ID??'')?env.WORKOS_OWNER_USER_ID:''
   const results=await env.DB.batch([
-    env.DB.prepare("UPDATE users SET status=?,decided_at=?,decided_by=? WHERE id=? AND status='pending' AND id<>? AND (?<>'' OR email<>?)").bind(input.decision,at,user.id,input.id,ownerId,ownerId,env.OWNER_EMAIL),
-    env.DB.prepare('INSERT INTO audit(id,user_id,action,actor,created_at) SELECT ?,id,?,?,? FROM users WHERE changes()=1 AND id=? AND decided_at=? AND decided_by=? AND status=?').bind(crypto.randomUUID(),input.decision,user.id,at,input.id,at,user.id,input.decision)
+    env.DB.prepare('UPDATE users SET status=?,decided_at=?,decided_by=? WHERE id=? AND status=? AND id<>? AND (?<>\'\' OR email<>?)').bind(input.decision,at,user.id,input.id,current.status,ownerId,ownerId,env.OWNER_EMAIL),
+    env.DB.prepare('INSERT INTO audit(id,user_id,action,actor,created_at) SELECT ?,id,?,?,? FROM users WHERE changes()=1 AND id=? AND decided_at=? AND decided_by=? AND status=?').bind(crypto.randomUUID(),auditAction,user.id,at,input.id,at,user.id,input.decision)
   ])
-  return results[0].meta?.changes===1?reply({ok:true}):reply({error:'not_pending'},409)
+  return results[0].meta?.changes===1?reply({ok:true,action:auditAction}):reply({error:'unchanged'},409)
 }

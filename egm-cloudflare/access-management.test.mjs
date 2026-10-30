@@ -8,7 +8,7 @@ function environment() {
   const db=new DatabaseSync(':memory:')
   db.exec('CREATE TABLE users(id TEXT,name TEXT,email TEXT,status TEXT,created_at TEXT,decided_at TEXT,decided_by TEXT);CREATE TABLE audit(id TEXT,user_id TEXT,action TEXT,actor TEXT,created_at TEXT)')
   db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?,?)').run('pending','Guest','guest@example.org','pending','2026-10-28',null,null)
-  return {APP_URL:'https://egm.n3wth.com',OWNER_EMAIL:owner.email,db,DB:{prepare(sql){return {bind(...args){return {async run(){const result=db.prepare(sql).run(...args);return {meta:{changes:Number(result.changes)}}},sql,args}},async all(){return {results:db.prepare(sql).all()}}}},async batch(statements){return statements.map(({sql,args})=>({meta:{changes:Number(db.prepare(sql).run(...args).changes)}}))}}}
+  return {APP_URL:'https://egm.n3wth.com',OWNER_EMAIL:owner.email,db,DB:{prepare(sql){return {bind(...args){return {async run(){const result=db.prepare(sql).run(...args);return {meta:{changes:Number(result.changes)}}},async first(){return db.prepare(sql).get(...args)??null},sql,args}},async all(){return {results:db.prepare(sql).all()}}}},async batch(statements){return statements.map(({sql,args})=>({meta:{changes:Number(db.prepare(sql).run(...args).changes)}}))}}}
 }
 const request=(body,origin='https://egm.n3wth.com')=>new Request('https://egm.n3wth.com/api/access',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(body)})
 test('oversized streamed access requests are rejected before any mutation',async()=>{
@@ -31,8 +31,15 @@ test('pending approval is audited once, cannot be repeated or mutate owner; invi
   assert.equal(list.shareUrl,env.APP_URL+'/overview')
   assert.equal(list.users.length,1)
   assert.equal((await manageAccess(request({id:'pending',decision:'approved'}),env,owner)).status,200)
-  assert.equal((await manageAccess(request({id:'pending',decision:'denied'}),env,owner)).status,409)
-  assert.equal(env.db.prepare('SELECT count(*) AS count FROM audit').get().count,1)
+  assert.equal((await manageAccess(request({id:'pending',decision:'approved'}),env,owner)).status,409)
+  assert.equal(env.db.prepare('SELECT action FROM audit').get().action,'approved')
+  const revoked=await manageAccess(request({id:'pending',decision:'denied'}),env,owner)
+  assert.equal(revoked.status,200)
+  assert.equal((await revoked.json()).action,'revoked')
+  const restored=await manageAccess(request({id:'pending',decision:'approved'}),env,owner)
+  assert.equal(restored.status,200)
+  assert.equal((await restored.json()).action,'reinstated')
+  assert.equal(env.db.prepare('SELECT count(*) AS count FROM audit').get().count,3)
   assert.equal(env.db.prepare('SELECT status FROM users').get().status,'approved')
   assert.equal((await manageAccess(request({id:'owner',decision:'denied'}),env,owner)).status,400)
 })
