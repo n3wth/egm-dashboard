@@ -267,3 +267,72 @@ test('a previously denied person with a valid invitation sees accurate copy and 
     assert.equal(db.prepare("SELECT status FROM users WHERE id='guest'").get().status, 'denied')
   } finally { globalThis.fetch = priorFetch }
 })
+test('every failed invited sign-in returns to the invitation and creates no pending user', async () => {
+  const { db, env } = setup(), invite = await create(env)
+  const { continued, inviteCookie, flowCookie } = await startInvitation(env, invite.url)
+  assert.match(continued.headers.get('set-cookie'), /__Host-egm_invite=[^;]+;.*Max-Age=3600/)
+  const flow = await open(flowCookie, env.SESSION_SECRET, 'login')
+  const callback = (query, cookies) => handle(new Request(`${env.APP_URL}/auth/callback?${query}`, { headers: { cookie: cookies } }), env)
+  const priorFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async () => Response.json({ user: { ...person(), email_verified: false } })
+    for (const [title, query, cookies] of [
+      ['Sign-in cancelled', `error=access_denied&state=${encodeURIComponent(flow.state)}`, `__Host-egm_flow=${flowCookie}`],
+      ['Sign-in expired', 'code=test&state=other', `__Host-egm_flow=${flowCookie}`],
+      ['Verify your email', `code=test&state=${encodeURIComponent(flow.state)}`, `__Host-egm_flow=${flowCookie}`],
+      ['Sign-in expired', 'code=test&state=other', `__Host-egm_invite=${inviteCookie}`]
+    ]) {
+      const response = await callback(query, cookies)
+      const html = await response.text()
+      assert.match(html, new RegExp(title), title)
+      assert.match(html, /href="\/auth\/invite" class="action"/, title)
+      const kept = response.headers.get('set-cookie').match(/__Host-egm_invite=([^;]+)/)?.[1]
+      assert.equal((await open(kept, env.SESSION_SECRET, 'invitation'))?.token, invite.token, title)
+    }
+  } finally { globalThis.fetch = priorFetch }
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM users WHERE id='guest'").get().n, 0)
+})
+test('an expired invitation cookie asks the person to reopen their link instead of a plain sign-in', async () => {
+  const { env } = setup()
+  for (const request of [new Request(env.APP_URL+'/auth/invite'), new Request(env.APP_URL+'/auth/invite/continue', { method: 'POST', headers: { origin: env.APP_URL } })]) {
+    const response = await handle(request, env)
+    assert.equal(response.status, 400)
+    const html = await response.text()
+    assert.match(html, /Open your invitation again/)
+    assert.doesNotMatch(html, /\/auth\/login/)
+    assert.equal(response.headers.get('location'), null)
+  }
+})
+test('the invitation cookie ends when the invitation is redeemed or unusable', async () => {
+  const { db, env } = setup(), invite = await create(env)
+  const { flowCookie, inviteCookie } = await startInvitation(env, invite.url)
+  const flow = await open(flowCookie, env.SESSION_SECRET, 'login')
+  const callback = () => handle(new Request(`${env.APP_URL}/auth/callback?state=${encodeURIComponent(flow.state)}&code=test`, { headers: { cookie: `__Host-egm_flow=${flowCookie}; __Host-egm_invite=${inviteCookie}` } }), env)
+  const priorFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async () => Response.json({ user: person() })
+    const signedIn = await callback()
+    assert.equal(signedIn.status, 302)
+    assert.match(signedIn.headers.get('set-cookie'), /__Host-egm_invite=;.*Max-Age=0/)
+    globalThis.fetch = async () => Response.json({ user: person('other', 'other@example.org') })
+    const used = await callback()
+    const html = await used.text()
+    assert.match(html, /This invitation is unavailable/)
+    assert.match(html, /href="\/auth\/login" class="action"/)
+    assert.match(used.headers.get('set-cookie'), /__Host-egm_invite=;.*Max-Age=0/)
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM users WHERE id='other'").get().n, 0)
+  } finally { globalThis.fetch = priorFetch }
+})
+test('an internal callback failure retries through the invitation while its cookie lasts', async () => {
+  const { env: base } = setup(), invite = await create(base)
+  const { flowCookie, inviteCookie } = await startInvitation(base, invite.url)
+  const flow = await open(flowCookie, base.SESSION_SECRET, 'login')
+  const env = { ...base, DB: { prepare() { throw Error('d1 down') } } }
+  const priorFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async () => Response.json({ user: person() })
+    const response = await (await import('./worker.mjs')).default.fetch(new Request(`${env.APP_URL}/auth/callback?state=${encodeURIComponent(flow.state)}&code=test`, { headers: { cookie: `__Host-egm_flow=${flowCookie}; __Host-egm_invite=${inviteCookie}` } }), env, {})
+    assert.equal(response.status, 503)
+    assert.match(await response.text(), /href="\/auth\/invite" class="action">Try again/)
+  } finally { globalThis.fetch = priorFetch }
+})
