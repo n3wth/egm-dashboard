@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {AskTransport,answerText,askHistory,messageResult,messageText} from './ask-transport.mjs'
+import {AskTransport,answerText,askErrorMessage,askFailureMessage,askHistory,askNeedsSignIn,askRetryable,messageResult,messageText} from './ask-transport.mjs'
 
 const user=(id,text)=>({id,role:'user',parts:[{type:'text',text}]})
 const assistant=(id,text,result={answer:text})=>({id,role:'assistant',parts:[{type:'text',text},...(result?[{type:'data-result',data:result}]:[])]})
@@ -27,6 +27,13 @@ test('maps NDJSON deltas and result to UI message chunks',async()=>{
   assert.equal(result.cards.length,3)
   assert.deepEqual(result.sources,[])
   assert.deepEqual(outcomes,['submitted','completed'])
+})
+test('maps step events to data-step parts keyed by step id',async()=>{
+  const transport=new AskTransport({fetch:async()=>ndjson([{type:'step',id:'context',label:'Reading saved dashboard data',status:'active'},{type:'step',id:'context',label:'Reading saved dashboard data',status:'done',detail:'3 sources'},{type:'delta',text:'Hi'},{type:'result',answer:'Hi'}])})
+  const chunks=await read(await transport.sendMessages({messages:[user('u0','q')]}))
+  const steps=chunks.filter(chunk=>chunk.type==='data-step')
+  assert.deepEqual(steps.map(chunk=>[chunk.id,chunk.data.status,chunk.data.detail]),[['context','active',undefined],['context','done','3 sources']])
+  assert.equal(chunks.indexOf(steps[1])<chunks.findIndex(chunk=>chunk.type==='text-start'),true)
 })
 test('emits the answer text when the result arrives without deltas',async()=>{
   const transport=new AskTransport({fetch:async()=>ndjson([{type:'result',answer:'Only result'}])})
@@ -69,4 +76,58 @@ test('abort reports stopped once and emits no error chunk',async()=>{
   const chunks=await reading
   assert.equal(chunks.some(chunk=>chunk.type==='error'),false)
   assert.deepEqual(outcomes,['submitted','stopped'])
+})
+
+test('linkCitations links only known source markers', async () => {
+  const {linkCitations}=await import('./ask-transport.mjs')
+  assert.equal(linkCitations('Up [1], not [9], kept [2](x).',[{id:'1'},{id:'2'}],'m:1'),'Up [1](#ask-cite-m1-1), not [9], kept [2](x).')
+  assert.equal(linkCitations('No [1].',[],'m'),'No [1].')
+})
+
+test('retry is offered only when trying again can help',()=>{
+  for(const status of [400,401,403,413,429])assert.equal(askRetryable(askErrorMessage(status)),false,String(status))
+  for(const status of [500,502,503,504])assert.equal(askRetryable(askErrorMessage(status)),true,String(status))
+  assert.equal(askRetryable('The answer took too long. Try again.'),true)
+  assert.equal(askNeedsSignIn(askErrorMessage(401)),true)
+  assert.equal(askNeedsSignIn(askErrorMessage(403)),false)
+})
+test('network failures get a plain message instead of the raw fetch error',async()=>{
+  const outcomes=[]
+  const transport=new AskTransport({fetch:async()=>{throw new TypeError('Failed to fetch')},onOutcome:value=>outcomes.push(value)})
+  await assert.rejects(transport.sendMessages({messages:[user('u0','q')]}),/Check your connection/)
+  assert.deepEqual(outcomes,['submitted','failed'])
+  assert.match(askFailureMessage(new TypeError('network error'),{streaming:true}),/connection dropped/)
+  assert.match(askFailureMessage(new SyntaxError('Unexpected token')),/incomplete/)
+  assert.match(askFailureMessage(new Error('x'),{timedOut:true}),/too long/)
+})
+test('a stream that breaks mid-answer reports a dropped connection',async()=>{
+  const stream=new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode('{"type":"delta","text":"Part"}\n'));controller.error(new TypeError('network error'))}})
+  const transport=new AskTransport({fetch:async()=>new Response(stream,{headers:{'content-type':'application/x-ndjson'}})})
+  const chunks=await read(await transport.sendMessages({messages:[user('u0','q')]}))
+  assert.match(chunks.at(-1).errorText,/connection dropped/)
+})
+test('an empty answer is an error, not a blank reply',async()=>{
+  const streamed=new AskTransport({fetch:async()=>ndjson([{type:'result',answer:'  '}])})
+  assert.match((await read(await streamed.sendMessages({messages:[user('u0','q')]}))).at(-1).errorText,/empty answer/)
+  const plain=new AskTransport({fetch:async()=>Response.json({answer:''})})
+  assert.match((await read(await plain.sendMessages({messages:[user('u0','q')]}))).at(-1).errorText,/empty answer/)
+})
+test('a 200 that is not JSON becomes an incomplete-answer error',async()=>{
+  const transport=new AskTransport({fetch:async()=>new Response('<html>',{headers:{'content-type':'text/html'}})})
+  assert.match((await read(await transport.sendMessages({messages:[user('u0','q')]}))).at(-1).errorText,/incomplete/)
+})
+test('the timeout aborts a stalled request with the too-long message',async()=>{
+  const transport=new AskTransport({timeoutMs:20,fetch:(_url,init)=>new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError'))))})
+  await assert.rejects(transport.sendMessages({messages:[user('u0','q')]}),/too long/)
+})
+test('answerSections places each card after the section that first cites it', async () => {
+  const {answerSections}=await import('./ask-transport.mjs')
+  const sections=answerSections('Intro\n## One\nVideo [2]\n## Two\nSite [1] and [2]',[{sourceId:'1'},{sourceId:'2'},{sourceId:'9'}])
+  assert.deepEqual(sections.map(section=>[section.text,section.cards.map(item=>item.index)]),[['Intro',[]],['## One\nVideo [2]',[1]],['## Two\nSite [1] and [2]',[0,2]]])
+  assert.deepEqual(answerSections('Plain [1]',[]).map(section=>section.text),['Plain [1]'])
+})
+test('answerSections spreads cards across citing sections before stacking them', async () => {
+  const {answerSections}=await import('./ask-transport.mjs')
+  const sections=answerSections('## A\nx [1] [2] [3]\n## B\ny [1] [2]\n## C\nz [3]',[{sourceId:'1'},{sourceId:'2'},{sourceId:'3'}])
+  assert.deepEqual(sections.map(section=>section.cards.map(item=>item.card.sourceId)),[['1'],['2'],['3']])
 })

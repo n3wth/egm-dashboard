@@ -27,7 +27,7 @@ export function starWeeklyChange(rows,observedAt) {
  */
 export function weeklyChangeLabel(weekly,noun) {
   if(!weekly)return null
-  const counts=`${n(weekly.current)} ${noun} in the last 7 days vs ${n(weekly.previous)} in the 7 before`
+  const counts=`${n(weekly.current)}${noun?' '+noun:''} last 7d · ${n(weekly.previous)} prior 7d`
   const meaningful=weekly.previous>=100&&Math.abs(weekly.change)<=1000
   return meaningful?`${weekly.change>=0?'+':''}${n(weekly.change)}% · ${counts}`:counts
 }

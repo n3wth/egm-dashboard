@@ -33,7 +33,7 @@ async function rpcClient(env, request) {
   const call = async (method, params, notification = false) => {
     const headers = { authorization, 'content-type': 'application/json', accept: 'application/json, text/event-stream', 'mcp-protocol-version': '2025-03-26' }
     if (session) headers['mcp-session-id'] = session
-    const response = await request(endpoint, { method: 'POST', headers, body: JSON.stringify({ jsonrpc: '2.0', ...(notification ? {} : { id: ++sequence }), method, params }), signal: AbortSignal.timeout(20000) })
+    const response = await request(endpoint, { method: 'POST', redirect: 'error', headers, body: JSON.stringify({ jsonrpc: '2.0', ...(notification ? {} : { id: ++sequence }), method, params }), signal: AbortSignal.timeout(20000) })
     if (!response.ok) throw Error(response.status === 401 ? 'unauthorized' : response.status === 403 ? 'forbidden' : 'http_error')
     session = response.headers.get('mcp-session-id') ?? session
     if (notification) return

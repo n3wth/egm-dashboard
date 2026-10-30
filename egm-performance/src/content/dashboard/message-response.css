@@ -1,0 +1,19 @@
+.egm-message-response { font-size: var(--ask-text-body); line-height: var(--ask-leading-body); overflow-wrap: anywhere; }
+.egm-message-response + .egm-message-response, .egm-ask-cards + .egm-message-response { margin-top: var(--ask-space-4); }
+/* Sections opening with a top-level heading start a new topic, so they get more room than subheading sections. */
+:is(.egm-message-response,.egm-ask-cards) + .egm-message-response:has(> :first-child:is(h1,h2)) { margin-top: var(--ask-space-6); }
+.egm-message-response > * { margin: 0 0 var(--ask-space-3); }
+.egm-message-response > :first-child { margin-top: 0; }
+.egm-message-response > :last-child { margin-bottom: 0; }
+.egm-message-response :is(ul,ol) { padding-left: 1.6em; }
+.egm-message-response li + li { margin-top: var(--ask-space-2); }
+.egm-message-response :is(h1,h2,h3,h4,h5,h6) { margin: var(--ask-space-5) 0 var(--ask-space-2); color: var(--text); font-weight: 600; line-height: var(--ask-leading-heading); letter-spacing: 0; }
+/* Conversational scale: answer headings never exceed the title step, whatever level the model emits. */
+.egm-message-response h1 { font-size: var(--ask-text-title); }
+.egm-message-response h2 { font-size: var(--ask-text-heading); }
+.egm-message-response :is(h3,h4,h5,h6) { font-size: var(--ask-text-body); }
+.egm-message-response blockquote { border-left: 3px solid var(--border); padding-left: 1em; color: var(--secondary); }
+.egm-message-response pre { overflow-x: auto; padding: 12px; background: var(--muted); border-radius: 8px; }
+.egm-message-response code { font-size: .9em; }
+.egm-message-response table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.egm-message-response :is(th,td) { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }

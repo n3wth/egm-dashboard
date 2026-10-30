@@ -676,13 +676,13 @@ function DataAppOverflowMenu({
           <Dropdown.Group className="dashboard-mobile-menu-group">
             <Dropdown.Label className="menu-group-label">Actions</Dropdown.Label>
             <MenuItem
-              icon="chatBubble"
+              icon="gemini"
               className="dashboard-action-menu-item"
               onSelect={() => {
                 requestAnimationFrame(() => onAsk?.());
               }}
             >
-              Ask
+              Ask Gemini
             </MenuItem>
             {canEdit && (
               <MenuItem icon="edit" className="dashboard-action-menu-item" onSelect={onEdit}>
@@ -966,7 +966,7 @@ export function DataAppTopbar({
   const moreButtonRef = useRef(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const [refreshScheduleOpen, setRefreshScheduleOpen] = useState(false);
-  const { openDashboardComposer } = useDashboardAsk();
+  const { openDashboardComposer, headerComposerOpen } = useDashboardAsk();
   function openAskComposer(anchor = askButtonRef.current) {
     if (build.active) return;
     openDashboardComposer(
@@ -1054,9 +1054,10 @@ export function DataAppTopbar({
       >
         <div className="dashboard-chrome-inner dashboard-topbar-inner">
           <div className="dashboard-topbar-copy">
-<a href="/overview" aria-label="EGM overview" onClick={event=>{const overviewTab=tabs.find(tab=>tab.id==='reach')??tabs.find(tab=>tab.label==='Overview');if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||!onTabChange||!overviewTab)return;event.preventDefault();onTabChange(overviewTab.id)}} style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
-<path d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2ZM20 12l3-2.6M20 12l3 2.6" />
+<a href="/overview" className="dashboard-logo-link" aria-label="EGM overview" onClick={event=>{const overviewTab=tabs.find(tab=>tab.id==='reach')??tabs.find(tab=>tab.label==='Overview');if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||!onTabChange||!overviewTab)return;event.preventDefault();onTabChange(overviewTab.id)}} style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path className="dashboard-logo-body" d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
+<path className="dashboard-logo-body" d="M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2Z" />
+<path d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M20 12l3-2.6M20 12l3 2.6" />
             </svg></a>
             {published && surface !== "report" && verification && (
               <DataAppVerificationBadge
@@ -1248,18 +1249,19 @@ export function DataAppTopbar({
                 <HeaderActionButton
                   disabled={mode === "edit" ? saving : build.active}
                   data-mode-action="secondary"
+                  data-state={mode !== "edit" && headerComposerOpen ? "open" : undefined}
                   aria-describedby={mode !== "edit" && build.active ? askTooltipId : undefined}
                   ref={askButtonRef}
-                  label={mode === "edit" ? "Cancel" : "Ask"}
+                  label={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   iconOnly={mode !== "edit"}
-                  icon={mode === "edit" ? null : "chatBubble"}
-                  compactLabel={mode === "edit" ? "Cancel" : "Ask"}
+                  icon={mode === "edit" ? null : "gemini"}
+                  compactLabel={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   className="dashboard-ask-button"
                   onClick={mode === "edit" ? onCancel : () => openAskComposer()}
                 />
                 {mode !== 'edit' && (
                   <Tooltip id={askTooltipId} className="topbar-mode-tooltip">
-                    {build.active?`Available when this ${noun} is ready.`:'Ask'}
+                    {build.active?`Available when this ${noun} is ready.`:'Ask Gemini'}
                   </Tooltip>
                 )}
               </span>

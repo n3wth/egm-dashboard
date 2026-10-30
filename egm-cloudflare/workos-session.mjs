@@ -18,10 +18,19 @@ async function encrypt(secret, sessionId, userId, payload) {
   return `${b64(iv)}.${b64(new Uint8Array(ciphertext))}`
 }
 
-async function decrypt(secret, sessionId, userId, value) {
+// SESSION_SECRET rotation: set the new value as SESSION_SECRET and the old one
+// as SESSION_SECRET_PREVIOUS. Everything is written with the current secret and
+// read with either; remove the previous secret once sessions have expired.
+export const sessionSecrets = env => [env.SESSION_SECRET, env.SESSION_SECRET_PREVIOUS].filter((value, index) => typeof value === 'string' && value.length >= 48 && (index === 0 || value !== env.SESSION_SECRET))
+
+async function decrypt(secrets, sessionId, userId, value) {
   const [iv, ciphertext, ...rest] = value.split('.')
   if (rest.length || !iv || !ciphertext) throw Error('invalid_ciphertext')
-  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: un64(iv), additionalData: encoder.encode(`${sessionId}:${userId}`) }, await encryptionKey(secret), un64(ciphertext))
+  let plaintext
+  for (const secret of [].concat(secrets)) {
+    try { plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: un64(iv), additionalData: encoder.encode(`${sessionId}:${userId}`) }, await encryptionKey(secret), un64(ciphertext)); break } catch {}
+  }
+  if (!plaintext) throw Error('invalid_ciphertext')
   const result = JSON.parse(decoder.decode(plaintext))
   if (typeof result.accessToken !== 'string' || typeof result.refreshToken !== 'string' || !result.accessToken || !result.refreshToken) throw Error('invalid_tokens')
   return result
@@ -57,7 +66,7 @@ export async function validatedWorkosSession(env, sessionId, userId, options = {
   const row = await env.DB.prepare('SELECT * FROM workos_sessions WHERE session_id=? AND user_id=?').bind(sessionId, userId).first()
   if (!row) return { status: 'reauthenticate' }
   let tokens
-  try { tokens = await decrypt(env.SESSION_SECRET, sessionId, userId, row.tokens) } catch { return { status: 'reauthenticate' } }
+  try { tokens = await decrypt(sessionSecrets(env), sessionId, userId, row.tokens) } catch { return { status: 'reauthenticate' } }
   const verifySession = token => verifyWorkosSessionToken(token, { clientId: env.WORKOS_CLIENT_ID, issuer: env.WORKOS_RBAC_ISSUER, userId, request, now: clock(), allowExpiredForBinding: true })
   // An expired signed token remains useful solely to bind a rotation to the
   // same provider session. It never grants access on its own.
@@ -102,7 +111,7 @@ export async function workosAdminPermission(env, sessionId, userId, options = {}
   const row = await select()
   if (!row) return { status: 'reauthenticate' }
   let tokens
-  try { tokens = await decrypt(env.SESSION_SECRET, sessionId, userId, row.tokens) } catch { return { status: 'reauthenticate' } }
+  try { tokens = await decrypt(sessionSecrets(env), sessionId, userId, row.tokens) } catch { return { status: 'reauthenticate' } }
   if (row.scoped && await verifyWorkosPermission(tokens.accessToken, expected)) return { status: 'allowed' }
   if (row.scoped && unverifiedExpiry(tokens.accessToken) > clock()) return { status: 'denied' }
 
@@ -131,4 +140,21 @@ export async function workosAdminPermission(env, sessionId, userId, options = {}
   } finally {
     await env.DB.prepare('UPDATE workos_sessions SET lease_id=NULL,lease_until=0 WHERE session_id=? AND user_id=? AND lease_id=?').bind(sessionId, userId, lease).run()
   }
+}
+
+// Best-effort: end the provider session on sign-out so its refresh token stops
+// working. The session ID comes from a verified token, never from the browser.
+// https://workos.com/docs/reference/authkit/session/revoke
+export async function revokeWorkosSession(env, sessionId, options = {}) {
+  if (!(rbacConfigured(env) || workosSessionConfigured(env))) return false
+  const request = options.request ?? fetch
+  try {
+    const row = await env.DB.prepare('SELECT user_id,tokens FROM workos_sessions WHERE session_id=?').bind(sessionId).first()
+    if (!row) return false
+    const tokens = await decrypt(sessionSecrets(env), sessionId, row.user_id, row.tokens)
+    const verified = await verifyWorkosSessionToken(tokens.accessToken, { clientId: env.WORKOS_CLIENT_ID, issuer: env.WORKOS_RBAC_ISSUER, userId: row.user_id, request, now: (options.now ?? Date.now)(), allowExpiredForBinding: true })
+    if (!verified) return false
+    const response = await request('https://api.workos.com/user_management/sessions/revoke', { method: 'POST', headers: { authorization: `Bearer ${env.WORKOS_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({ session_id: verified.sessionId }), redirect: 'manual', signal: AbortSignal.timeout(5000) })
+    return response.ok
+  } catch { return false }
 }

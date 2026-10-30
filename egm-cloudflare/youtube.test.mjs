@@ -101,3 +101,25 @@ test('explicit initial backfill fills ten first-day rows then returns to three p
   const capped=await collectYouTube(enabled,request,{mentions,...almost},now+2*86401000)
   assert.equal(capped.youtube_status.rows[0].totalStatsAttempts,21)
 })
+test('with a YouTube Data API key every tracked video gets statistics in one call, including new ones',async()=>{
+  const apiEnv={REFRESH_UNTIL:env.REFRESH_UNTIL,YOUTUBE_API_KEY:'test-only'}
+  let oembed=0,api=[]
+  const item=id=>({id,snippet:{title:'T '+id,channelTitle:'C',publishedAt:'2026-10-25T15:01:21Z'},statistics:{viewCount:'10',likeCount:'2',commentCount:'1'}})
+  const request=async(url,init)=>{
+    if(url.startsWith('https://www.youtube.com/oembed')){oembed++;return Response.json(metadata(new URL(new URL(url).searchParams.get('url')).searchParams.get('v')))}
+    assert.match(url,/^https:\/\/www\.googleapis\.com\/youtube\/v3\/videos\?part=snippet,statistics&id=/)
+    assert.equal(init.headers['x-goog-api-key'],'test-only')
+    const requested=new URL(url).searchParams.get('id').split(',');api.push(requested)
+    return Response.json({items:requested.map(item)})
+  }
+  const first=await collectYouTube(apiEnv,request,queries,now)
+  assert.equal(api.length,1);assert.equal(api[0].length,4)
+  assert.ok(first.youtube_videos.rows.every(row=>row.views===10&&row.likes===2&&row.comments===1))
+  const same=await collectYouTube(apiEnv,async url=>url.startsWith('https://www.youtube.com/oembed')?assert.fail('cached'):assert.fail('stats cached'),{...queries,...first},now+60000)
+  assert.equal(same.youtube_videos.rows.length,4)
+  const added='AbCdEfGhIjK'
+  const withNew={...queries,...first,mentions:{rows:[...queries.mentions.rows,{url:'https://www.youtube.com/watch?v='+added,title:'New',kind:'Video'}]}}
+  const next=await collectYouTube(apiEnv,request,withNew,now+120000)
+  assert.deepEqual(api.at(-1),[added])
+  assert.equal(next.youtube_videos.rows.find(row=>row.videoId===added).views,10)
+})

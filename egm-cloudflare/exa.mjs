@@ -34,7 +34,7 @@ export async function collectExa(env, request = fetch, previousQueries = {}, tim
     const rows = new Map()
     for (const query of exaQueries) {
       calls++
-      const response = await request('https://api.exa.ai/search', { method: 'POST', headers: { 'x-api-key': env.EXA_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ query, type: 'auto', numResults: 5 }), signal: AbortSignal.timeout(20000) })
+      const response = await request('https://api.exa.ai/search', { method: 'POST', redirect: 'error', headers: { 'x-api-key': env.EXA_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ query, type: 'auto', numResults: 5 }), signal: AbortSignal.timeout(20000) })
       if (!response.ok) throw Error(response.status === 401 ? 'unauthorized' : response.status === 402 ? 'insufficient_credit' : response.status === 429 ? 'rate_limit' : 'provider_error')
       const body = await response.json()
       if (!Array.isArray(body.results) || body.results.length > 5) throw Error('invalid_results')

@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "cf": "0.15.0",
+    "esbuild": "0.28.2",
+    "wrangler": "4.154.0"
+  },
+  "overrides": {
+    "zod": "4.6.7",
+    "sharp": "0.35.5",
+    "undici": "7.30.1"
+  }
+}

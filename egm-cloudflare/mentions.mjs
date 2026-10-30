@@ -85,7 +85,7 @@ export async function collectMentions(env,request=fetch,previousQueries=null,tim
     const candidates=[]
     let creditsUsed=0,usageReturned=false
     for(const query of mentionQueries) {
-      const response=await request('https://api.firecrawl.dev/v2/search',{method:'POST',headers:{authorization:'Bearer '+env.FIRECRAWL_API_KEY,'content-type':'application/json'},body:JSON.stringify({query,limit:8,sources:['web'],timeout:20000}),signal:AbortSignal.timeout(25000)})
+      const response=await request('https://api.firecrawl.dev/v2/search',{method:'POST',redirect:'error',headers:{authorization:'Bearer '+env.FIRECRAWL_API_KEY,'content-type':'application/json'},body:JSON.stringify({query,limit:8,sources:['web'],timeout:20000}),signal:AbortSignal.timeout(25000)})
       if(!response.ok) return failure('provider_http_'+response.status)
       const result=await response.json()
       if(result.success!==true || !Array.isArray(result.data?.web)) return failure('invalid_provider_response')

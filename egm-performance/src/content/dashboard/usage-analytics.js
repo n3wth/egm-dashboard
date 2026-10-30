@@ -1,7 +1,8 @@
 import posthog from 'posthog-js'
 import { filterUsageEvent } from './usage-filter.mjs'
+import { starterIds } from './ask-starters.mjs'
 
-const sections = new Set(['reach', 'growth', 'acquisition', 'adoption', 'website', 'development', 'research', 'mentions'])
+const sections = new Set(['reach', 'acquisition', 'adoption', 'website', 'development', 'research', 'mentions'])
 let initialized = false
 let lastSection
 
@@ -38,4 +39,9 @@ export function trackDashboardSection(section) {
 export function trackAskOutcome(outcome) {
   if (!['submitted', 'completed', 'failed', 'stopped'].includes(outcome) || !initialize()) return
   posthog.capture('dashboard_ask', { outcome })
+}
+
+export function trackAskStarter(starter) {
+  if (![...starterIds, 'tab-question'].includes(starter) || !initialize()) return
+  posthog.capture('dashboard_ask_starter', { starter })
 }

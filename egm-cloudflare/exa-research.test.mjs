@@ -6,7 +6,7 @@ const env = { EXA_API_KEY: 'fixture', REFRESH_UNTIL: '2026-11-04T06:33:00Z' }
 test('three five-result searches use distinct angles with highlights only and tiny excerpts', async () => {
   const bodies = []
   const data = await collectExaResearch(env, async (url, init) => {
-    const body = JSON.parse(init.body); bodies.push(body)
+    assert.equal(init.redirect, 'error'); const body = JSON.parse(init.body); bodies.push(body)
     assert.equal(url, 'https://api.exa.ai/search')
     assert.equal(body.numResults, 5)
     assert.deepEqual(body.contents, { highlights: true })

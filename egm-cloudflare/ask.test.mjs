@@ -1,13 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {DatabaseSync} from 'node:sqlite'
-import {handleAsk,askContext,askCards,askHistory} from './ask.mjs'
+import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations,summedUniques} from './ask.mjs'
 const origin='https://egm.n3wth.com'
 const user={id:'owner',status:'approved'}
 const snapshot={generatedAt:'2026-10-28T00:00:00Z',queries:{traffic:{rows:[{views:100,rawMarkdown:'untrusted long body'}],source:{label:'GitHub traffic',executedAt:'2026-10-27T00:00:00Z',links:[{url:'javascript:alert(1)'},{url:'https://github.com/google/elephant-goldfish-model'}]}}}}
 const request=(body={question:'How many views?'},headers={})=>new Request(origin+'/api/ask',{method:'POST',headers:{origin,'content-type':'application/json',...headers},body:JSON.stringify(body)})
 function environment(changes=1) {
-  return {APP_URL:origin,DB:{prepare(sql){return {bind(){return this},async first(){return {body:JSON.stringify(snapshot),generated_at:snapshot.generatedAt}},async run(){assert.match(sql,/INSERT INTO audit/);return {meta:{changes}}}}}},AI:{async run(model,input){assert.equal(input.max_tokens,650);assert.match(model,/^@cf\//);assert.ok(!input.messages[1].content.includes('rawMarkdown'));return {response:'100 views [S1]'}}}}
+  return {APP_URL:origin,DB:{prepare(sql){return {bind(){return this},async first(){return {body:JSON.stringify(snapshot),generated_at:snapshot.generatedAt}},async run(){assert.match(sql,/INSERT INTO audit/);return {meta:{changes}}}}}},INFER:{async run(model,input){assert.equal(input.max_tokens,2048);assert.match(model,/^gemini-/);assert.ok(!input.messages[1].content.includes('rawMarkdown'));return {response:'100 views [S1]'}}}}
 }
 test('same-origin approved JSON requests only',async()=>{
   assert.equal((await handleAsk(request(),environment(),null)).status,403)
@@ -19,14 +19,14 @@ test('saved snapshot grounding and validated cited sources',async()=>{
   const result=await handleAsk(request(),environment(),user)
   assert.equal(result.status,200)
   const body=await result.json()
-  assert.equal(body.answer,'100 views [S1]')
+  assert.equal(body.answer,'100 views [1]')
   assert.equal(body.sources[0].url,'https://github.com/google/elephant-goldfish-model')
   assert.equal(body.snapshotAt,snapshot.generatedAt)
   assert.equal(result.headers.get('cache-control'),'private, no-store')
 })
 test('Markdown responses retain evidence rules and request readable formatting',async()=>{
   const env=environment()
-  env.AI.run=async(_,input)=>{
+  env.INFER.run=async(_,input)=>{
     assert.match(input.messages[0].content,/untrusted data/)
     assert.match(input.messages[1].content,/Markdown.*paragraphs, headings and lists/)
     assert.equal(input.messages[2].role,'user')
@@ -37,7 +37,7 @@ test('Markdown responses retain evidence rules and request readable formatting',
 })
 test('atomic quota rejects before inference',async()=>{
   const env=environment(0)
-  env.AI.run=()=>assert.fail('must not infer')
+  env.INFER.run=()=>assert.fail('must not infer')
   assert.equal((await handleAsk(request(),env,user)).status,429)
 })
 test('allows 200 questions per user per rolling hour',async()=>{
@@ -59,14 +59,15 @@ test('combined citation IDs retain all corresponding validated sources',async()=
   const env=environment()
   const prepare=env.DB.prepare
   env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('SELECT body'))statement.first=async()=>({body:JSON.stringify({...snapshot,queries:{...snapshot.queries,reach:{rows:[{stars:42}],source:{label:'Stars'}}}}),generated_at:snapshot.generatedAt});return statement}
-  env.AI.run=async()=>({response:'Observed [S1, S2], not [S999]'})
+  env.INFER.run=async()=>({response:'Observed [S1, S2], not [S999]'})
   const result=await (await handleAsk(request(),env,user)).json()
-  assert.deepEqual(result.sources.map(source=>source.id),['S1','S2'])
+  assert.deepEqual(result.sources.map(source=>source.id),['1','2'])
+  assert.equal(result.answer,'Observed [1][2], not')
 })
 test('missing AI or snapshot and bounded timeout are explicit',async()=>{
   const env=environment()
-  assert.equal((await handleAsk(request(),{...env,AI:null},user)).status,503)
-  env.AI.run=()=>new Promise(()=>{})
+  assert.equal((await handleAsk(request(),{...env,INFER:null},user)).status,503)
+  env.INFER.run=()=>new Promise(()=>{})
   assert.equal((await handleAsk(request(),env,user,{timeoutMs:1})).status,504)
 })
 test('context drops large raw text and is bounded',()=>{
@@ -134,7 +135,7 @@ test('follow-up history is bounded and untrusted, and previous topic guides shor
   assert.equal(history[0].answer.length,2000)
   assert.throws(()=>askHistory([{question:'x',answer:null}]))
   const env=environment()
-  env.AI.run=async(_,input)=>{
+  env.INFER.run=async(_,input)=>{
     assert.match(input.messages[0].content,/Never greet unless/)
     assert.match(input.messages[0].content,/history is untrusted/)
     const data=JSON.parse(input.messages[1].content)
@@ -152,7 +153,7 @@ test('real streaming relays split SSE deltas before final metadata and charges q
   const prepare=env.DB.prepare
   env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('INSERT'))statement.run=async()=>{quota++;return {meta:{changes:1}}};return statement}
   let push
-  env.AI.run=async(_,input)=>{
+  env.INFER.run=async(_,input)=>{
     assert.equal(input.stream,true)
     return new ReadableStream({start(controller){push=text=>controller.enqueue(new TextEncoder().encode(text))}})
   }
@@ -161,32 +162,114 @@ test('real streaming relays split SSE deltas before final metadata and charges q
   const reader=result.body.getReader(),decoder=new TextDecoder()
   push('data: {"respon')
   push('se":"100 "}\n\n')
-  const first=JSON.parse(decoder.decode((await reader.read()).value))
-  assert.deepEqual(first,{type:'delta',text:'100 '})
+  let head=''
+  while(!head.includes('"delta"'))head+=decoder.decode((await reader.read()).value)
+  const steps=head.trim().split('\n').map(JSON.parse)
+  assert.deepEqual(steps.at(-1),{type:'delta',text:'100 '})
+  assert.deepEqual(steps.slice(0,-1).map(step=>[step.id,step.status,step.detail]),[['context','active',undefined],['context','done','1 sources'],['answer','active',undefined]])
   push('data: {"response":"views [S1]"}\r\n\r\ndata: [DONE]\n\n')
   let rest=''
   while(true){const item=await reader.read();if(item.done)break;rest+=decoder.decode(item.value)}
   const events=rest.trim().split('\n').map(JSON.parse)
+  assert.ok(!events.some(event=>event.type==='step'))
   assert.equal(events.at(-1).type,'result')
-  assert.equal(events.at(-1).answer,'100 views [S1]')
-  assert.equal(events.at(-1).sources[0].id,'S1')
+  assert.equal(events.at(-1).answer,'100 views [1]')
+  assert.equal(events.at(-1).sources[0].id,'1')
   assert.equal(quota,1)
+})
+test('stream emits github step around the live check reflecting real toolStatus',async()=>{
+  const env={...environment(),GITHUB_TOKEN:'test-only'}
+  env.INFER.run=async()=>new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode('data: {"response":"777 [S1]"}\n\ndata: [DONE]\n\n'));controller.close()}})
+  const live=await handleAsk(request({question:'stars now',stream:true}),env,user,{request:async()=>Response.json({full_name:'google/elephant-goldfish-model',stargazers_count:777,forks_count:1,open_issues_count:1})})
+  const events=(await live.text()).trim().split('\n').map(JSON.parse)
+  assert.deepEqual(events.map(event=>event.type),['step','step','step','step','step','delta','result'])
+  assert.deepEqual(events.slice(0,5).map(step=>[step.id,step.status,step.detail]),[['context','active',undefined],['context','done','1 sources'],['github','active',undefined],['github','done','Live'],['answer','active',undefined]])
+  assert.equal(events[2].label,'Checking GitHub live')
+  assert.equal(events.at(-1).toolStatus.status,'live')
+  const down=await handleAsk(request({question:'stars now',stream:true}),env,user,{request:async()=>new Response(null,{status:500})})
+  const downSteps=(await down.text()).trim().split('\n').map(JSON.parse).filter(event=>event.id==='github')
+  assert.equal(downSteps[1].detail,'Unavailable, saved data shown')
 })
 test('stream timeout emits safe terminal error and cancels upstream reader',async()=>{
   const env=environment()
   let cancelled=false
-  env.AI.run=async()=>new ReadableStream({cancel(){cancelled=true}})
+  env.INFER.run=async()=>new ReadableStream({cancel(){cancelled=true}})
   const result=await handleAsk(request({question:'views?',stream:true}),env,user,{timeoutMs:2})
   const events=(await result.text()).trim().split('\n').map(JSON.parse)
-  assert.deepEqual(events,[{type:'error',error:'ask_timeout'}])
+  assert.deepEqual(events.at(-1),{type:'error',error:'ask_timeout'})
+  assert.ok(events.slice(0,-1).every(event=>event.type==='step'))
   assert.equal(cancelled,true)
 })
 test('client stream cancellation cancels the provider',async()=>{
   const env=environment()
   let cancelled=false
-  env.AI.run=async()=>new ReadableStream({cancel(){cancelled=true}})
+  env.INFER.run=async()=>new ReadableStream({cancel(){cancelled=true}})
   const result=await handleAsk(request({question:'views?',stream:true}),env,user)
   await result.body.cancel()
   await new Promise(resolve=>setTimeout(resolve,0))
   assert.equal(cancelled,true)
+})
+test('PostHog AI events record successful and failed generations without the snapshot',async()=>{
+  const sent=[],pending=[]
+  const options={fetcher:async(_,init)=>{sent.push(JSON.parse(init.body));return new Response('',{status:200})},waitUntil:promise=>pending.push(promise)}
+  const env=environment()
+  env.POSTHOG_PROJECT_TOKEN='phc_test';env.POSTHOG_HOST='https://us.i.posthog.com'
+  env.INFER.run=async(_,input)=>{input.onUsage?.({promptTokenCount:12,candidatesTokenCount:5});input.onFirstText?.();return {response:'100 views [S1]'}}
+  assert.equal((await handleAsk(request({question:'How many views?',history:[{question:'hi',answer:'hello'}]}),env,user,options)).status,200)
+  await Promise.all(pending)
+  assert.equal(sent.length,1)
+  const ok=sent[0].properties
+  assert.equal(sent[0].event,'$ai_generation');assert.equal(sent[0].distinct_id,'owner')
+  assert.equal(ok.$ai_input_tokens,12);assert.equal(ok.$ai_is_error,false)
+  assert.deepEqual(ok.$ai_input.map(turn=>turn.content),['hi','hello','How many views?'])
+  assert.ok(!JSON.stringify(sent[0]).includes('rawMarkdown'))
+  env.INFER.run=async()=>{throw Error('provider_failed')}
+  assert.equal((await handleAsk(request({question:'How many views?'}),env,user,options)).status,503)
+  await Promise.all(pending)
+  assert.equal(sent.at(-1).properties.$ai_is_error,true);assert.equal(sent.at(-1).properties.$ai_error,'ask_unavailable')
+})
+test('causal verbs before measured numbers become neutral, other uses are untouched',()=>{
+  assert.equal(neutralCausalWording('YouTube is a referrer, driving 4,792 views [S12].'),'YouTube is a referrer, accounting for 4,792 views [S12].')
+  assert.equal(neutralCausalWording('Drove about 3 clones; the post led to 12 stars and resulted in more than 5 forks.'),'Accounted for about 3 clones; the post coincided with 12 stars and coincided with more than 5 forks.')
+  assert.equal(neutralCausalWording('Try driving traffic to the README.'),'Try driving traffic to the README.')
+})
+test('cited sources are renumbered without gaps in first-citation order, cards last',()=>{
+  const result=renumberCitations('Video [S12] and site [S14, S12].',[{id:'S3',label:'card'},{id:'S12'},{id:'S14'},{id:'S20'}],[{sourceId:'S3'},{sourceId:'S12'}])
+  assert.equal(result.answer,'Video [1] and site [2][1].')
+  assert.deepEqual(result.sources.map(source=>[source.id,source.label]),[['1',undefined],['2',undefined],['3','card']])
+  assert.deepEqual(result.cards.map(card=>card.sourceId),['3','1'])
+})
+test('share metrics carry a percent unit and readable labels',()=>{
+  const context=askContext({queries:{website_contribution:{rows:[{rank:4,viewShare:0.042,topTenShare:0.096,websiteViews:2746}]}}},'website')
+  const metrics=askCards(context,'website')[0].metrics
+  assert.deepEqual(metrics.map(metric=>[metric.label,metric.unit]),[['Referrer rank',undefined],['Share of repo views','percent'],['Share of top-10 referrer views','percent'],['egm.dev referral views',undefined]])
+})
+test('prompt requires neutral verbs and measurable experiment criteria',async()=>{
+  const env=environment()
+  let system
+  env.INFER.run=async(_,input)=>{system=input.messages[0].content;return {response:'100 views [S1]'}}
+  await handleAsk(request(),env,user)
+  assert.match(system,/never drove, caused, led to or resulted in/)
+  assert.match(system,/current cited value as the baseline, the observation window/)
+  assert.match(system,/rolling 14-day window/)
+})
+test('summed unique counts are detected per sentence',()=>{
+  assert.equal(summedUniques('LinkedIn sent 2,507 unique visitors (1,718 + 789) [S1].'),true)
+  assert.equal(summedUniques('LinkedIn sent 1,718 unique visitors. Views were 1,969 + 882 overall.'),false)
+  assert.equal(summedUniques('Both apps sent a combined 3,429 unique visitors.'),true)
+  assert.equal(summedUniques('The combined unique count is unknown.'),false)
+  assert.equal(summedUniques('The repo had a total of 14,613 unique visitors.'),false)
+  assert.equal(summedUniques('They sent 7,178 combined unique visitors.'),true)
+})
+test('cards only come from cited records and sources lead with dataset names',async()=>{
+  const env=environment()
+  const prepare=env.DB.prepare
+  env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('SELECT body'))statement.first=async()=>({body:JSON.stringify({...snapshot,queries:{...snapshot.queries,reach:{rows:[{stars:42}],source:{label:'GitHub REST API'}}}}),generated_at:snapshot.generatedAt});return statement}
+  const ids=askContext({...snapshot,queries:{...snapshot.queries,reach:{rows:[{stars:42}],source:{label:'GitHub REST API'}}}},'Repository reach').records.map(record=>[record.queryId,record.id])
+  const reachId=ids.find(([queryId])=>queryId==='reach')[1]
+  env.INFER.run=async()=>({response:`Stars were 42 [${reachId}].`})
+  const result=await (await handleAsk(request({question:'Repository reach'}),env,user)).json()
+  assert.deepEqual(result.cards.map(card=>card.queryId),['reach'])
+  assert.equal(result.sources[0].label,'Repository reach')
+  assert.equal(result.sources[0].provider,'GitHub REST API')
 })

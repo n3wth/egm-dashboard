@@ -20,6 +20,19 @@ test('retains delivered partial tokens but rejects an error instead of completin
 test('rejects a truncated response without a terminal result',async()=>{
   await assert.rejects(consumeAskStream(fromChunks([new TextEncoder().encode('{"type":"delta","text":"Partial"}\n')]),()=>{}),/before completion/)
 })
+test('forwards step events in order and updates by id',async()=>{
+  const events=[]
+  const lines=[{type:'step',id:'context',label:'Reading saved dashboard data',status:'active'},{type:'step',id:'context',label:'Reading saved dashboard data',status:'done',detail:'6 sources'},{type:'delta',text:'Hi'},{type:'result',answer:'Hi'}]
+  await consumeAskStream(fromChunks([new TextEncoder().encode(lines.map(line=>JSON.stringify(line)).join('\n'))]),event=>events.push(event))
+  assert.deepEqual(events.slice(0,2),lines.slice(0,2))
+  assert.equal(events.length,4)
+})
+test('ignores malformed step events and unknown event types',async()=>{
+  const events=[]
+  const lines=[{type:'step',id:'context',status:'active'},{type:'step',id:'context',label:'x',status:'running'},{type:'step',id:7,label:'x',status:'done'},{type:'telemetry',ms:12},{type:'result',answer:'Hi'}]
+  await consumeAskStream(fromChunks([new TextEncoder().encode(lines.map(line=>JSON.stringify(line)).join('\n'))]),event=>events.push(event))
+  assert.deepEqual(events,[{type:'result',answer:'Hi'}])
+})
 test('abort cancels the pending reader',async()=>{
   const controller=new AbortController()
   let cancelled=false
