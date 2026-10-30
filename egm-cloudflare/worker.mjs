@@ -17,6 +17,7 @@ import {readVerifiedWorkosEmail,reconcileVerifiedEmail} from './workos-identity.
 import {issueUserSessionsWidgetToken} from './workos-widgets.mjs'
 import {accessLive,accessChanged} from './access-live.mjs'
 import {readBody} from './request-body.mjs'
+import {capturePosthogEvent} from './ai-analytics.mjs'
 export {AccessLive} from './access-live.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 const enc = new TextEncoder()
@@ -46,6 +47,8 @@ export async function open(token,secrets,audience) {
   } catch { return null }
 }
 const cookie = (name,value,age=3600) => `${name}=${value}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${age}`
+// The signed cookie ends 30 days after sign-in. The session row ends 7 days after the last visit, never after the cookie.
+const SESSION_IDLE=7*86400, SESSION_MAX=30*86400, SESSION_RENEW_STEP=3600
 const cookieValue = (request,name) => request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1)
 const navigation = (request,url) => request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
 const unavailable = request => navigation(request,new URL(request.url)) ? renderAccessPage('unavailable',new URL(request.url).pathname==='/auth/callback'?{href:'/auth/login'}:{}) : new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})
@@ -56,8 +59,9 @@ export function profilePhoto(value) {
 async function identity(request,env) {
   const session=await open(cookieValue(request,'__Host-egm_session'),sessionSecrets(env),'session')
   if(!session || typeof session.sid!=='string') return null
-  const user=await env.DB.prepare('SELECT users.* FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id=? AND sessions.expires_at>?').bind(session.sid,now()).first()
-  if(!user) return null
+  const row=await env.DB.prepare('SELECT users.*,sessions.expires_at AS session_expires_at FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id=? AND sessions.expires_at>?').bind(session.sid,now()).first()
+  if(!row) return null
+  const {session_expires_at:expiresAt,...user}=row
   const identity={...user,sessionId:session.sid,profilePictureUrl:profilePhoto(session.profilePictureUrl)}
   if(env.WORKOS_WIDGETS_ENABLED==='true') {
     const current=await validatedWorkosSession(env,session.sid,user.id)
@@ -76,6 +80,8 @@ async function identity(request,env) {
     identity.email=email
     identity.workosAccessToken=current.accessToken
   }
+  const renewed=Math.min(now()+SESSION_IDLE,session.exp)
+  if(renewed-expiresAt>=SESSION_RENEW_STEP) try { await env.DB.prepare('UPDATE sessions SET expires_at=? WHERE id=? AND user_id=? AND expires_at<?').bind(renewed,session.sid,user.id,renewed).run() } catch {}
   return identity
 }
 async function accessManager(user,env) {
@@ -267,7 +273,7 @@ export async function handle(request,env,ctx) {
       if(!isOwner) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     }
     const sid=random()
-    await env.DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(sid,user.id,now()+3600).run()
+    await env.DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(sid,user.id,now()+SESSION_IDLE).run()
     if((env.WORKOS_RBAC_ENABLED==='true' && rbacConfigured(env)) || workosSessionConfigured(env)) {
       // Migration or provider failures do not prevent ordinary sign-in; they
       // leave privileged operations unavailable until a fresh valid session.
@@ -284,7 +290,8 @@ export async function handle(request,env,ctx) {
     }
     const headers=new Headers({location:'/overview','cache-control':'private, no-store'})
     headers.append('set-cookie',clear)
-    headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid,profilePictureUrl:profilePhoto(user.profile_picture_url)},sessionSecrets(env),'session')))
+    headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid,profilePictureUrl:profilePhoto(user.profile_picture_url)},sessionSecrets(env),'session',SESSION_MAX),SESSION_MAX))
+    ctx?.waitUntil?.(capturePosthogEvent(env,{distinct_id:user.id,event:'dashboard_signed_in',properties:{$geoip_disable:true}}))
     return new Response(null,{status:302,headers})
   }
   const user=await identity(request,env)
