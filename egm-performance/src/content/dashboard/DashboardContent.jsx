@@ -18,6 +18,7 @@ import {PageSummary} from './PageSummary.jsx'
 import {VideoThumbnail} from './VideoThumbnail.jsx'
 import {trackDashboardSection} from './usage-analytics.js'
 import {EmptyState,StaleNotice} from './DataStates.jsx'
+import {CollectionStatus} from './CollectionStatus.jsx'
 import {count} from './states.mjs'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
@@ -93,7 +94,7 @@ function AcrossEgm({queries,reach,web}) {
 }
 export function DashboardContent() {
   const {snapshot} = useDataApp()
-  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/></>
+  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><CollectionStatus refreshStatus={snapshot?.refreshStatus}/><DashboardTab/></>
 }
 function DashboardTab() {
   const {queries,appTitle,setAppTitle} = useDataApp()

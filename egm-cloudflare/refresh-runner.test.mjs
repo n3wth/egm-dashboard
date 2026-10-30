@@ -78,6 +78,28 @@ test('lease makes concurrent calls skip and finished cooldown prevents immediate
   assert.equal(runs, 1)
 })
 
+test('a provider inside its interval or over the monthly cap is not called', async () => {
+  const f = fixture()
+  f.previous.queries.semrush_status = { rows: [{ status: 'available', nextAttemptAt: '2026-10-29T00:00:00Z', lastSuccessAt: '2026-10-27T00:00:00Z' }] }
+  f.previous.refreshStatus = { budget: { month: '2026-10', calls: { mentions: 31 } } }
+  f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(f.previous))
+  let semrush = 0, mentions = 0
+  const result = await runRefresh(f.env, noRequest, {
+    now: () => baseTime,
+    github: async () => ({ status: 'refreshed', snapshot: f.previous }),
+    semrush: async () => { semrush++; return {} },
+    mentions: async () => { mentions++; return {} }
+  })
+  assert.equal(semrush, 0)
+  assert.equal(mentions, 0)
+  assert.equal(result.semrush, 'cached')
+  assert.equal(result.mentions, 'cached')
+  const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.equal(saved.refreshStatus.collectionEndsAt, '2026-11-04T06:33:00.000Z')
+  assert.equal(saved.refreshStatus.sources.find(source => source.id === 'semrush').lastSuccessAt, '2026-10-27T00:00:00Z')
+  assert.equal(saved.refreshStatus.sources.find(source => source.id === 'mentions').reason, 'monthly_cap')
+})
+
 test('cutoff fails closed before any database or provider call', async () => {
   for (const until of [undefined, 'bad', '2026-10-27T00:00:00Z']) {
     assert.equal((await runRefresh({ REFRESH_UNTIL: until }, noRequest, { now: () => baseTime })).status, 'expired')
