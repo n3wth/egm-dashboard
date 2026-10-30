@@ -1,6 +1,5 @@
 import React from "react";
 import { SvgIcon } from "./SvgIcon.jsx";
-import materialSymbols from "../content/dashboard/material-symbols.json";
 import { roundedIconUrl, roundedIcons } from "../content/dashboard/material-rounded.mjs";
 
 const dashboardIconAssets = import.meta.glob("./icons/dashboard-icon-*.svg", {
@@ -22,12 +21,13 @@ export async function prepareDashboardIcons() {
   }));
 }
 
-export const dashboardIconNames = Object.freeze([...new Set([...Object.keys(dashboardIcons), ...Object.keys(materialSymbols.icons), ...Object.keys(roundedIcons)])]);
+const iconAlias = { gemini: "navSparkle" };
+
+export const dashboardIconNames = Object.freeze([...new Set([...Object.keys(dashboardIcons), ...Object.keys(roundedIcons), "gemini"])]);
 
 export function Icon({ name, size = 16, className = "" }) {
-  const rounded = roundedIconUrl(name);
-  const symbol = materialSymbols.icons[name];
-  const icon = rounded || (symbol ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(symbol)}` : dashboardIcons[name]);
+  const resolved = iconAlias[name] ?? name;
+  const icon = roundedIconUrl(resolved) || dashboardIcons[resolved] || dashboardIcons[name];
   if (!icon)
     throw new Error(`Unknown dashboard icon: ${String(name)}. Add a bundled dashboard-icon-${String(name)}.svg asset.`);
   return <SvgIcon name={name} src={icon} size={size} className={className} />;
