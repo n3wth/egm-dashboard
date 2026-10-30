@@ -173,20 +173,20 @@ export async function handleAsk(request,env,user,options={}) {
     const citedIds=new Set([...neutral.matchAll(/\[(S\d+(?:\s*,\s*S\d+)*)\]/g)].flatMap(match=>match[1].split(/\s*,\s*/)))
     const cited=renumberCitations(neutral,context.sources,askCards(context,contextQuestion,citedIds))
     const suggestedFollowUps=trending.test(contextQuestion)?['Which similar repos gained stars since the baseline?','What can EGM learn from these repos?','How has EGM star growth changed?']:/video|youtube|mention/i.test(contextQuestion)?['Which videos have the most views?','What discussion evidence is verified?']:['What are the clearest growth opportunities?','Which channels bring visitors to EGM?']
-    const notes=[trending.test(contextQuestion)?'Discovery ranked by total stars is not measured trending growth. Only recorded changes between observation dates support growth comparisons.':null,summedUniques(cited.answer)?'This answer adds unique visitor counts from different sources. People can be counted more than once, so treat any combined unique total as unknown.':null].filter(Boolean)
+    const notes=[finishReason==='MAX_TOKENS'?'This answer reached the length limit and may be incomplete.':null,trending.test(contextQuestion)?'Discovery ranked by total stars is not measured trending growth. Only recorded changes between observation dates support growth comparisons.':null,summedUniques(cited.answer)?'This answer adds unique visitor counts from different sources. People can be counted more than once, so treat any combined unique total as unknown.':null].filter(Boolean)
     const coverageNote=notes.length?notes.join(' '):null
     return {answer:cited.answer,cards:cited.cards,suggestedFollowUps,coverageNote,toolStatus,sources:cited.sources,snapshotAt:stored.generated_at??snapshot.generatedAt??null,generatedAt:at}
     }
     const timeoutMs=options.timeoutMs??30000
     // PostHog LLM analytics: question turns and the answer only, never the snapshot context.
     const started=Date.now(),traceId=crypto.randomUUID(),stream=payload.stream===true
-    let usage,firstTokenMs
+    let usage,firstTokenMs,finishReason
     const input=[...history.flatMap(turn=>[{role:'user',content:turn.question},{role:'assistant',content:turn.answer}]),{role:'user',content:question}]
     track=extra=>{
       const pending=captureAiGeneration(env,{traceId,userId:user.id,model,input,stream,temperature:0.1,maxTokens:answerTokens,usage,firstTokenMs,latencyMs:Date.now()-started,contextSources:context.records.length,liveGithub:toolStatus.status,...extra},options.fetcher)
       options.waitUntil?.(pending)
     }
-    const hooks={onUsage:value=>{usage=value},onFirstText:()=>{firstTokenMs=Date.now()-started}}
+    const hooks={onUsage:value=>{usage=value},onFirstText:()=>{firstTokenMs=Date.now()-started},onFinishReason:value=>{finishReason=value}}
     const tracked=answer=>{const result=finalize(answer);track({output:answer});return result}
     const errorCode=error=>error?.message==='timeout'?'ask_timeout':'ask_unavailable'
     if(stream)return streamAsk(async step=>infer.run(model,{messages:await prepare(step),max_tokens:answerTokens,temperature:0.1,stream:true,...hooks}),tracked,request.signal,timeoutMs,{onError:error=>track({error:errorCode(error)})})

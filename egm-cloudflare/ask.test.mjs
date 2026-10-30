@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {DatabaseSync} from 'node:sqlite'
 import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations,summedUniques} from './ask.mjs'
+import {geminiRunner} from './gemini.mjs'
 const origin='https://egm.n3wth.com'
 const user={id:'owner',status:'approved'}
 const snapshot={generatedAt:'2026-10-28T00:00:00Z',queries:{traffic:{rows:[{views:100,rawMarkdown:'untrusted long body'}],source:{label:'GitHub traffic',executedAt:'2026-10-27T00:00:00Z',links:[{url:'javascript:alert(1)'},{url:'https://github.com/google/elephant-goldfish-model'}]}}}}
@@ -176,6 +177,26 @@ test('real streaming relays split SSE deltas before final metadata and charges q
   assert.equal(events.at(-1).answer,'100 views [1]')
   assert.equal(events.at(-1).sources[0].id,'1')
   assert.equal(quota,1)
+})
+test('answers cut off by the token limit carry an incomplete note in both modes',async()=>{
+  const note='This answer reached the length limit and may be incomplete.'
+  const candidate=finishReason=>({candidates:[{content:{parts:[{text:'100 views [S1]'}]},finishReason}]})
+  const provider=finishReason=>{
+    const env=environment()
+    env.INFER=geminiRunner({GEMINI_API_KEY:'k'},async url=>url.includes('alt=sse')?new Response('data: '+JSON.stringify(candidate(finishReason))+'\n\n'):Response.json(candidate(finishReason)))
+    return env
+  }
+  const plain=async finishReason=>(await handleAsk(request(),provider(finishReason),user)).json()
+  const streamed=async finishReason=>{
+    const response=await handleAsk(request({question:'How many views?',stream:true}),provider(finishReason),user)
+    return (await response.text()).trim().split('\n').map(line=>JSON.parse(line)).find(event=>event.type==='result')
+  }
+  for(const ask of [plain,streamed]) {
+    const cut=await ask('MAX_TOKENS')
+    assert.equal(cut.answer,'100 views [1]')
+    assert.equal(cut.coverageNote,note)
+    assert.equal((await ask('STOP')).coverageNote,null)
+  }
 })
 test('stream emits github step around the live check reflecting real toolStatus',async()=>{
   const env={...environment(),GITHUB_TOKEN:'test-only'}

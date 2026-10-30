@@ -12,6 +12,7 @@ function body(messages,max_tokens,temperature) {
 }
 
 const textOf=payload=>(payload?.candidates?.[0]?.content?.parts??[]).filter(part=>!part.thought&&typeof part.text==='string').map(part=>part.text).join('')
+const finishOf=payload=>payload?.candidates?.[0]?.finishReason
 
 // Re-emits Gemini SSE as the `data: {"response":"..."}` events streamAsk already parses.
 function toResponseStream(source,hooks={}) {
@@ -34,6 +35,7 @@ function toResponseStream(source,hooks={}) {
           if(payload.error){controller.enqueue(encoder.encode('data: {"error":"provider_failed"}\n\n'));emitted=true;continue}
           const text=textOf(payload)
           if(payload.usageMetadata)hooks.onUsage?.(payload.usageMetadata)
+          if(finishOf(payload))hooks.onFinishReason?.(finishOf(payload))
           if(text){if(!first){first=true;hooks.onFirstText?.()}controller.enqueue(encoder.encode('data: '+JSON.stringify({response:text})+'\n\n'));emitted=true}
         }
         if(emitted)return
@@ -43,16 +45,17 @@ function toResponseStream(source,hooks={}) {
   })
 }
 
-// Same call shape as Workers AI `run(model,{messages,max_tokens,temperature,stream})`, plus optional onUsage and onFirstText hooks.
+// Same call shape as Workers AI `run(model,{messages,max_tokens,temperature,stream})`, plus optional onUsage, onFirstText and onFinishReason hooks.
 export function geminiRunner(env,fetcher=fetch) {
   if(!env.GEMINI_API_KEY)return null
   return {
-    async run(model,{messages,max_tokens,temperature,stream,onUsage,onFirstText}) {
+    async run(model,{messages,max_tokens,temperature,stream,onUsage,onFirstText,onFinishReason}) {
       const response=await fetcher(endpoint(model,stream),{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body:body(messages,max_tokens,temperature)})
       if(!response.ok||(stream&&!response.body)){await response.body?.cancel().catch(()=>{});throw Error('provider_failed')}
-      if(stream)return toResponseStream(response.body,{onUsage,onFirstText})
+      if(stream)return toResponseStream(response.body,{onUsage,onFirstText,onFinishReason})
       const payload=await response.json()
       if(payload.usageMetadata)onUsage?.(payload.usageMetadata)
+      if(finishOf(payload))onFinishReason?.(finishOf(payload))
       return {response:textOf(payload)}
     },
   }
