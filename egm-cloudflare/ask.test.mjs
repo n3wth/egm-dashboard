@@ -90,6 +90,8 @@ test('cards derive values from saved rows, bound table/chart schemas and skip gr
   const context=askContext({queries:{reach:{rows:[{stars:42}]},traffic:{rows:[{date:'2026-10-28',views:12}]},mentions:{rows:[{title:'EGM',url:'https://egm.dev',metadata:{ignored:1}}]}}},'growth')
   const cards=askCards(context,'growth')
   assert.equal(cards[0].metrics[0].value,42)
+  assert.equal(cards[0].tab,'/overview')
+  assert.equal(cards[2].tab,'/mentions')
   assert.equal(cards[1].type,'metric')
   assert.equal(cards[2].type,'table')
   assert.ok(!cards[2].columns.includes('metadata'))
