@@ -49,6 +49,17 @@ test('reports usage and the first text through hooks for both modes',async()=>{
   await plain.run(GEMINI_MODEL,{messages,max_tokens:10,temperature:0,stream:false,onUsage:value=>{seen=value}})
   assert.deepEqual(seen,usage)
 })
+test('reports the finish reason through a hook for both modes',async()=>{
+  const reasons=[]
+  const onFinishReason=value=>reasons.push(value)
+  const streaming=geminiRunner({GEMINI_API_KEY:'k'},async()=>sse([{candidates:[{content:{parts:[{text:'A'}]}}]},{candidates:[{content:{parts:[{text:'B'}]},finishReason:'MAX_TOKENS'}]}]))
+  assert.equal(await read(await streaming.run(GEMINI_MODEL,{messages,max_tokens:10,temperature:0,stream:true,onFinishReason})),'data: {"response":"A"}\n\ndata: {"response":"B"}\n\ndata: [DONE]\n\n')
+  assert.deepEqual(reasons,['MAX_TOKENS'])
+  reasons.length=0
+  const plain=geminiRunner({GEMINI_API_KEY:'k'},async()=>Response.json({candidates:[{content:{parts:[{text:'ok'}]},finishReason:'MAX_TOKENS'}]}))
+  assert.deepEqual(await plain.run(GEMINI_MODEL,{messages,max_tokens:10,temperature:0,stream:false,onFinishReason}),{response:'ok'})
+  assert.deepEqual(reasons,['MAX_TOKENS'])
+})
 test('keeps reading when a chunk carries no text and when events split across chunks',async()=>{
   const encoder=new TextEncoder()
   const parts=['data: {"candidates":[{"content":{"parts":[{"thought":true,"text":"x"}]}}]}\n\n','data: {"candidates":[{"content":{"par','ts":[{"text":"A"}]}}]}\n\n']
