@@ -66,6 +66,16 @@
   --ask-text-metric: 22px;
   --ask-leading-body: 1.6;
   --ask-leading-heading: 1.3;
+  /* Nav spacing is a 4px grid: 56px bar, 36px controls, 4px inside a group, 16px between groups. */
+  --nav-unit: 4px;
+  --nav-height: 56px;
+  --nav-control: 36px;
+  --nav-gap: 4px;
+  --nav-group-gap: 16px;
+  --nav-icon: 20px;
+  --nav-sparkle: 18px;
+  --nav-avatar: 28px;
+  --nav-meta-size: 13px;
 }
 
 :root:not([data-app-theme]),

@@ -1,6 +1,6 @@
 import { dataAppExportOptions } from "../export-catalog.js";
 import { Feedback } from "../content/dashboard/Feedback.jsx";
-import { navbarAccountIcon, navbarAskIcon, navbarIconSize, navbarRefreshIcon } from "../content/dashboard/navbar-icons.mjs";
+import { navbarAccountIcon, navbarAskIcon, navbarIconSize, navbarRefreshIcon, navbarSparkleSize } from "../content/dashboard/navbar-icons.mjs";
 import { useOptionalDataAppShell } from "../DataAppContext.jsx";
 import { dataAppBuildState } from "../build-state.js";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
@@ -495,7 +495,7 @@ const HeaderActionButton = React.forwardRef(function HeaderActionButton(
       aria-label={label}
       className={["dashboard-header-action-button", className].filter(Boolean).join(" ")}
     >
-      {icon && <DashboardAskIcon name={icon} size={navbarIconSize} />}
+      {icon && <DashboardAskIcon name={icon} size={icon === navbarAskIcon ? navbarSparkleSize : navbarIconSize} />}
       {!iconOnly&&<span className="dashboard-header-action-label dashboard-header-action-label-full">{label}</span>}
       {!iconOnly&&compactLabel && (
         <span className="dashboard-header-action-label dashboard-header-action-label-compact">{compactLabel}</span>

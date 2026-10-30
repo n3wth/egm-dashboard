@@ -1,11 +1,13 @@
-// Tab and refresh marks are 24px outlines at stroke width 2, drawn at 20px.
-// The Ask mark is the filled Gemini sparkle at the same 20px box.
+// Every tab and the refresh mark is Material Symbols Rounded, weight 400, grade 0, fill 0, at 20px.
+// Overview is show_chart and Adoption is person so those tabs stay strokes, like the arrows and search.
+// The Ask mark stays the filled sparkle, drawn at 18px so it matches the stroke icons optically.
 export const navbarIconSize = 20
+export const navbarSparkleSize = 18
 
 const pageIcons = {
-  reach: 'bar_chart',
+  reach: 'show_chart',
   acquisition: 'north_east',
-  adoption: 'group',
+  adoption: 'person',
   website: 'language',
   development: 'code',
   research: 'search',
