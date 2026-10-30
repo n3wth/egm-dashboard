@@ -160,7 +160,7 @@
 }
 .dashboard-tabs-inner:has(.egm-icon-tabs) { display: flex; align-items: center; gap: 8px; height: 36px; }
 .dashboard-logo-link { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; }
-.dashboard-logo-link svg { width: 22px; height: 16px; }
+.dashboard-logo-link svg { width: 28px; height: 20px; }
 .dashboard-reporting-period { display: inline-flex; align-items: center; margin-top: 0; }
 .egm-icon-tabs[role="tablist"] { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding-left: 0; }
 .egm-icon-tabs[role="tablist"] .dashboard-tab { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; box-sizing: border-box; width: 36px; height: 36px; min-width: 36px; min-height: 36px; padding: 0; border-radius: 8px; }
@@ -170,7 +170,7 @@
 .egm-icon-tabs .dashboard-tab::after { display: none; }
 .egm-icon-tabs .dashboard-icon,
 .dashboard-ask-button .dashboard-icon,
-.dashboard-reporting-period .dashboard-icon { width: 16px !important; height: 16px !important; }
+.dashboard-reporting-period .dashboard-icon { width: 20px !important; height: 20px !important; }
 .dashboard-ask-button,
 .egm-account-button,
 .egm-account-menu .dashboard-native-overflow { box-sizing: border-box; width: 36px; height: 36px; min-width: 36px; min-height: 36px; border-radius: 8px; }
@@ -179,7 +179,7 @@
 .egm-mentions-collection-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; color: var(--secondary); font-size: 12px; line-height: 1.6; }
 .egm-mentions-collection-line .egm-mentions-collection { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
 .egm-account-menu { display: flex; align-items: center; order: 99; }
-.egm-account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 50%; overflow: hidden; color: var(--text); font-size: 11px; font-weight: 500; }
+.egm-account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 50%; overflow: hidden; color: var(--text); font-size: 13px; font-weight: 500; }
 .egm-account-avatar-wrap { position: relative; display: inline-flex; }
 .egm-account-pending { position: absolute; top: 0; right: 0; width: 9px; height: 9px; border: 2px solid var(--background); border-radius: 50%; background: var(--blue); }
 @media (prefers-reduced-motion: no-preference) {
