@@ -12,6 +12,8 @@ test('live GitHub metrics render without a saved snapshot query', async () => {
     assert.match(html, /EGM right now/)
     assert.match(html, /1,234/)
     assert.match(html, /<span class="egm-ask-cite">S1<\/span>/)
+    const shares = renderToStaticMarkup(React.createElement(LiveMetricCard, { card: { title: 'Website', metrics: [{ label: 'Share of repo views', value: 0.042, unit: 'percent' }] } }))
+    assert.match(shares, /<dd>4%<\/dd>/)
   } finally { await server.close() }
 })
 

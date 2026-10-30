@@ -120,3 +120,9 @@ test('the timeout aborts a stalled request with the too-long message',async()=>{
   const transport=new AskTransport({timeoutMs:20,fetch:(_url,init)=>new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError'))))})
   await assert.rejects(transport.sendMessages({messages:[user('u0','q')]}),/too long/)
 })
+test('answerSections places each card after the section that first cites it', async () => {
+  const {answerSections}=await import('./ask-transport.mjs')
+  const sections=answerSections('Intro\n## One\nVideo [2]\n## Two\nSite [1] and [2]',[{sourceId:'1'},{sourceId:'2'},{sourceId:'9'}])
+  assert.deepEqual(sections.map(section=>[section.text,section.cards.map(item=>item.index)]),[['Intro',[]],['## One\nVideo [2]',[1]],['## Two\nSite [1] and [2]',[0,2]]])
+  assert.deepEqual(answerSections('Plain [1]',[]).map(section=>section.text),['Plain [1]'])
+})

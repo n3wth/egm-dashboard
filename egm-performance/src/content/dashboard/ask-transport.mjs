@@ -112,3 +112,14 @@ export function linkCitations(text,sources,messageId) {
   const ids=new Set((sources??[]).map((source,index)=>String(source.id??index+1)))
   return ids.size?text.replace(/\[(\d+)\](?!\()/g,(match,id)=>ids.has(id)?`[${id}](#${citeId(messageId,id)})`:match):text
 }
+
+// Splits a final answer at Markdown headings and places each card after the section that first cites its source; uncited cards follow the last section.
+// shortcut: a heading-like line inside a fenced code block also splits; answers are told not to emit code, revisit if they do.
+export function answerSections(text,cards) {
+  const sections=text.split(/\n(?=#{1,4} )/).map(part=>({text:part,cards:[]}))
+  ;(cards??[]).forEach((card,index)=>{
+    const at=card.sourceId?sections.findIndex(section=>section.text.includes(`[${card.sourceId}]`)):-1
+    ;(at>=0?sections[at]:sections.at(-1)).cards.push({card,index})
+  })
+  return sections
+}
