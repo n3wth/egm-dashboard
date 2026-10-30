@@ -3,20 +3,21 @@
 export const navbarIconSize = 20
 
 const pageIcons = {
-  reach: 'navOverview',
-  acquisition: 'navAcquisition',
-  adoption: 'navAdoption',
-  website: 'navWebsite',
-  development: 'navDevelopment',
-  research: 'navResearch',
-  mentions: 'navMentions'
+  reach: 'bar_chart',
+  acquisition: 'north_east',
+  adoption: 'group',
+  website: 'language',
+  development: 'code',
+  research: 'search',
+  mentions: 'campaign'
 }
 
 export const navbarAskIcon = 'navSparkle'
-export const navbarRefreshIcon = 'navRefresh'
+export const navbarRefreshIcon = 'refresh'
+export const navbarAccountIcon = 'account_circle'
 
 export function navbarIcon(id) {
   return pageIcons[id] ?? 'textDocument'
 }
 
-export const navbarStrokeIcons = [...Object.values(pageIcons), navbarRefreshIcon]
+export const navbarRoundedIcons = [...Object.values(pageIcons), navbarRefreshIcon, navbarAccountIcon]
