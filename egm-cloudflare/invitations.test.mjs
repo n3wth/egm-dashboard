@@ -276,16 +276,15 @@ test('every failed invited sign-in returns to the invitation and creates no pend
   const priorFetch = globalThis.fetch
   try {
     globalThis.fetch = async () => Response.json({ user: { ...person(), email_verified: false } })
-    const attempts = {
-      'Sign-in cancelled': callback(`error=access_denied&state=${encodeURIComponent(flow.state)}`, `__Host-egm_flow=${flowCookie}`),
-      'Sign-in expired': callback('code=test&state=other', `__Host-egm_flow=${flowCookie}`),
-      'Verify your email': callback(`code=test&state=${encodeURIComponent(flow.state)}`, `__Host-egm_flow=${flowCookie}`),
-      'Sign-in expired ': callback('code=test&state=other', `__Host-egm_invite=${inviteCookie}`)
-    }
-    for (const [title, attempt] of Object.entries(attempts)) {
-      const response = await attempt
+    for (const [title, query, cookies] of [
+      ['Sign-in cancelled', `error=access_denied&state=${encodeURIComponent(flow.state)}`, `__Host-egm_flow=${flowCookie}`],
+      ['Sign-in expired', 'code=test&state=other', `__Host-egm_flow=${flowCookie}`],
+      ['Verify your email', `code=test&state=${encodeURIComponent(flow.state)}`, `__Host-egm_flow=${flowCookie}`],
+      ['Sign-in expired', 'code=test&state=other', `__Host-egm_invite=${inviteCookie}`]
+    ]) {
+      const response = await callback(query, cookies)
       const html = await response.text()
-      assert.match(html, new RegExp(title.trim()), title)
+      assert.match(html, new RegExp(title), title)
       assert.match(html, /href="\/auth\/invite" class="action"/, title)
       const kept = response.headers.get('set-cookie').match(/__Host-egm_invite=([^;]+)/)?.[1]
       assert.equal((await open(kept, env.SESSION_SECRET, 'invitation'))?.token, invite.token, title)
