@@ -4,14 +4,15 @@ import {createPortal} from 'react-dom'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
 import {askTableColumns,askCellText} from './ask-table.mjs'
-import {AskTransport,answerText,askNeedsSignIn,askRetryable,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
+import {AskTransport,answerSections,answerText,askNeedsSignIn,askRetryable,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
+import {percentage} from './percentage.mjs'
 import {MessageResponse} from './MessageResponse.jsx'
 import {AskStarters} from './AskStarters.jsx'
 import {tabIdFromLocation} from './ask-starters.mjs'
 import {trackAskOutcome,trackAskStarter} from './usage-analytics.js'
 
 const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
-const format=value=>typeof value==='number'?value.toLocaleString('en-US'):String(value??'Unavailable')
+const format=(value,unit)=>typeof value==='number'?unit==='percent'?percentage(value):value.toLocaleString('en-US'):String(value??'Unavailable')
 export const shouldDismissAsk=active=>!active
 export function AskCompletion({status}) { return <span role="status" className="egm-note">{status==='complete'?'Answer complete.':''}</span> }
 function ObservedAt({value,dateOnly=false,bare=false}) {
@@ -24,7 +25,7 @@ function ObservedAt({value,dateOnly=false,bare=false}) {
 const Attribution=({sourceId,observedAt})=><p className="egm-ask-attribution">{sourceId&&<span className="egm-ask-cite">{sourceId}</span>}<span className="egm-ask-source-meta"><ObservedAt value={observedAt} dateOnly bare/></span></p>
 
 export function LiveMetricCard({card}) {
-  return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl><Attribution sourceId={card.sourceId} observedAt={card.observedAt}/></section>
+  return <section className="egm-ask-live-card"><h3>{card.title}</h3><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value,metric.unit)}</dd></div>)}</dl><Attribution sourceId={card.sourceId} observedAt={card.observedAt}/></section>
 }
 
 const Mark=({working=false,decorative=false})=><svg className={working?"egm-mark egm-mark--working":"egm-mark"} {...(decorative?{"aria-hidden":true}:{role:"img","aria-label":"EGM"})} viewBox="1.5 5.5 21 13" fill="currentColor" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M10.30,6.80 A5.20,5.20 0 0 0 10.30,17.20 A1.20,1.20 0 0 0 11.50,16.00 L11.50,8.00 A1.20,1.20 0 0 0 10.30,6.80Z"/><path stroke="none" d="M13.70,6.80 A5.20,5.20 0 0 1 13.70,17.20 A1.20,1.20 0 0 1 12.50,16.00 L12.50,8.00 A1.20,1.20 0 0 1 13.70,6.80Z"/><path fill="none" d="M7.20,12.00 C6.80,14.60 3.40,14.70 3.20,12.60 C3.10,11.20 3.30,10.20 3.60,9.40"/><path fill="none" d="M16.80,12.00 L18.00,12.00 C18.80,12.00 19.40,10.60 20.90,9.40 M18.00,12.00 C18.80,12.00 19.40,13.40 20.90,14.60"/></svg>
@@ -55,7 +56,7 @@ export function AnswerCard({card,index,turnId}) {
   const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt}/>
   if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
   if(card.type==='table')return <DataComponent {...props} kind="table"><DataTable rows={rows} searchable={false} pageSize={5} columns={askTableColumns(card.columns,rows,card.columnLabels).map(column=>({field:column.field,label:column.label,...(column.clip?{renderCell:(value,row)=>{const {text,tooltip}=askCellText(value,row,column);const href=column.link?sourceHref(row?.url):column.field==='url'?sourceHref(value):null;return <span className="egm-cell-clip" title={tooltip}>{href?<a href={href} target="_blank" rel="noreferrer">{text}</a>:text}</span>}}:{})}))} label={card.title}/>{card.rowsTruncated&&<p className="egm-note">Showing {rows.length} of {card.rowCount} rows.</p>}{foot}</DataComponent>
-  if(card.type==='metric')return <DataComponent {...props} kind="custom"><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl>{foot}</DataComponent>
+  if(card.type==='metric')return <DataComponent {...props} kind="custom"><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value,metric.unit)}</dd></div>)}</dl>{foot}</DataComponent>
   return null
 }
 
@@ -74,7 +75,7 @@ function CopyButton({text}) {
 }
 
 function AssistantResult({message,result}) {
-  return <>{result.cards.length>0&&<div className="egm-ask-cards">{result.cards.map((card,index)=><AnswerCard key={`${message.id}-${card.queryId}-${index}`} turnId={message.id} card={card} index={index}/>)}</div>}
+  return <>
     {typeof result.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
     {result.sources.length>0&&<ol className="egm-ask-sources" aria-label="Sources">{result.sources.map((source,index)=>{const id=String(source.id??index+1);const href=sourceHref(source.url);const label=source.label??source.title??source.queryId??'Saved data';return <li key={`${id}-${source.queryId??''}`} id={citeId(message.id,id)}><span className="egm-ask-cite">{id}</span><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data'}<ObservedAt value={source.observedAt} dateOnly/></span></span></li>})}</ol>}</>
 }
@@ -174,7 +175,11 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           if(!streaming&&!text&&!steps.length&&!result&&!stopped.has(message.id))return null
           return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}>
             {(steps.length>0||streaming)?<><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={steps} running={streaming&&!result}/></>:<span className="egm-chat-speaker"><Mark/></span>}
-            {text&&<MessageResponse isAnimating={streaming} components={citationComponents}>{result?linkCitations(text,result.sources,message.id):text}</MessageResponse>}
+            {text&&!result&&<MessageResponse isAnimating={streaming} components={citationComponents}>{text}</MessageResponse>}
+            {result&&answerSections(text,result.cards).map((section,sectionIndex)=><React.Fragment key={sectionIndex}>
+              {section.text.trim()&&<MessageResponse isAnimating={false} components={citationComponents}>{linkCitations(section.text,result.sources,message.id)}</MessageResponse>}
+              {section.cards.length>0&&<div className="egm-ask-cards">{section.cards.map(({card,index})=><AnswerCard key={`${message.id}-${card.queryId}-${index}`} turnId={message.id} card={card} index={index}/>)}</div>}
+            </React.Fragment>)}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
             {result&&<AssistantResult message={message} result={result}/>}
             {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}

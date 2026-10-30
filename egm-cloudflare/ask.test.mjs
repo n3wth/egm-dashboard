@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {DatabaseSync} from 'node:sqlite'
-import {handleAsk,askContext,askCards,askHistory} from './ask.mjs'
+import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations} from './ask.mjs'
 const origin='https://egm.n3wth.com'
 const user={id:'owner',status:'approved'}
 const snapshot={generatedAt:'2026-10-28T00:00:00Z',queries:{traffic:{rows:[{views:100,rawMarkdown:'untrusted long body'}],source:{label:'GitHub traffic',executedAt:'2026-10-27T00:00:00Z',links:[{url:'javascript:alert(1)'},{url:'https://github.com/google/elephant-goldfish-model'}]}}}}
@@ -19,7 +19,7 @@ test('saved snapshot grounding and validated cited sources',async()=>{
   const result=await handleAsk(request(),environment(),user)
   assert.equal(result.status,200)
   const body=await result.json()
-  assert.equal(body.answer,'100 views [S1]')
+  assert.equal(body.answer,'100 views [1]')
   assert.equal(body.sources[0].url,'https://github.com/google/elephant-goldfish-model')
   assert.equal(body.snapshotAt,snapshot.generatedAt)
   assert.equal(result.headers.get('cache-control'),'private, no-store')
@@ -61,7 +61,8 @@ test('combined citation IDs retain all corresponding validated sources',async()=
   env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('SELECT body'))statement.first=async()=>({body:JSON.stringify({...snapshot,queries:{...snapshot.queries,reach:{rows:[{stars:42}],source:{label:'Stars'}}}}),generated_at:snapshot.generatedAt});return statement}
   env.INFER.run=async()=>({response:'Observed [S1, S2], not [S999]'})
   const result=await (await handleAsk(request(),env,user)).json()
-  assert.deepEqual(result.sources.map(source=>source.id),['S1','S2'])
+  assert.deepEqual(result.sources.map(source=>source.id),['1','2'])
+  assert.equal(result.answer,'Observed [1][2], not')
 })
 test('missing AI or snapshot and bounded timeout are explicit',async()=>{
   const env=environment()
@@ -172,8 +173,8 @@ test('real streaming relays split SSE deltas before final metadata and charges q
   const events=rest.trim().split('\n').map(JSON.parse)
   assert.ok(!events.some(event=>event.type==='step'))
   assert.equal(events.at(-1).type,'result')
-  assert.equal(events.at(-1).answer,'100 views [S1]')
-  assert.equal(events.at(-1).sources[0].id,'S1')
+  assert.equal(events.at(-1).answer,'100 views [1]')
+  assert.equal(events.at(-1).sources[0].id,'1')
   assert.equal(quota,1)
 })
 test('stream emits github step around the live check reflecting real toolStatus',async()=>{
@@ -226,4 +227,29 @@ test('PostHog AI events record successful and failed generations without the sna
   assert.equal((await handleAsk(request({question:'How many views?'}),env,user,options)).status,503)
   await Promise.all(pending)
   assert.equal(sent.at(-1).properties.$ai_is_error,true);assert.equal(sent.at(-1).properties.$ai_error,'ask_unavailable')
+})
+test('causal verbs before measured numbers become neutral, other uses are untouched',()=>{
+  assert.equal(neutralCausalWording('YouTube is a referrer, driving 4,792 views [S12].'),'YouTube is a referrer, accounting for 4,792 views [S12].')
+  assert.equal(neutralCausalWording('Drove about 3 clones; the post led to 12 stars and resulted in more than 5 forks.'),'Accounted for about 3 clones; the post coincided with 12 stars and coincided with more than 5 forks.')
+  assert.equal(neutralCausalWording('Try driving traffic to the README.'),'Try driving traffic to the README.')
+})
+test('cited sources are renumbered without gaps in first-citation order, cards last',()=>{
+  const result=renumberCitations('Video [S12] and site [S14, S12].',[{id:'S3',label:'card'},{id:'S12'},{id:'S14'},{id:'S20'}],[{sourceId:'S3'},{sourceId:'S12'}])
+  assert.equal(result.answer,'Video [1] and site [2][1].')
+  assert.deepEqual(result.sources.map(source=>[source.id,source.label]),[['1',undefined],['2',undefined],['3','card']])
+  assert.deepEqual(result.cards.map(card=>card.sourceId),['3','1'])
+})
+test('share metrics carry a percent unit and readable labels',()=>{
+  const context=askContext({queries:{website_contribution:{rows:[{rank:4,viewShare:0.042,topTenShare:0.096,websiteViews:2746}]}}},'website')
+  const metrics=askCards(context,'website')[0].metrics
+  assert.deepEqual(metrics.map(metric=>[metric.label,metric.unit]),[['Referrer rank',undefined],['Share of repo views','percent'],['Share of top-10 referrer views','percent'],['egm.dev referral views',undefined]])
+})
+test('prompt requires neutral verbs and measurable experiment criteria',async()=>{
+  const env=environment()
+  let system
+  env.INFER.run=async(_,input)=>{system=input.messages[0].content;return {response:'100 views [S1]'}}
+  await handleAsk(request(),env,user)
+  assert.match(system,/never drove, caused, led to or resulted in/)
+  assert.match(system,/current cited value as the baseline, the observation window/)
+  assert.match(system,/rolling 14-day window/)
 })
