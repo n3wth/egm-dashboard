@@ -1,4 +1,5 @@
 import {ASK_ANSWER_CHARS,streamAsk} from './ask-stream.mjs'
+import {dashboardTab} from './ask-tabs.mjs'
 import {GEMINI_MODEL as model,geminiRunner} from './gemini.mjs'
 import {captureAiGeneration} from './ai-analytics.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
@@ -52,7 +53,7 @@ export function askContext(snapshot,question) {
     remaining-=compact.length
     records.push(record)
     // Dataset name leads so several records from one provider stay distinguishable.
-    sources.push({id,title:String(labels[queryId]??humanLabel(queryId)).slice(0,200),label:String(labels[queryId]??humanLabel(queryId)).slice(0,200),provider:String(source.label??queryId).slice(0,200),queryId,observedAt:source.executedAt??null,...(links[0]?{url:links[0].url}:{})})
+    sources.push({id,title:String(labels[queryId]??humanLabel(queryId)).slice(0,200),label:String(labels[queryId]??humanLabel(queryId)).slice(0,200),provider:String(source.label??queryId).slice(0,200),queryId,observedAt:source.executedAt??null,...dashboardTab(queryId),...(links[0]?{url:links[0].url}:{})})
   }
   return {records,sources}
 }
@@ -86,7 +87,7 @@ export function renumberCitations(answer,sources,cards) {
 export function askCards(context,question,cited) {
   if(/^(?:hi|hey|hello|thanks|thank you)[!?.\s]*$/i.test(question))return []
   return context.records.filter(record=>(!cited||cited.has(record.id))&&record.rows.length&&!/_status$/.test(record.queryId)&&(!trending.test(question)||trendQueries.includes(record.queryId))).slice(0,3).map(record=>{
-    const common={queryId:record.queryId,title:labels[record.queryId]??humanLabel(record.queryId),observedAt:record.observedAt,sourceId:record.id,rowCount:record.rowCount,rowsTruncated:record.rowsTruncated}
+    const common={queryId:record.queryId,title:labels[record.queryId]??humanLabel(record.queryId),observedAt:record.observedAt,sourceId:record.id,rowCount:record.rowCount,rowsTruncated:record.rowsTruncated,...dashboardTab(record.queryId)}
     const rows=record.rows
     const keys=Object.keys(rows[0]).filter(key=>rows.some(row=>['string','number','boolean'].includes(typeof row[key])))
     const numeric=keys.filter(key=>rows.some(row=>typeof row[key]==='number'))

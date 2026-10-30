@@ -12,6 +12,11 @@ import {tabIdFromLocation} from './ask-starters.mjs'
 import {trackAskOutcome,trackAskStarter} from './usage-analytics.js'
 
 const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
+const dashboardTabs=new Set(['/overview','/acquisition','/adoption','/website','/development','/research','/mentions'])
+function DashboardTabLink({tab,tabLabel}) {
+  if(!dashboardTabs.has(tab)||typeof tabLabel!=='string'||!tabLabel)return null
+  return <a href={tab}>{tabLabel}</a>
+}
 const format=(value,unit)=>typeof value==='number'?unit==='percent'?percentage(value):value.toLocaleString('en-US'):String(value??'Unavailable')
 export const shouldDismissAsk=active=>!active
 export function AskCompletion({status}) { return <span role="status" className="egm-note">{status==='complete'?'Answer complete.':''}</span> }
@@ -30,10 +35,10 @@ export function MetricGrid({metrics}) {
   return <dl className="egm-ask-metrics">{(metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value,metric.unit)}</dd></div>)}</dl>
 }
 // Same chip and meta text as the source list so card attribution matches it.
-const Attribution=({sourceId,observedAt,turnId})=><p className="egm-ask-attribution">{sourceId&&<CitationChip id={sourceId} messageId={turnId}/>}<span className="egm-ask-source-meta"><ObservedAt value={observedAt} dateOnly bare/></span></p>
+const Attribution=({sourceId,observedAt,turnId,tab,tabLabel})=><p className="egm-ask-attribution">{sourceId&&<CitationChip id={sourceId} messageId={turnId}/>}<span className="egm-ask-source-meta"><ObservedAt value={observedAt} dateOnly bare/> <DashboardTabLink tab={tab} tabLabel={tabLabel}/></span></p>
 
 export function LiveMetricCard({card,turnId}) {
-  return <section className="egm-ask-live-card"><h3>{card.title}</h3><MetricGrid metrics={card.metrics}/><Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId}/></section>
+  return <section className="egm-ask-live-card"><h3>{card.title}</h3><MetricGrid metrics={card.metrics}/><Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId} tab={card.tab} tabLabel={card.tabLabel}/></section>
 }
 
 const Mark=({working=false,decorative=false})=><svg className={working?"egm-mark egm-mark--working":"egm-mark"} {...(decorative?{"aria-hidden":true}:{role:"img","aria-label":"EGM"})} viewBox="1.5 5.5 21 13" fill="currentColor" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M10.30,6.80 A5.20,5.20 0 0 0 10.30,17.20 A1.20,1.20 0 0 0 11.50,16.00 L11.50,8.00 A1.20,1.20 0 0 0 10.30,6.80Z"/><path stroke="none" d="M13.70,6.80 A5.20,5.20 0 0 1 13.70,17.20 A1.20,1.20 0 0 1 12.50,16.00 L12.50,8.00 A1.20,1.20 0 0 1 13.70,6.80Z"/><path fill="none" d="M7.20,12.00 C6.80,14.60 3.40,14.70 3.20,12.60 C3.10,11.20 3.30,10.20 3.60,9.40"/><path fill="none" d="M16.80,12.00 L18.00,12.00 C18.80,12.00 19.40,10.60 20.90,9.40 M18.00,12.00 C18.80,12.00 19.40,13.40 20.90,14.60"/></svg>
@@ -62,7 +67,7 @@ export function AnswerCard({card,index,turnId}) {
   const source=queries[card.queryId]
   if(!source)return card.type==='metric'?<LiveMetricCard card={card} turnId={turnId}/>:null
   const props={id:`ask-result-${turnId}-${index}-${card.queryId}`,title:card.title,queryId:source?card.queryId:undefined,sourceRows:source?.rows??rows,displayRows:rows,variant:'card',showActions:Boolean(source)}
-  const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId}/>
+  const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId} tab={card.tab} tabLabel={card.tabLabel}/>
   if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,seriesColors[index%seriesColors.length]])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
   if(card.type==='table')return <DataComponent {...props} kind="table"><DataTable rows={rows} searchable={false} pageSize={5} columns={askTableColumns(card.columns,rows,card.columnLabels).map(column=>({field:column.field,label:column.label,...(column.clip?{renderCell:(value,row)=>{const {text,tooltip}=askCellText(value,row,column);const href=column.link?sourceHref(row?.url):column.field==='url'?sourceHref(value):null;return <span className="egm-cell-clip" title={tooltip}>{href?<a href={href} target="_blank" rel="noreferrer">{text}</a>:text}</span>}}:{})}))} label={card.title}/>{card.rowsTruncated&&<p className="egm-note">Showing {rows.length} of {card.rowCount} rows.</p>}{foot}</DataComponent>
   if(card.type==='metric')return <DataComponent {...props} kind="custom"><MetricGrid metrics={card.metrics}/>{foot}</DataComponent>
@@ -86,7 +91,7 @@ function CopyButton({text}) {
 function SourceRow({source,index,messageId}) {
   const id=String(source.id??index+1),href=sourceHref(source.url),label=source.label??source.title??source.queryId??'Saved data'
   const provider=source.provider&&source.provider!==label?source.provider:null
-  return <li id={citeId(messageId,id)}><CitationChip id={id}/><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{provider&&<>{provider} · </>}{href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data'}<ObservedAt value={source.observedAt} dateOnly/></span></span></li>
+  return <li id={citeId(messageId,id)}><CitationChip id={id}/><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{provider&&<>{provider} · </>}{href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data'}<ObservedAt value={source.observedAt} dateOnly/> <DashboardTabLink tab={source.tab} tabLabel={source.tabLabel}/></span></span></li>
 }
 function SourceList({sources,messageId}) {
   if(!sources.length)return null
