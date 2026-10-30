@@ -12,3 +12,4 @@
 .egm-ask-starter-text small { color: var(--secondary); font-size: 12px; }
 .egm-ask-starters button:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
 @media(max-width:700px) { .egm-ask-starters { right: 0; left: auto; } }
+@media(max-width:650px) { .egm-ask-starters { right: 16px; } }

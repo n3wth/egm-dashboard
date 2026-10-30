@@ -4,7 +4,7 @@ import {createPortal} from 'react-dom'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
 import {askTableColumns,askCellText} from './ask-table.mjs'
-import {AskTransport,answerSections,answerText,askNeedsSignIn,askRetryable,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
+import {AskTransport,answerSections,answerText,askNeedsSignIn,askRetryable,citeId,linkCitations,messageResult,messageText,streamingCitations} from './ask-transport.mjs'
 import {percentage} from './percentage.mjs'
 import {MessageResponse} from './MessageResponse.jsx'
 import {AskStarters} from './AskStarters.jsx'
@@ -15,7 +15,7 @@ const sourceHref=value=>{try{const url=new URL(value);return url.protocol==='htt
 const dashboardTabs=new Set(['/overview','/acquisition','/adoption','/website','/development','/research','/mentions'])
 function DashboardTabLink({tab,tabLabel}) {
   if(!dashboardTabs.has(tab)||typeof tabLabel!=='string'||!tabLabel)return null
-  return <a href={tab}>{tabLabel}</a>
+  return <> · <a href={tab}>{tabLabel}</a></>
 }
 const format=(value,unit)=>typeof value==='number'?unit==='percent'?percentage(value):value.toLocaleString('en-US'):String(value??'Unavailable')
 export const shouldDismissAsk=active=>!active
@@ -35,7 +35,7 @@ export function MetricGrid({metrics}) {
   return <dl className="egm-ask-metrics">{(metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value,metric.unit)}</dd></div>)}</dl>
 }
 // Same chip and meta text as the source list so card attribution matches it.
-const Attribution=({sourceId,observedAt,turnId,tab,tabLabel})=><p className="egm-ask-attribution">{sourceId&&<CitationChip id={sourceId} messageId={turnId}/>}<span className="egm-ask-source-meta"><ObservedAt value={observedAt} dateOnly bare/> <DashboardTabLink tab={tab} tabLabel={tabLabel}/></span></p>
+const Attribution=({sourceId,observedAt,turnId,tab,tabLabel})=><p className="egm-ask-attribution">{sourceId&&<CitationChip id={sourceId} messageId={turnId}/>}<span className="egm-ask-source-meta"><ObservedAt value={observedAt} dateOnly bare/><DashboardTabLink tab={tab} tabLabel={tabLabel}/></span></p>
 
 export function LiveMetricCard({card,turnId}) {
   return <section className="egm-ask-live-card"><h3>{card.title}</h3><MetricGrid metrics={card.metrics}/><Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId} tab={card.tab} tabLabel={card.tabLabel}/></section>
@@ -91,7 +91,7 @@ function CopyButton({text}) {
 function SourceRow({source,index,messageId}) {
   const id=String(source.id??index+1),href=sourceHref(source.url),label=source.label??source.title??source.queryId??'Saved data'
   const provider=source.provider&&source.provider!==label?source.provider:null
-  return <li id={citeId(messageId,id)}><CitationChip id={id}/><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{provider&&<>{provider} · </>}{href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data'}<ObservedAt value={source.observedAt} dateOnly/> <DashboardTabLink tab={source.tab} tabLabel={source.tabLabel}/></span></span></li>
+  return <li id={citeId(messageId,id)}><CitationChip id={id}/><span className="egm-ask-source-body">{href?<a href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label}</span>}<span className="egm-ask-source-meta">{provider??(href?new URL(href).hostname.replace(/^www\./,''):'Dashboard data')}<ObservedAt value={source.observedAt} dateOnly/><DashboardTabLink tab={source.tab} tabLabel={source.tabLabel}/></span></span></li>
 }
 function SourceList({sources,messageId}) {
   if(!sources.length)return null
@@ -100,7 +100,7 @@ function SourceList({sources,messageId}) {
 }
 // Streaming and final answers share one section layout, so finishing only adds cards and links instead of reflowing text.
 function AnswerBody({text,result,messageId,streaming}) {
-  const sections=answerSections(text,result?.cards??[])
+  const sections=answerSections(result?text:streamingCitations(text,messageId),result?.cards??[])
   return sections.map((section,i)=><React.Fragment key={i}>
     {section.text.trim()&&<MessageResponse isAnimating={streaming&&i===sections.length-1} components={citationComponents}>{result?linkCitations(section.text,result.sources,messageId):section.text}</MessageResponse>}
     {section.cards.length>0&&<div className="egm-ask-cards">{section.cards.map(({card,index})=><AnswerCard key={`${messageId}-${card.queryId}-${index}`} turnId={messageId} card={card} index={index}/>)}</div>}

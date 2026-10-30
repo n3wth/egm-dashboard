@@ -113,6 +113,17 @@ export function linkCitations(text,sources,messageId) {
   return ids.size?text.replace(/\[(\d+)\](?!\()/g,(match,id)=>ids.has(id)?`[${id}](#${citeId(messageId,id)})`:match):text
 }
 
+// While streaming, numbers [S7]-style markers in first-citation order, the order the Worker renumbers to, so chips do not change when the result arrives.
+// shortcut: an unknown ID the Worker later drops can shift a later number at the end, rare since IDs come from the supplied records.
+export function streamingCitations(text,messageId) {
+  const order=[]
+  return text.replace(/\s*\[S?\d*(?:\s*,\s*S?\d*)*$/,'').replace(/\[(S\d+(?:\s*,\s*S\d+)*)\]/g,(match,ids)=>ids.split(/\s*,\s*/).map(id=>{
+    if(!order.includes(id))order.push(id)
+    const number=order.indexOf(id)+1
+    return `[${number}](#${citeId(messageId,number)})`
+  }).join(''))
+}
+
 // Splits a final answer at Markdown headings and places each card after a section that cites its source,
 // preferring the first citing section without a card so evidence spreads instead of stacking; otherwise the first citing section, else the last section.
 // shortcut: a heading-like line inside a fenced code block also splits; answers are told not to emit code, revisit if they do.

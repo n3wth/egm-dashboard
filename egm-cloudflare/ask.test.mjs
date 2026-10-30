@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {DatabaseSync} from 'node:sqlite'
-import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations,summedUniques} from './ask.mjs'
+import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations,summedUniques,askFollowUps} from './ask.mjs'
 import {geminiRunner} from './gemini.mjs'
 const origin='https://egm.n3wth.com'
 const user={id:'owner',status:'approved'}
@@ -295,4 +295,16 @@ test('cards only come from cited records and sources lead with dataset names',as
   assert.deepEqual(result.cards.map(card=>card.queryId),['reach'])
   assert.equal(result.sources[0].label,'Repository reach')
   assert.equal(result.sources[0].provider,'GitHub REST API')
+})
+test('follow-ups come from cited data and skip questions already asked',()=>{
+  assert.deepEqual(askFollowUps(['reach'],['How many stars?']),['How has EGM star growth changed?','What are the clearest growth opportunities?'])
+  assert.deepEqual(askFollowUps(['reach','traffic'],['how has egm star growth changed?']),['Which channels bring visitors to EGM?','What are the clearest growth opportunities?'])
+  assert.deepEqual(askFollowUps(['unmapped'],[]),['What are the clearest growth opportunities?','Which channels bring visitors to EGM?'])
+})
+test('measurement limits are scoped to experiments, not short answers',async()=>{
+  const env=environment()
+  let system
+  env.INFER.run=async(_,input)=>{system=input.messages[0].content;return {response:'100 views [S1]'}}
+  await handleAsk(request(),env,user)
+  assert.match(system,/Do not add measurement limits to a short factual answer/)
 })
