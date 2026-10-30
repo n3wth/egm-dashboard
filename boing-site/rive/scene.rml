@@ -1,0 +1,15 @@
+<Rive version="1" kind="fragment">
+  <Artboard defaultStateMachineId="0:7" styleId="0:5" width="500" height="300" name="Momentum" id="0:2">
+    <LayoutComponentStyle name="Artboard Style" id="0:5"/>
+    <Fill name="Background"><SolidColor colorValue="FFFFFFFF" name="Color"/></Fill>
+    <Shape x="81" y="236" name="Trail one"><Ellipse width="9" height="9" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FF2476F9"/></Fill></Shape>
+    <Shape x="112" y="243" name="Trail two"><Ellipse width="12" height="12" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FF5A4AF7"/></Fill></Shape>
+    <Shape x="145" y="235" name="Trail three"><Ellipse width="15" height="15" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FFED42A6"/></Fill></Shape>
+    <Shape x="178" y="216" name="Trail four"><Ellipse width="18" height="18" originX="0.5" originY="0.5"/><Fill><SolidColor colorValue="FFFF9C20"/></Fill></Shape>
+    <Shape x="55" y="202" name="Boing ball" id="0:14"><Ellipse width="48" height="48" originX="0.5" originY="0.5"/><Fill><LinearGradient startX="-24" startY="24" endX="24" endY="-24"><GradientStop position="0" colorValue="FF2476F9"/><GradientStop position="0.35" colorValue="FF8E35F5"/><GradientStop position="0.65" colorValue="FFFF4C89"/><GradientStop position="1" colorValue="FFFFC52B"/></LinearGradient></Fill></Shape>
+    <StateMachine name="Momentum" id="0:7"><StateMachineLayer name="Loop" id="0:8"><AnyState x="200" y="-120"/><ExitState x="400" y="-120"/><EntryState><StateTransition stateToId="0:12"/></EntryState><AnimationState x="200" animationId="0:6" id="0:12"/></StateMachineLayer></StateMachine>
+    <LinearAnimation loopValue="loop" duration="240" name="Bounce and take off" id="0:6">
+      <KeyedObject objectId="0:14"><KeyedProperty property="x"><KeyFrameDouble value="55" interpolationType="linear"/><KeyFrameDouble value="112" frame="35" interpolationType="linear"/><KeyFrameDouble value="170" frame="65" interpolationType="linear"/><KeyFrameDouble value="250" frame="100" interpolationType="linear"/><KeyFrameDouble value="345" frame="140" interpolationType="linear"/><KeyFrameDouble value="420" frame="180" interpolationType="linear"/><KeyFrameDouble value="420" frame="200" interpolationType="linear"/><KeyFrameDouble value="55" frame="201" interpolationType="linear"/><KeyFrameDouble value="55" frame="240"/></KeyedProperty><KeyedProperty property="y"><KeyFrameDouble value="202" interpolationType="linear"/><KeyFrameDouble value="242" frame="35" interpolationType="linear"/><KeyFrameDouble value="222" frame="65" interpolationType="linear"/><KeyFrameDouble value="165" frame="100" interpolationType="linear"/><KeyFrameDouble value="99" frame="140" interpolationType="linear"/><KeyFrameDouble value="61" frame="180" interpolationType="linear"/><KeyFrameDouble value="61" frame="200" interpolationType="linear"/><KeyFrameDouble value="202" frame="201" interpolationType="linear"/><KeyFrameDouble value="202" frame="240"/></KeyedProperty></KeyedObject>
+    </LinearAnimation>
+  </Artboard>
+</Rive>

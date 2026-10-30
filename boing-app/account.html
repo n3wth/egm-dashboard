@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Account · Boing</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./account.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="topbar"><a class="brand" href="/" aria-label="Boing home"><span class="brand-mark" aria-hidden="true"><img src="./logo/boing-approved.png" alt=""></span><span aria-hidden="true">boıng</span></a><span class="badge">BETA PREVIEW</span><form class="signout" action="/auth/logout" method="post"><button type="submit">Sign out</button></form></header>
+  <main id="main" class="account-page">
+    <a class="account-back" href="/">← Projects</a>
+    <h1>Account</h1>
+    <section class="info" aria-labelledby="profile-heading">
+      <h2 id="profile-heading">Profile</h2>
+      <p class="account-label">Email</p>
+      <p id="account-email" class="account-email" role="status" aria-live="polite">Loading account…</p>
+      <button id="account-retry" type="button" hidden>Try again</button>
+      <a id="account-signin" class="account-signin" href="/auth/boing/login" hidden>Sign in</a>
+      <p>Sign-in is managed by WorkOS.</p>
+      <p><a id="platform-admin-link" href="/admin.html" hidden>Platform administration</a></p>
+    </section>
+  </main>
+</body>
+</html>
