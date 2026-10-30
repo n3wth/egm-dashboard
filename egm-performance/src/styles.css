@@ -3514,3 +3514,57 @@ main[data-data-app-content="report"] .report-recommendations > p {
 .dashboard-logo-link:focus-visible .dashboard-logo-body { fill: currentColor; }
 @media (hover: hover) and (pointer: fine) { .dashboard-logo-link:hover .dashboard-logo-body { fill: currentColor; } }
 @media (prefers-reduced-motion: reduce) { .dashboard-logo-body { transition: none; } }
+
+/* The icon navbar stays one centered row. Narrow widths scroll the tabs instead of resizing or hiding controls. */
+@media (max-width: 650px) {
+  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period > time:first-child { display: inline; }
+  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period { font-size: 12px; gap: 4px !important; }
+  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period > time:last-child { font-size: 12px; }
+}
+@media (max-width: 599px) {
+  .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-inner {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    min-height: 52px;
+    gap: 8px;
+    padding-block: 0;
+  }
+  .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-copy {
+    flex: 0 0 36px;
+    width: 36px;
+  }
+  .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-tabs-collapse {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .dashboard-topbar.egm-single-row .dashboard-tabs-inner:has(.dashboard-reporting-period) .dashboard-tabs,
+  .dashboard-topbar.egm-single-row .egm-icon-tabs {
+    flex: 1 1 auto;
+    min-width: 72px;
+    overflow-x: auto;
+  }
+  .dashboard-topbar.egm-single-row .dashboard-reporting-period { flex: 0 1 auto; min-width: 0; }
+  .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-actions {
+    display: flex;
+    flex: 0 0 auto;
+    width: auto;
+    align-items: center;
+    gap: 4px;
+  }
+  .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-actions > :not(:first-child),
+  .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-actions > :first-child,
+  .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-actions > :first-child button,
+  .dashboard-topbar.egm-single-row .dashboard-ask-button,
+  .dashboard-topbar.egm-single-row .egm-feedback-trigger {
+    display: inline-flex;
+    width: auto;
+    height: 36px;
+    min-height: 36px;
+  }
+  .dashboard-topbar.egm-single-row .dashboard-ask-button,
+  .dashboard-topbar.egm-single-row .egm-account-button {
+    width: 36px;
+    min-width: 36px;
+  }
+}

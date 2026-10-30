@@ -158,27 +158,37 @@
   .egm-mentions-table .table :is(th,td):first-child { padding-inline-end: 12px; }
   .egm-mentions-detail { gap: 3px 10px; }
 }
-.egm-icon-tabs[role="tablist"] .dashboard-tab { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; width: 36px; height: 36px; min-height: 36px; padding: 0; }
-.egm-icon-tabs[role="tablist"] { padding-left: 8px; }
+.dashboard-tabs-inner:has(.egm-icon-tabs) { display: flex; align-items: center; gap: 8px; height: 36px; }
+.dashboard-logo-link { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; }
+.dashboard-logo-link svg { width: 22px; height: 16px; }
+.dashboard-reporting-period { display: inline-flex; align-items: center; margin-top: 0; }
+.egm-icon-tabs[role="tablist"] { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding-left: 0; }
+.egm-icon-tabs[role="tablist"] .dashboard-tab { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; box-sizing: border-box; width: 36px; height: 36px; min-width: 36px; min-height: 36px; padding: 0; border-radius: 8px; }
 .egm-icon-tabs .dashboard-tab-item { display: inline-flex; align-items: center; height: 36px; }
 .egm-icon-tabs .dashboard-tab[aria-selected="true"] { border-radius: 8px; background: var(--border); color: var(--text); padding-bottom: 0; }
 .egm-icon-tabs .dashboard-tab[aria-selected="false"] { padding-bottom: 0; }
 .egm-icon-tabs .dashboard-tab::after { display: none; }
+.egm-icon-tabs .dashboard-icon,
+.dashboard-ask-button .dashboard-icon,
+.dashboard-reporting-period .dashboard-icon { width: 16px !important; height: 16px !important; }
+.dashboard-ask-button,
+.egm-account-button,
+.egm-account-menu .dashboard-native-overflow { box-sizing: border-box; width: 36px; height: 36px; min-width: 36px; min-height: 36px; border-radius: 8px; }
 .egm-mentions-summary { border-top: 1px solid var(--border); padding: 16px 20px 0; }
 .egm-mentions-summary .component-header { float: right; margin: 0 0 0 12px; }
 .egm-mentions-collection-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; color: var(--secondary); font-size: 12px; line-height: 1.6; }
 .egm-mentions-collection-line .egm-mentions-collection { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
 .egm-account-menu { display: flex; align-items: center; order: 99; }
-.egm-account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 50%; overflow: hidden; color: var(--foreground); font-size: 13px; font-weight: 500; transition: border-color 120ms ease-out, box-shadow 120ms ease-out; }
+.egm-account-avatar { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 50%; overflow: hidden; color: var(--text); font-size: 11px; font-weight: 500; }
 .egm-account-avatar-wrap { position: relative; display: inline-flex; }
 .egm-account-pending { position: absolute; top: 0; right: 0; width: 9px; height: 9px; border: 2px solid var(--background); border-radius: 50%; background: var(--blue); }
 @media (prefers-reduced-motion: no-preference) {
   .egm-live-changed { animation: egm-live-update 700ms ease-out; }
   @keyframes egm-live-update { 0% { opacity: .55; } 100% { opacity: 1; } }
 }
-.egm-account-button { padding: 4px; border: 0 !important; border-radius: 50% !important; background: transparent !important; box-shadow: none !important; }
-.egm-account-button:is(:hover,[data-state="open"]) .egm-account-avatar { border-color: var(--border-strong); box-shadow: 0 0 0 3px color-mix(in srgb, var(--data-app-safe-chrome-foreground, var(--text)) 12%, transparent); }
-@media (hover: none) { .egm-account-button:hover:not([data-state="open"]) .egm-account-avatar { border-color: var(--border); box-shadow: none; } }
+.egm-account-button { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0 !important; border-radius: 8px !important; background: transparent !important; box-shadow: none !important; }
+.egm-account-button:is(:hover,[data-state="open"]) { background: var(--border) !important; }
+.egm-account-button:is(:hover,[data-state="open"]) .egm-account-avatar { border-color: var(--border-strong); }
 .egm-account-button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-account-menu .dashboard-native-overflow { position: relative; width: 36px; height: 36px; }
 

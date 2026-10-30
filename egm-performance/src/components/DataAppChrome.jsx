@@ -1,5 +1,6 @@
 import { dataAppExportOptions } from "../export-catalog.js";
 import { Feedback } from "../content/dashboard/Feedback.jsx";
+import { navbarAskIcon, navbarIconSize, navbarRefreshIcon } from "../content/dashboard/navbar-icons.mjs";
 import { useOptionalDataAppShell } from "../DataAppContext.jsx";
 import { dataAppBuildState } from "../build-state.js";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
@@ -93,7 +94,7 @@ function RelativeFreshness({ generatedAt }) {
     : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago`
       : `${Math.floor(minutes / 1440)}d ago`;
   const exact = new Date(timestamp).toLocaleString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" });
-  return <time dateTime={generatedAt} title={`Updated ${exact}`} aria-label={`Updated ${exact}`} style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon name="refresh" size={12}/>{age}</time>;
+  return <time dateTime={generatedAt} title={`Updated ${exact}`} aria-label={`Updated ${exact}`} style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon name={navbarRefreshIcon} size={navbarIconSize}/>{age}</time>;
 }
 
 function DataAppVerificationBadge({
@@ -494,7 +495,7 @@ const HeaderActionButton = React.forwardRef(function HeaderActionButton(
       aria-label={label}
       className={["dashboard-header-action-button", className].filter(Boolean).join(" ")}
     >
-      {icon && <DashboardAskIcon name={icon} size={18} />}
+      {icon && <DashboardAskIcon name={icon} size={navbarIconSize} />}
       {!iconOnly&&<span className="dashboard-header-action-label dashboard-header-action-label-full">{label}</span>}
       {!iconOnly&&compactLabel && (
         <span className="dashboard-header-action-label dashboard-header-action-label-compact">{compactLabel}</span>
@@ -1254,7 +1255,7 @@ export function DataAppTopbar({
                   ref={askButtonRef}
                   label={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   iconOnly={mode !== "edit"}
-                  icon={mode === "edit" ? null : "gemini"}
+                  icon={mode === "edit" ? null : navbarAskIcon}
                   compactLabel={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   className="dashboard-ask-button"
                   onClick={mode === "edit" ? onCancel : () => openAskComposer()}
