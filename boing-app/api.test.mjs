@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { ApiError, collectProject, listGithubRepositories, metricCards, metricsFromSnapshot, readJson, renameProject, selectGithubRepository, snapshotFreshness, sourceStatus, startGithubInstall, websiteMetric } from './api.mjs'
+import { acceptInvitation, ApiError, collectProject, createProject, listGithubRepositories, metricCards, metricsFromSnapshot, readJson, renameProject, selectGithubRepository, snapshotFreshness, sourceStatus, startGithubInstall, updatePresentation, updateWebsite, websiteMetric } from './api.mjs'
 
 test('requests collection for the selected project and workspace without a request body', async () => {
   let sent
@@ -116,4 +116,58 @@ test('only presents valid supported measurements', () => {
     { label: 'GitHub stars', value: 0 }, { label: 'GitHub forks', value: 2 },
   ])
   assert.deepEqual(metricsFromSnapshot({ queries: {} }), [])
+})
+
+const invalidResponse = error => error.message === 'invalid_response'
+const failed500 = error => error instanceof ApiError && error.status === 500
+
+test('creates a project in the selected workspace and requires a valid project back', async () => {
+  await assert.rejects(createProject('Site', { organizationId: 'bad org' }), TypeError)
+  let sent
+  const project = await createProject('Site', { organizationId: 'org-1', request: async (path, options) => { sent = { path, options }; return Response.json({ project: { id: 'p1', name: 'Site' } }) } })
+  assert.deepEqual(project, { id: 'p1', name: 'Site' })
+  assert.equal(sent.path, '/api/boing/projects')
+  assert.equal(sent.options.method, 'POST')
+  assert.equal(sent.options.headers['x-boing-organization'], 'org-1')
+  assert.deepEqual(JSON.parse(sent.options.body), { name: 'Site' })
+  await assert.rejects(createProject('Site', { organizationId: 'org-1', request: async () => new Response('', { status: 500 }) }), failed500)
+  await assert.rejects(createProject('Site', { organizationId: 'org-1', request: async () => Response.json({}) }), invalidResponse)
+})
+
+test('updates the website of the selected project and requires confirmation', async () => {
+  await assert.rejects(updateWebsite('p/1', null, { organizationId: 'org-1' }), TypeError)
+  let sent
+  await updateWebsite('p1', 'https://example.com', { organizationId: 'org-1', request: async (path, options) => { sent = { path, options }; return Response.json({ updated: true }) } })
+  assert.equal(sent.path, '/api/boing/projects/p1/website')
+  assert.equal(sent.options.method, 'PUT')
+  assert.equal(sent.options.headers['x-boing-organization'], 'org-1')
+  assert.deepEqual(JSON.parse(sent.options.body), { website: 'https://example.com' })
+  await assert.rejects(updateWebsite('p1', null, { organizationId: 'org-1', request: async () => new Response('', { status: 500 }) }), failed500)
+  await assert.rejects(updateWebsite('p1', null, { organizationId: 'org-1', request: async () => Response.json({}) }), invalidResponse)
+})
+
+test('updates presentation with its revision and requires a presentation back', async () => {
+  await assert.rejects(updatePresentation('p1', [], 0, { organizationId: 'org-1' }), TypeError)
+  let sent
+  const result = await updatePresentation('p1', { theme: 'dark' }, 3, { organizationId: 'org-1', request: async (path, options) => { sent = { path, options }; return Response.json({ presentation: { theme: 'dark' }, revision: 4 }) } })
+  assert.deepEqual(result, { presentation: { theme: 'dark' }, revision: 4 })
+  assert.equal(sent.path, '/api/boing/projects/p1/presentation')
+  assert.equal(sent.options.method, 'PUT')
+  assert.equal(sent.options.headers['x-boing-organization'], 'org-1')
+  assert.deepEqual(JSON.parse(sent.options.body), { presentation: { theme: 'dark' }, revision: 3 })
+  await assert.rejects(updatePresentation('p1', {}, 0, { organizationId: 'org-1', request: async () => new Response('', { status: 500 }) }), failed500)
+  await assert.rejects(updatePresentation('p1', {}, 0, { organizationId: 'org-1', request: async () => Response.json({ revision: 1 }) }), invalidResponse)
+})
+
+test('accepts an invitation without a workspace header and returns the joined workspace', async () => {
+  const token = 'a'.repeat(32)
+  await assert.rejects(acceptInvitation('short'), TypeError)
+  let sent
+  assert.equal(await acceptInvitation(token, { request: async (path, options) => { sent = { path, options }; return Response.json({ organizationId: 'org-1' }) } }), 'org-1')
+  assert.equal(sent.path, '/api/boing/invitations/accept')
+  assert.equal(sent.options.method, 'POST')
+  assert.equal(sent.options.headers['x-boing-organization'], undefined)
+  assert.deepEqual(JSON.parse(sent.options.body), { token })
+  await assert.rejects(acceptInvitation(token, { request: async () => new Response('', { status: 500 }) }), failed500)
+  await assert.rejects(acceptInvitation(token, { request: async () => Response.json({}) }), invalidResponse)
 })

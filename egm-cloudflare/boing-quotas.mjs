@@ -1,5 +1,5 @@
-// Isolated bounded request-quota primitives for Boing. Not wired into any
-// route or worker. A caller must derive `user` from a verified server session
+// Bounded request-quota primitives for Boing. Only ai.insight is wired
+// (boing-router.mjs calls consumeQuota before boing-ai). A caller must derive `user` from a verified server session
 // and `organizationId` from a freshly verified server-side membership (for
 // example resolveBoingContext in boing-context.mjs). Neither value is ever
 // parsed from a request, and no client-supplied organization id grants access.

@@ -14,7 +14,7 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   const base='https://api.github.com/repos/google/elephant-goldfish-model'
   const get=async(path,accept='application/vnd.github+json')=>{
     requests.push(base+path)
-    const response=await request(base+path,{headers:{authorization:'Bearer '+env.GITHUB_TOKEN,accept,'user-agent':'egm-growth-dashboard','x-github-api-version':'2022-11-28'},signal:AbortSignal.timeout(20000)})
+    const response=await request(base+path,{redirect:'error',headers:{authorization:'Bearer '+env.GITHUB_TOKEN,accept,'user-agent':'egm-growth-dashboard','x-github-api-version':'2022-11-28'},signal:AbortSignal.timeout(20000)})
     if(!response.ok) throw Error('GitHub source failed: '+response.status)
     return response.json()
   }

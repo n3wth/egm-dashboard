@@ -3,7 +3,7 @@ export const peerRepos=['google/elephant-goldfish-model','github/spec-kit','Fiss
 export async function collectResearch(env,request=fetch) {
   const at=new Date().toISOString()
   const get=async path=>{
-    const response=await request('https://api.github.com/'+path,{headers:{authorization:'Bearer '+env.GITHUB_TOKEN,accept:'application/vnd.github+json','user-agent':'egm-growth-dashboard'},signal:AbortSignal.timeout(20000)})
+    const response=await request('https://api.github.com/'+path,{redirect:'error',headers:{authorization:'Bearer '+env.GITHUB_TOKEN,accept:'application/vnd.github+json','user-agent':'egm-growth-dashboard'},signal:AbortSignal.timeout(20000)})
     if(!response.ok) throw Error('Research source failed: '+response.status)
     return response.json()
   }

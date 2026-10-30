@@ -9,6 +9,7 @@ test('only three bounded search calls, no extra paid content, deduplicated URLs'
   const request = async (url, init) => {
     assert.equal(url, 'https://api.exa.ai/search')
     assert.equal(init.headers['x-api-key'], 'test-key')
+    assert.equal(init.redirect, 'error')
     const body = JSON.parse(init.body)
     assert.deepEqual(Object.keys(body), ['query', 'type', 'numResults'])
     assert.equal(body.numResults, 5)

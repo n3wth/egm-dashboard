@@ -122,6 +122,14 @@ test('a session cookie without a live session shows the session ended page',asyn
   assert.equal(response.status,401)
   assert.match(await response.text(),/Your session ended/)
 })
+test('a session cookie sealed with the previous secret still shows the session ended page',async()=>{
+  const previous='b'.repeat(64)
+  const token=await seal({sid:'gone'},previous,'session')
+  const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,SESSION_SECRET_PREVIOUS:previous,DB:{prepare(){return {bind(){return {first:async()=>null}}}}}}
+  const response=await handle(new Request(env.APP_URL+'/overview',{headers:{cookie:'__Host-egm_session='+token}}),env)
+  assert.equal(response.status,401)
+  assert.match(await response.text(),/Your session ended/)
+})
 test('sign-in callback failures render pages instead of plain text',async()=>{
   const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,WORKOS_CLIENT_ID:'client'}
   const flow=await seal({verifier:'v',state:'good'},secret,'login',600)

@@ -288,6 +288,9 @@ test('writes require same origin, owner role, valid content and current revision
   const { env, sql } = setup()
   const body = { revision: 0, presentation: { title: 'Updated' } }
   assert.equal((await handleBoingApi(put('project_a', body, 'https://evil.example'), env, user('owner'))).status, 403)
+  const foreign = await handleBoingApi(new Request('https://evil.example/api/boing/projects/project_a/presentation', { method: 'PUT', headers: { origin: 'https://app.boing.run', 'content-type': 'application/json' }, body: JSON.stringify(body) }), env, user('owner'))
+  assert.equal(foreign.status, 403)
+  assert.equal((await foreign.json()).error, 'invalid_origin')
   assert.equal((await handleBoingApi(put('project_b', body), env, user('owner'))).status, 404)
   assert.equal((await handleBoingApi(put('project_a', body), env, user('member'))).status, 403)
   assert.equal((await handleBoingApi(put('project_a', { revision: 0, presentation: { unknown: true } }), env, user('owner'))).status, 400)

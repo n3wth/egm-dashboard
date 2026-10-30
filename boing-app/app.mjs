@@ -242,7 +242,10 @@ async function loadGithub(project, organizationId) {
     githubForm.hidden = repositories.length === 0
     text(githubStatus, repositories.length ? 'Choose a repository to finish connecting.' : 'No repositories are available in this installation.')
   } catch (error) {
-    if (!controller.signal.aborted) text(githubStatus, error instanceof ApiError && error.status === 403 ? 'GitHub authorization expired or was not completed. Connect again to continue.' : 'Could not load repositories. Try connecting again.')
+    if (controller.signal.aborted) return
+    const expired = error instanceof ApiError && error.status === 403
+    if (expired) try { sessionStorage.removeItem('boing.github.pending') } catch {}
+    text(githubStatus, expired ? 'GitHub authorization expired or was not completed. Connect again to continue.' : 'Could not load repositories. Try connecting again.')
   }
 }
 

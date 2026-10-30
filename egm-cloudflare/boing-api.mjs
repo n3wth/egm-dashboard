@@ -142,7 +142,7 @@ export async function handleBoingApi(request, env, user, organizationId, { conte
       if (!record) return json({ error: 'not_found' }, 404)
       return json({ presentation: JSON.parse(record.body), revision: record.revision, canEdit: ['owner', 'admin'].includes(record.role) })
     }
-    if (!env.APP_URL || request.headers.get('origin') !== env.APP_URL) return json({ error: 'invalid_origin' }, 403)
+    if (!env.APP_URL || url.origin !== env.APP_URL || request.headers.get('origin') !== env.APP_URL) return json({ error: 'invalid_origin' }, 403)
     const access = await projectAccess(env.DB, user.id, projectId, organizationId)
     if (!access) return json({ error: 'not_found' }, 404)
     if (!['owner', 'admin'].includes(access.role)) return json({ error: 'forbidden' }, 403)
