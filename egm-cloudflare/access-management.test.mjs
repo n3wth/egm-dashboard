@@ -11,6 +11,14 @@ function environment() {
   return {APP_URL:'https://egm.n3wth.com',OWNER_EMAIL:owner.email,db,DB:{prepare(sql){return {bind(...args){return {async run(){const result=db.prepare(sql).run(...args);return {meta:{changes:Number(result.changes)}}},sql,args}},async all(){return {results:db.prepare(sql).all()}}}},async batch(statements){return statements.map(({sql,args})=>({meta:{changes:Number(db.prepare(sql).run(...args).changes)}}))}}}
 }
 const request=(body,origin='https://egm.n3wth.com')=>new Request('https://egm.n3wth.com/api/access',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(body)})
+test('oversized streamed access requests are rejected before any mutation',async()=>{
+  const env=environment()
+  const body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array(2049));controller.close()}})
+  const req=new Request(env.APP_URL+'/api/access',{method:'POST',headers:{origin:env.APP_URL,'content-type':'application/json'},body,duplex:'half'})
+  assert.equal((await manageAccess(req,env,owner)).status,413)
+  assert.equal(env.db.prepare('SELECT status FROM users').get().status,'pending')
+  assert.equal(env.db.prepare('SELECT count(*) AS count FROM audit').get().count,0)
+})
 test('owner-only endpoint rejects other identities and cross-origin writes without DB changes',async()=>{
   const env=environment()
   for(const user of [null,{...owner,email:'guest@example.org'},{...owner,verified:0},{...owner,status:'pending'}])assert.equal((await manageAccess(new Request(env.APP_URL+'/api/access'),env,user)).status,403)
@@ -51,10 +59,21 @@ test('user photos are bounded, limited to dashboard identities and validated',as
   }
   const result=await (await manageAccess(new Request(env.APP_URL+'/api/access'),env,{...owner,id:'user_owner'},fetcher)).json()
   assert.equal(calls.length,2)
-  assert.equal(calls[0].options.redirect,'error')
+  assert.equal(calls[0].options.redirect,'manual')
   assert.equal(result.users.find(user=>user.id==='user_owner').profilePictureUrl,'https://workoscdn.com/images/owner')
   assert.equal(result.users.find(user=>user.id==='pending').profilePictureUrl,null)
   assert.equal(result.users.some(user=>user.id==='user_other'),false)
+})
+test('redirects from the photo provider are not followed',async()=>{
+  const env={...environment(),WORKOS_API_KEY:'test-key'}
+  let calls=0
+  const result=await (await manageAccess(new Request(env.APP_URL+'/api/access'),env,owner,async(_url,options)=>{
+    calls++
+    assert.equal(options.redirect,'manual')
+    return new Response(null,{status:302,headers:{location:'https://other.example/'}})
+  })).json()
+  assert.equal(calls,1)
+  assert.equal(result.users[0].profilePictureUrl,null)
 })
 test('provider outage preserves dashboard users and verified viewer photo',async()=>{
   const env={...environment(),WORKOS_API_KEY:'test-key'}
@@ -63,4 +82,16 @@ test('provider outage preserves dashboard users and verified viewer photo',async
   assert.equal(response.status,200)
   const result=await response.json()
   assert.equal(result.users.find(user=>user.id==='user_owner').profilePictureUrl,'https://workoscdn.com/images/owner')
+})
+test('admin user-list photo lookups reuse a bounded cache and refresh when users change',async()=>{
+  const env={...environment(),WORKOS_API_KEY:'test-key'}
+  let calls=0
+  const fetcher=async()=>{calls++;return Response.json({data:[{id:'pending',profile_picture_url:'https://workoscdn.com/images/pending'}],list_metadata:{after:null}})}
+  const read=()=>manageAccess(new Request(env.APP_URL+'/api/access'),env,owner,fetcher)
+  assert.equal((await (await read()).json()).users[0].profilePictureUrl,'https://workoscdn.com/images/pending')
+  await read()
+  assert.equal(calls,1)
+  env.db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?,?)').run('new','New','new@example.org','pending','2026-10-28',null,null)
+  await read()
+  assert.equal(calls,2)
 })

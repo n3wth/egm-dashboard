@@ -21,6 +21,17 @@ test('known icons use fixed redirect-disabled upstream and cached private respon
   assert.equal((await cachedSiteIcon(request,{},options)).status,200)
   assert.equal(calls,1)
 })
+test('cache failures do not prevent icon delivery or the upstream fallback',async()=>{
+  const request=new Request(origin+'/api/site-icon?host=github.com')
+  for(const failure of ['match','put']) {
+    for(const upstream of [icon,()=>{throw Error('upstream unavailable')}]) {
+      const store={async match(){if(failure==='match')throw Error('cache unavailable');return null},async put(){if(failure==='put')throw Error('cache unavailable')}}
+      const result=await cachedSiteIcon(request,{}, {cache:store,request:async()=>upstream()})
+      assert.equal(result.status,upstream===icon?200:204)
+      assert.match(result.headers.get('cache-control'),/^private, max-age=/)
+    }
+  }
+})
 test('snapshot URLs permit relevant public publishers',async()=>{
   const result=await cachedSiteIcon(new Request(origin+'/api/site-icon?host=publisher.org'),{}, {snapshot:{queries:{mentions:{rows:[{url:'https://publisher.org/egm'}]}}},cache:cache(),request:async()=>icon()})
   assert.equal(result.status,200)

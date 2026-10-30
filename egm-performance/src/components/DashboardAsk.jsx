@@ -15,6 +15,7 @@ export function DashboardAskIcon({ name, size = 16 }) {
 }
 
 const DashboardAskContext = createContext({
+  headerComposerOpen: false,
   selectionEnabled: false,
   openDashboardComposer: () => {},
   selectChartSection: () => {},
@@ -47,7 +48,7 @@ export function PinnedChartCard({ hoverCard, actions, canAsk, onAsk, onClose, pa
     style={{ width: hoverCard.width, borderRadius: hoverCard.radius, boxShadow: hoverCard.shadow, background: hoverCard.background }}>
     {(actions.length > 0 || canAsk) && <div className="chart-pinned-actions">
       {actions.map(action => <button key={action.label} type="button" onClick={() => { onClose(); action.onSelect(); }}><span>{action.label}</span><Icon name="arrowUpRight" size={14} /></button>)}
-      {canAsk && <button type="button" onClick={onAsk}>Ask</button>}
+      {canAsk && <button type="button" onClick={onAsk}>Ask Gemini</button>}
     </div>}
   </div>;
 }
@@ -860,9 +861,10 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
 
   const contextValue = useMemo(
     () => ({ openDashboardComposer, selectChartMark, selectChartSection, selectionEnabled, canSelectChartMark: canSelect, dismissChartMark,
+      headerComposerOpen: nativeAskOpen || selection?.source === "header",
       selectedMarkElement: selection ? anchorSourceRef.current?.markElement : null,
       pinnedChartElement: selection ? pinnedChartRef.current : null }),
-    [selectionEnabled, dashboardTitle, selection, explorationEnabled],
+    [selectionEnabled, dashboardTitle, selection, explorationEnabled, nativeAskOpen],
   );
   const minimumComposerHeight = selection?.source === "header"
     ? question.trim()
@@ -941,8 +943,8 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
     && (!question.length || isPhoneViewport);
   const hasQuestion = Boolean(question.trim());
   const sharedPromptLabel = closing && headerMorph
-    ? selection.triggerLabel ?? "Ask"
-    : "Ask";
+    ? selection.triggerLabel ?? "Ask Gemini"
+    : "Ask Gemini";
   const hoverCard = selection?.context?.hoverCard;
   const pinned = hoverCard && phase === "menu";
   const pinnedPosition = pinned ? pinnedChartCardPosition(selection.anchor, hoverCard, { width: window.innerWidth, height: window.innerHeight }) : null;
@@ -980,11 +982,11 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
         onAnimationEnd={finishClosing}
       >
         {phase === "compose" && <header className="dashboard-ask-mobile-heading">
-          <span>Ask</span>
-          <button type="button" aria-label="Close Ask" onClick={closeComposer}><Icon name="cross" size={20} /></button>
+          <span>Ask Gemini</span>
+          <button type="button" aria-label="Close Ask Gemini" onClick={closeComposer}><Icon name="cross" size={20} /></button>
         </header>}
         {closing && headerMorph && selection.triggerIconInset && <span className="dashboard-ask-return-icon" aria-hidden="true">
-          <DashboardAskIcon name="chatBubble" size={18} />
+          <DashboardAskIcon name="gemini" size={18} />
         </span>}
         {(!markActions.length || phase === "compose") && (phase === "menu" || (phase === "compose" && (!question || closing))) && (
           <span className="dashboard-ask-shared-prompt" aria-hidden="true">
@@ -1000,7 +1002,7 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
           {markActions.map((action, index) => <button type="button" key={action.label} autoFocus={index === 0}
             onClick={() => { closeComposer(); action.onSelect(); }}><span>{action.label}</span><Icon name="arrowUpRight" size={14} /></button>)}
           {(selectionEnabled || !markActions.length) && <button type="button" onClick={() => openNativeAsk()}>
-            <span className={markActions.length ? undefined : "dashboard-ask-menu-prompt"}>Ask</span>
+            <span className={markActions.length ? undefined : "dashboard-ask-menu-prompt"}>Ask Gemini</span>
           </button>}
         </div>
         <form
@@ -1028,8 +1030,8 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
                 event.currentTarget.form?.requestSubmit();
               }
             }}
-            placeholder={selection.source === "header" && canEdit ? "Ask a question or request a change…" : "Ask"}
-            aria-label="Question for Ask"
+            placeholder={selection.source === "header" && canEdit ? "Ask a question or request a change…" : "Ask Gemini"}
+            aria-label="Question for Ask Gemini"
           />
           {zeroStateVisible && (
             <div className="dashboard-ask-zero-state" role="group" aria-label="Suggested actions">
@@ -1064,9 +1066,9 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
             <button type="submit"
               className="dashboard-ask-submit"
               disabled={!question.trim()}
-              aria-label="Ask"
+              aria-label="Ask Gemini"
             >
-              {question.trim() && <span className="dashboard-ask-submit-label">Ask</span>}
+              {question.trim() && <span className="dashboard-ask-submit-label">Ask Gemini</span>}
               <span className="dashboard-ask-primary" aria-hidden="true">
                 <Icon name="sendUp" size={isPhoneViewport ? 20 : 16} />
               </span>

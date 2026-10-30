@@ -14,6 +14,7 @@ test('version poll fetches changed snapshots only without refreshing the page', 
   let version = 'v1'; const paths = [];
   const f = fixture(async path => { paths.push(path); return path.endsWith('-version') ? Response.json({ version }) : Response.json({ generatedAt: version, queries: { reach: { rows: [version] } } }); });
   await settle(); assert.equal(f.snapshots.length, 1);
+  assert.equal([...f.timers.values()][0].delay, 5000);
   await f.tick(); assert.equal(f.snapshots.length, 1);
   version = 'v2'; await f.tick(); assert.equal(f.snapshots.length, 2);
   assert.deepEqual(paths, ['/api/snapshot-version', '/api/snapshot', '/api/snapshot-version', '/api/snapshot-version', '/api/snapshot']);
@@ -31,12 +32,46 @@ test('hidden state aborts current request and visibility return never overlaps',
   assert.equal([...f.timers.values()][0].delay, 0);
   f.stop();
 });
+test('a late response from an aborted poll cannot stop polling or publish stale data', async () => {
+  for (const phase of ['version', 'snapshot']) {
+    let release, calls = 0;
+    const pending = new Promise(resolve => { release = resolve; });
+    const f = fixture(async path => {
+      calls++;
+      if (calls === (phase === 'version' ? 1 : 2)) return pending;
+      return path.endsWith('-version') ? Response.json({ version: 'fresh' }) : Response.json({ generatedAt: 'fresh', queries: {} });
+    });
+    await settle();
+    f.doc.visibilityState = 'hidden'; f.visibility();
+    f.doc.visibilityState = 'visible'; f.visibility();
+    release(new Response(null, { status: 401 }));
+    await settle();
+    assert.equal(f.snapshots.length, 0);
+    assert.equal([...f.timers.values()][0].delay, 0);
+    await f.tick();
+    assert.equal(f.snapshots.length, 1);
+    assert.equal(f.snapshots[0].generatedAt, 'fresh');
+    f.stop();
+  }
+});
+test('an aborted version body cannot trigger a snapshot fetch', async () => {
+  let release; const paths = [];
+  const pending = new Promise(resolve => { release = resolve; });
+  const f = fixture(async path => { paths.push(path); return { ok: true, status: 200, json: () => pending }; });
+  await settle();
+  f.doc.visibilityState = 'hidden'; f.visibility();
+  release({ version: 'stale' });
+  await settle();
+  assert.deepEqual(paths, ['/api/snapshot-version']);
+  assert.equal(f.snapshots.length, 0);
+  f.stop();
+});
 test('authentication failure stops polling and transient failures back off', async () => {
   const denied = fixture(async () => new Response(null, { status: 401 }));
   await settle(); assert.equal(denied.timers.size, 0); denied.stop();
   const f = fixture(async () => { throw new Error('offline'); });
-  await settle(); assert.equal([...f.timers.values()][0].delay, 120000);
-  await f.tick(); assert.equal([...f.timers.values()][0].delay, 240000);
+  await settle(); assert.equal([...f.timers.values()][0].delay, 10000);
+  await f.tick(); assert.equal([...f.timers.values()][0].delay, 20000);
   f.stop();
 });
 test('cleanup and malformed snapshots never publish data', async () => {

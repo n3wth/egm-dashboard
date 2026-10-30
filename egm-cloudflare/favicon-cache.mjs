@@ -53,7 +53,8 @@ export async function cachedSiteIcon(request,env,options={}) {
   }
   const cache=options.cache??globalThis.caches?.default
   const key=new Request(url.origin+'/api/site-icon?v=5&host='+encodeURIComponent(host),{method:'GET'})
-  let result=cache?await cache.match(key):null
+  let result=null
+  if(cache)try {result=await cache.match(key)}catch {}
   if(!result) {
     try {
       const upstream=new URL('https://favicon.vemetric.com/'+encodeURIComponent(host))
@@ -63,7 +64,7 @@ export async function cachedSiteIcon(request,env,options={}) {
       if(response.status>=300&&response.status<400)throw Error('unexpected_redirect')
       result=await limitedImage(response)
     }catch {result=new Response(null,{status:204,headers:{'cache-control':'public, max-age=300'}})}
-    if(cache)await cache.put(key,result.clone())
+    if(cache)try {await cache.put(key,result.clone())}catch {}
   }
   const headers=new Headers(result.headers)
   headers.set('cache-control',`private, max-age=${result.status===200?lifetime:300}`)

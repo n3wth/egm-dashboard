@@ -18,3 +18,25 @@ test('failures cached, wrong item rejected and daily attempts bounded five',asyn
   assert.ok(result.mention_engagement.rows.every(row=>row.status==='unavailable'&&row.hnPoints===undefined))
   await collectEngagement(env,async()=>assert.fail('negative cached'),{mentions,...result},now+1000)
 })
+test('cached stories do not prevent later discovered stories from being checked',async()=>{
+  const mentions={rows:Array.from({length:7},(_,i)=>({url:'https://news.ycombinator.com/item?id='+(i+1)}))}
+  const mention_engagement={rows:Array.from({length:5},(_,i)=>({hnId:String(i+1),lastAttemptAt:new Date(now-1000).toISOString()}))}
+  const checked=[]
+  const result=await collectEngagement(env,async url=>{
+    const id=Number(url.match(/(\d+)\.json$/)[1]);checked.push(id)
+    return Response.json({id,type:'story',score:1,descendants:0})
+  },{mentions,mention_engagement},now)
+  assert.deepEqual(checked,[6,7])
+  assert.equal(result.mention_engagement_status.rows[0].dailyAttempts,2)
+})
+test('unchecked stories are prioritized even after earlier stories expire',async()=>{
+  const mentions={rows:Array.from({length:7},(_,i)=>({url:'https://news.ycombinator.com/item?id='+(i+1)}))}
+  const mention_engagement={rows:Array.from({length:5},(_,i)=>({hnId:String(i+1),lastAttemptAt:new Date(now-86400001).toISOString()}))}
+  const checked=[]
+  await collectEngagement(env,async url=>{
+    const id=Number(url.match(/(\d+)\.json$/)[1]);checked.push(id)
+    return Response.json({id,type:'story',score:1,descendants:0})
+  },{mentions,mention_engagement},now)
+  assert.deepEqual(checked.slice(0,2),[6,7])
+  assert.equal(checked.length,5)
+})

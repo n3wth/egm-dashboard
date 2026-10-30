@@ -25,7 +25,7 @@ async function setup() {
   let active = true
   const request = async url => {
     if (url.includes('/sso/jwks/')) return Response.json({ keys: [jwk] })
-    if (url.endsWith('/sessions?limit=100&order=asc')) return Response.json({ data: active ? [{ id: 'session_123', user_id: 'user_123', status: 'active', expires_at: new Date(now + 3600000).toISOString() }] : [], list_metadata: { after: null } })
+    if (url.endsWith('/sessions?limit=100&order=desc')) return Response.json({ data: active ? [{ id: 'session_123', user_id: 'user_123', status: 'active', expires_at: new Date(now + 3600000).toISOString() }] : [], list_metadata: { after: null } })
     if (url.endsWith('/user_management/users/user_123')) return Response.json({ id: 'user_123', email: 'a@example.com', email_verified: true })
     throw Error('unexpected request')
   }

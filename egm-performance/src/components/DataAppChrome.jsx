@@ -1,4 +1,5 @@
 import { dataAppExportOptions } from "../export-catalog.js";
+import { Feedback } from "../content/dashboard/Feedback.jsx";
 import { useOptionalDataAppShell } from "../DataAppContext.jsx";
 import { dataAppBuildState } from "../build-state.js";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
@@ -577,6 +578,8 @@ function DataAppOverflowMenu({
   const [manageUsersOpen,setManageUsersOpen]=useState(false);
   const [accountSecurityOpen,setAccountSecurityOpen]=useState(false);
   const [failedPhoto,setFailedPhoto]=useState(null);
+  const [pendingAccess,setPendingAccess]=useState(false);
+  const [accessVersion,setAccessVersion]=useState(0);
   React.useEffect(()=>{
     if(!canLogOut)return;
     const controller=new AbortController();
@@ -584,9 +587,31 @@ function DataAppOverflowMenu({
     return ()=>controller.abort();
   },[canLogOut]);
   const canManageUsers=canLogOut&&(viewer?.canManageAccess===true||(viewer?.canManageAccess==null&&canEdit));
+  React.useEffect(()=>{
+    if(!canManageUsers){setPendingAccess(false);return;}
+    let stopped=false, socket, retry, renew, sequence=0;
+    const controller=new AbortController();
+    const refresh=()=>{
+      const current=++sequence;
+      fetch('/api/access-pending',{credentials:'same-origin',cache:'no-store',signal:controller.signal}).then(response=>response.ok?response.json():response.status===401||response.status===403?{pending:false}:null).then(data=>{
+        if(!stopped&&current===sequence&&data)setPendingAccess(data.pending===true);
+      }).catch(()=>{});
+    };
+    const connect=()=>{
+      if(stopped)return;
+      socket=new WebSocket(`${location.protocol==='https:'?'wss:':'ws:'}//${location.host}/api/access-live`);
+      socket.onopen=()=>{refresh();setAccessVersion(value=>value+1);renew=setTimeout(()=>socket.close(),60000)};
+      socket.onmessage=()=>{refresh();setAccessVersion(value=>value+1)};
+      socket.onclose=()=>{clearTimeout(renew);if(!stopped)retry=setTimeout(connect,2000)};
+      socket.onerror=()=>socket.close();
+    };
+    const visible=()=>{if(document.visibilityState==='visible')refresh()};
+    refresh();connect();document.addEventListener('visibilitychange',visible);
+    return ()=>{stopped=true;controller.abort();clearTimeout(retry);clearTimeout(renew);socket?.close();document.removeEventListener('visibilitychange',visible)};
+  },[canManageUsers]);
   const initial=String(viewer?.name??viewer?.email??'').trim().slice(0,1).toUpperCase();
   const photo=(()=>{try{const url=new URL(viewer?.profilePictureUrl);return url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.username&&!url.password&&!url.port?url.href:null}catch{return null}})();
-  const avatar=<span className="egm-account-avatar" aria-hidden="true">{photo&&failedPhoto!==photo?<img src={photo} alt="" width="28" height="28" referrerPolicy="no-referrer" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={()=>setFailedPhoto(photo)}/>:initial||<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>}</span>;
+  const avatar=<span className="egm-account-avatar-wrap" aria-hidden="true"><span className="egm-account-avatar">{photo&&failedPhoto!==photo?<img src={photo} alt="" width="28" height="28" referrerPolicy="no-referrer" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={()=>setFailedPhoto(photo)}/>:initial||<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>}</span>{pendingAccess&&<span className="egm-account-pending"/>}</span>;
   const logOut = () => {
     const form = document.createElement('form');
     form.method = 'POST';
@@ -624,7 +649,7 @@ function DataAppOverflowMenu({
       });
   };
   if(published)return <>
-    <span className="dashboard-custom-overflow"><Menu label="Account" align="end" contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label="Account" title={viewer?.name?`Account: ${viewer.name}`:'Account'}>{avatar}</button>}>
+    <span className="dashboard-custom-overflow"><Menu label="Account" align="end" contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label={pendingAccess?'Account, pending access requests':'Account'} title={pendingAccess?'Pending access requests':viewer?.name?`Account: ${viewer.name}`:'Account'}>{avatar}</button>}>
       <MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>onAction?.('copy-link')}>Copy link</MenuItem>
       <MenuItem icon="palette" className="dashboard-action-menu-item" onSelect={onOpenThemes}>Switch theme</MenuItem>
       {canManageUsers&&<MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Invite</MenuItem>}
@@ -632,8 +657,8 @@ function DataAppOverflowMenu({
       {canLogOut&&viewer?.widgetsEnabled===true&&<MenuItem icon="users" className="dashboard-action-menu-item" onSelect={()=>setAccountSecurityOpen(true)}>Profile and sessions</MenuItem>}
       {canLogOut&&<MenuItem icon="logOut" className="dashboard-action-menu-item" onSelect={logOut}>Log out</MenuItem>}
     </Menu></span>
-    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true">{avatar}</span><select ref={nativeSelect} aria-label="Account" onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}><option value="copy-link">Copy link</option><option value="theme">Switch theme</option>{canManageUsers&&<option value="manage-users">Manage users and invite</option>}{canLogOut&&viewer?.widgetsEnabled===true&&<option value="account-security">Profile and sessions</option>}{canLogOut&&<option value="logout">Log out</option>}</select></span>
-    {canManageUsers&&<ManageUsers open={manageUsersOpen} onClose={()=>setManageUsersOpen(false)}/>}
+    <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true">{avatar}</span><select ref={nativeSelect} aria-label={pendingAccess?'Account, pending access requests':'Account'} onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}><option value="copy-link">Copy link</option><option value="theme">Switch theme</option>{canManageUsers&&<option value="manage-users">Manage users and invite</option>}{canLogOut&&viewer?.widgetsEnabled===true&&<option value="account-security">Profile and sessions</option>}{canLogOut&&<option value="logout">Log out</option>}</select></span>
+    {canManageUsers&&<ManageUsers open={manageUsersOpen} onClose={()=>setManageUsersOpen(false)} accessVersion={accessVersion}/>}
     {canLogOut&&viewer?.widgetsEnabled===true&&<WorkosSessions open={accountSecurityOpen} onClose={()=>setAccountSecurityOpen(false)} profileEnabled={viewer?.profileEnabled===true}/>}
   </>;
   return (
@@ -651,13 +676,13 @@ function DataAppOverflowMenu({
           <Dropdown.Group className="dashboard-mobile-menu-group">
             <Dropdown.Label className="menu-group-label">Actions</Dropdown.Label>
             <MenuItem
-              icon="chatBubble"
+              icon="gemini"
               className="dashboard-action-menu-item"
               onSelect={() => {
                 requestAnimationFrame(() => onAsk?.());
               }}
             >
-              Ask
+              Ask Gemini
             </MenuItem>
             {canEdit && (
               <MenuItem icon="edit" className="dashboard-action-menu-item" onSelect={onEdit}>
@@ -941,7 +966,7 @@ export function DataAppTopbar({
   const moreButtonRef = useRef(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const [refreshScheduleOpen, setRefreshScheduleOpen] = useState(false);
-  const { openDashboardComposer } = useDashboardAsk();
+  const { openDashboardComposer, headerComposerOpen } = useDashboardAsk();
   function openAskComposer(anchor = askButtonRef.current) {
     if (build.active) return;
     openDashboardComposer(
@@ -1029,9 +1054,10 @@ export function DataAppTopbar({
       >
         <div className="dashboard-chrome-inner dashboard-topbar-inner">
           <div className="dashboard-topbar-copy">
-<a href="/overview" aria-label="EGM overview" onClick={event=>{const overviewTab=tabs.find(tab=>tab.id==='reach')??tabs.find(tab=>tab.label==='Overview');if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||!onTabChange||!overviewTab)return;event.preventDefault();onTabChange(overviewTab.id)}} style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
-<path d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2ZM20 12l3-2.6M20 12l3 2.6" />
+<a href="/overview" className="dashboard-logo-link" aria-label="EGM overview" onClick={event=>{const overviewTab=tabs.find(tab=>tab.id==='reach')??tabs.find(tab=>tab.label==='Overview');if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||!onTabChange||!overviewTab)return;event.preventDefault();onTabChange(overviewTab.id)}} style={{display:'flex',flexShrink:0,color:'inherit'}}><svg role="img" aria-label="Elephant Goldfish" viewBox="0.5 5.5 23.5 13" width="28" height="20" style={{flexShrink:0,alignSelf:'center',color:'inherit'}} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path className="dashboard-logo-body" d="M9.3 6.8a5.2 5.2 0 0 0 0 10.4 1.2 1.2 0 0 0 1.2-1.2V8a1.2 1.2 0 0 0-1.2-1.2Z" />
+<path className="dashboard-logo-body" d="M14.7 6.8a5.2 5.2 0 0 1 0 10.4 1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2Z" />
+<path d="M4.35 13.6H3c-1.5 0-2-1.5-1.5-3.2M20 12l3-2.6M20 12l3 2.6" />
             </svg></a>
             {published && surface !== "report" && verification && (
               <DataAppVerificationBadge
@@ -1215,6 +1241,7 @@ export function DataAppTopbar({
                     surface={surface}
                   />
                   </span>
+                  {surface === "dashboard" && <Feedback />}
 
                 </>
               )}
@@ -1222,18 +1249,19 @@ export function DataAppTopbar({
                 <HeaderActionButton
                   disabled={mode === "edit" ? saving : build.active}
                   data-mode-action="secondary"
+                  data-state={mode !== "edit" && headerComposerOpen ? "open" : undefined}
                   aria-describedby={mode !== "edit" && build.active ? askTooltipId : undefined}
                   ref={askButtonRef}
-                  label={mode === "edit" ? "Cancel" : "Ask"}
+                  label={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   iconOnly={mode !== "edit"}
-                  icon={mode === "edit" ? null : "chatBubble"}
-                  compactLabel={mode === "edit" ? "Cancel" : "Ask"}
+                  icon={mode === "edit" ? null : "gemini"}
+                  compactLabel={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   className="dashboard-ask-button"
                   onClick={mode === "edit" ? onCancel : () => openAskComposer()}
                 />
                 {mode !== 'edit' && (
                   <Tooltip id={askTooltipId} className="topbar-mode-tooltip">
-                    {build.active?`Available when this ${noun} is ready.`:'Ask'}
+                    {build.active?`Available when this ${noun} is ready.`:'Ask Gemini'}
                   </Tooltip>
                 )}
               </span>

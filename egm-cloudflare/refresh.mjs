@@ -31,7 +31,7 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   // Small request batches stay within Workers' simultaneous connection limit.
   const [repo,views,clones,referrers,paths]=await Promise.all(['','/traffic/views','/traffic/clones','/traffic/popular/referrers','/traffic/popular/paths'].map(p=>get(p)))
   const first=views.views?.[0]?.timestamp
-  if(!first || views.views.length<14 || !Array.isArray(clones.clones) || !referrers.length) throw Error('Incomplete traffic sources')
+  if(!first || views.views.length<14 || !Array.isArray(clones.clones) || !Array.isArray(referrers)) throw Error('Incomplete traffic sources')
   const [issuesAll,pulls,releases,domain,starResult]=await Promise.all([
     pages('/issues?state=all'),pages('/pulls?state=all'),pages('/releases'),get('/pages'),repo.stargazers_count>=10000?null:pages('/stargazers','application/vnd.github.star+json').catch(()=>null)
   ])

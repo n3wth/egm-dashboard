@@ -1,5 +1,5 @@
 // Workers AI stream:true returns SSE response tokens, not a completed response.
-export function streamAsk(run,finalize,signal,timeoutMs=20000) {
+export function streamAsk(run,finalize,signal,timeoutMs=30000,hooks={}) {
   const encoder=new TextEncoder()
   let reader,closed=false,timer,output,rejectWait
   const abort=()=>{closed=true;rejectWait?.(Error('cancelled'));reader?.cancel().catch(()=>{});try{output?.close()}catch{}}
@@ -7,12 +7,16 @@ export function streamAsk(run,finalize,signal,timeoutMs=20000) {
     async start(controller) {
       output=controller
       const send=value=>{if(!closed)controller.enqueue(encoder.encode(JSON.stringify(value)+'\n'))}
+      const step=(id,label,status,detail)=>send({type:'step',id,label,status,...(detail?{detail}:{})})
       const timeout=new Promise((_,reject)=>{rejectWait=reject})
       timer=setTimeout(()=>rejectWait(Error('timeout')),timeoutMs)
       signal?.addEventListener('abort',abort,{once:true})
       try {
         if(signal?.aborted){abort();return}
-        const stream=await Promise.race([run(),timeout])
+        const pending=run(step)
+        // A stream that arrives after cancel/timeout must still be released.
+        pending.then(late=>{if(closed)late?.cancel?.().catch(()=>{})},()=>{})
+        const stream=await Promise.race([pending,timeout])
         if(!stream?.getReader)throw Error('invalid_stream')
         reader=stream.getReader()
         if(closed){await reader.cancel();return}
@@ -47,7 +51,7 @@ export function streamAsk(run,finalize,signal,timeoutMs=20000) {
           if(!doneEvent||!answer.trim())throw Error('incomplete_stream')
           send({type:'result',...finalize(answer.trim())})
         }
-      }catch(error){send({type:'error',error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'})}
+      }catch(error){hooks.onError?.(error);send({type:'error',error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'})}
       finally {
         clearTimeout(timer)
         signal?.removeEventListener('abort',abort)

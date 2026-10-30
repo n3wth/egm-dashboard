@@ -1,3 +1,4 @@
+import {readBody} from './request-body.mjs'
 const encoder = new TextEncoder()
 const reply = (value, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } })
 const random = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
@@ -28,8 +29,8 @@ export async function manageInvitations(request, env, user, fetcher = fetch) {
   if (request.method !== 'POST') return reply({ error: 'method_not_allowed' }, 405)
   if (request.headers.get('origin') !== env.APP_URL) return reply({ error: 'invalid_origin' }, 403)
   if (!request.headers.get('content-type')?.startsWith('application/json')) return reply({ error: 'json_required' }, 415)
-  const body = await request.text()
-  if (body.length > 2048) return reply({ error: 'too_large' }, 413)
+  const body = await readBody(request, 2048)
+  if (body === null) return reply({ error: 'too_large' }, 413)
   let input
   try { input = JSON.parse(body) } catch { return reply({ error: 'invalid_request' }, 400) }
   if (!input || typeof input !== 'object' || Array.isArray(input)) return reply({ error: 'invalid_request' }, 400)
@@ -93,5 +94,11 @@ export async function redeemInvitation(env, token, user) {
     env.DB.prepare("INSERT INTO audit(id,user_id,action,actor,created_at) SELECT ?,?,'invitation_approved',created_by,? FROM invitations WHERE token_hash=? AND redemption_id=?").bind(crypto.randomUUID(), user.id, at, hash, nonce)
   ])
   return results[0].meta?.changes === 1
+}
+// True only when a still-active invitation is addressed to another email, so the page can say so without revealing which one.
+export async function invitationForOtherAccount(env, token, user) {
+  if (!validInvitationToken(token) || typeof user?.email !== 'string') return false
+  const row = await env.DB.prepare('SELECT email FROM invitations WHERE token_hash=? AND expires_at>? AND redeemed_at IS NULL AND revoked_at IS NULL').bind(await invitationHash(token), Date.now()).first()
+  return Boolean(row?.email) && row.email !== user.email.trim().toLowerCase()
 }
 import { isDashboardOwner } from './owner-identity.mjs'

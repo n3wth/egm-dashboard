@@ -1,4 +1,6 @@
+// Share formatter for ratios in [0, 1]. Unknown inputs (null, undefined, NaN, Infinity) render as a dash, never as 0%.
 export function percentage(value) {
+  if (!Number.isFinite(value)) return '—'
   const scaled = value * 100
   if (!Number.isFinite(scaled)) return '—'
   if (scaled !== 0 && Math.abs(scaled) < 0.1) return scaled < 0 ? '>−0.1%' : '<0.1%'

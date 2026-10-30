@@ -1,5 +1,7 @@
 import {isDashboardOwner} from './owner-identity.mjs'
+import {readBody} from './request-body.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
+const photoCache=new WeakMap()
 
 function photoUrl(value) {
   try { const url=new URL(value); return url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.username&&!url.password&&!url.port?url.href:null } catch { return null }
@@ -12,23 +14,32 @@ async function userPhotos(env,users,viewer,request) {
   const own=photoUrl(viewer.profilePictureUrl)
   if(own&&ids.has(viewer.id))photos.set(viewer.id,own)
   if(!env.WORKOS_API_KEY || !ids.size)return photos
+  const cached=photoCache.get(env)
+  if(cached && cached.expires>Date.now() && [...ids].every(id=>cached.ids.has(id))) {
+    for(const [id,photo] of cached.photos) if(ids.has(id)&&!photos.has(id))photos.set(id,photo)
+    return photos
+  }
   try {
-    let after=''
+    let after='',complete=false
+    const fetched=new Map()
     for(let page=0;page<2;page++) {
       const url=new URL('https://api.workos.com/user_management/users')
       url.searchParams.set('limit','100')
       if(after)url.searchParams.set('after',after)
-      const response=await request(url.href,{headers:{authorization:`Bearer ${env.WORKOS_API_KEY}`},redirect:'error',signal:AbortSignal.timeout(4000)})
+      const response=await request(url.href,{headers:{authorization:`Bearer ${env.WORKOS_API_KEY}`},redirect:'manual',signal:AbortSignal.timeout(4000)})
       if(!response.ok)break
       const body=await response.json()
       if(!Array.isArray(body.data))break
       for(const item of body.data) {
         const photo=photoUrl(item?.profile_picture_url)
-        if(ids.has(item?.id)&&photo)photos.set(item.id,photo)
+        if(ids.has(item?.id)&&photo)fetched.set(item.id,photo)
       }
       after=body.list_metadata?.after
-      if(typeof after!=='string'||!after||after.length>200)break
+      if(!after){complete=true;break}
+      if(typeof after!=='string'||after.length>200)break
     }
+    for(const [id,photo] of fetched) if(!photos.has(id))photos.set(id,photo)
+    if(complete)photoCache.set(env,{ids,photos:fetched,expires:Date.now()+300000})
   } catch {}
   return photos
 }
@@ -43,8 +54,8 @@ export async function manageAccess(request,env,user,fetcher=fetch) {
   if(request.method!=='POST')return reply({error:'method_not_allowed'},405)
   if(request.headers.get('origin')!==env.APP_URL)return reply({error:'invalid_origin'},403)
   if(!request.headers.get('content-type')?.startsWith('application/json'))return reply({error:'json_required'},415)
-  const body=await request.text()
-  if(body.length>2048)return reply({error:'too_large'},413)
+  const body=await readBody(request,2048)
+  if(body===null)return reply({error:'too_large'},413)
   let input
   try{input=JSON.parse(body)}catch{return reply({error:'invalid_request'},400)}
   if(!input||Object.keys(input).some(key=>!['id','decision'].includes(key))||typeof input.id!=='string'||!input.id||input.id.length>200||!['approved','denied'].includes(input.decision)||input.id===user.id)return reply({error:'invalid_request'},400)

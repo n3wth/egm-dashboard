@@ -2,9 +2,10 @@ import React from 'react'
 import {Icon} from '../../data-app-public.jsx'
 import './insight-callout.css'
 
-export function InsightCallout({children,action}) {
+/** One sentence computed from the reviewed rows. Recommendations live on the Research tab, where each is tied to its evidence. */
+export function InsightCallout({children}) {
   return <aside className="egm-insight-callout" aria-label="Insight">
     <Icon name="lightbulb" size={18}/>
-    <div><p>{children}</p>{action&&<p className="egm-insight-action"><strong>Try:</strong> {action}</p>}</div>
+    <p>{children}</p>
   </aside>
 }

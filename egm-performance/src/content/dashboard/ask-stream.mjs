@@ -1,3 +1,6 @@
+const stepStatuses=new Set(['active','done','skipped'])
+export const EMPTY_ANSWER='Ask returned an empty answer. Try again.'
+export const emptyAnswer=answer=>typeof answer!=='string'||!answer.trim()
 export async function consumeAskStream(stream,onEvent,{signal}={}) {
   if(!stream)throw new Error('Ask returned no response stream.')
   const reader=stream.getReader()
@@ -11,8 +14,10 @@ export async function consumeAskStream(stream,onEvent,{signal}={}) {
     const event=JSON.parse(line)
     if(event.type==='error')throw new Error(event.error==='ask_timeout'?'The answer took too long. Try again.':'Ask is temporarily unavailable. Try again shortly.')
     if(event.type==='delta'&&typeof event.text==='string')onEvent(event)
+    if(event.type==='step'&&typeof event.id==='string'&&typeof event.label==='string'&&stepStatuses.has(event.status))onEvent(event)
     if(event.type==='result') {
       if(typeof event.answer!=='string')throw new Error('Ask returned an incomplete answer.')
+      if(emptyAnswer(event.answer))throw new Error(EMPTY_ANSWER)
       result=event
       onEvent(event)
     }
