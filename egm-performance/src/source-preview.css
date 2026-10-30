@@ -28,5 +28,5 @@
 .source-preview-provider-mask { display: block; width: 16px; height: 16px; background: currentColor; mask: var(--source-provider-mask) center / contain no-repeat; -webkit-mask: var(--source-provider-mask) center / contain no-repeat; }
 .source-preview-title { font-weight: 600; line-height: 1.4; }
 .source-preview-summary { margin: 4px 0 0; }
-.source-preview-link:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; border-radius: 2px; }
+.source-preview-link:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; border-radius: var(--radius-2xs); }
 @media print { .source-preview-card { display: none !important; } }

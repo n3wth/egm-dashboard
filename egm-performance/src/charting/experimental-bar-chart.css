@@ -24,7 +24,7 @@
   transition: opacity 160ms ease;
 }
 .bar-family-list[data-interacting] .bar-family-list-row:not([data-active]) { opacity: .38; }
-.bar-family-list-row:focus-visible, .bar-family-bullet-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.bar-family-list-row:focus-visible, .bar-family-bullet-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius-sm); }
 .bar-family-list-copy { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: var(--bar-family-font-size, 14px); line-height: 1.2; }
 .bar-family-list-copy > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-family-list-copy strong { flex: 0 0 auto; font-size: inherit; font-weight: 650; }
@@ -37,8 +37,8 @@
 .bar-family-progress-summary { gap: 4px 8px; flex-wrap: wrap; }
 .bar-family-progress-summary strong { font-size: 20px; font-weight: 560; letter-spacing: -.035em; line-height: 24px; }
 .bar-family-progress-summary > span { color: var(--secondary); white-space: normal; overflow-wrap: normal; }
-.bar-family-range-track { position: relative; height: 3px; border-radius: 999px; background: var(--border-strong); }
-.bar-family-range-track i { position: absolute; top: 50%; width: 8px; height: 8px; border: 2px solid var(--surface); border-radius: 50%; background: var(--bar-family-range-color, var(--text)); box-shadow: 0 0 0 1px var(--border-strong); transform: translate(-50%, -50%); }
+.bar-family-range-track { position: relative; height: 3px; border-radius: var(--radius-full); background: var(--border-strong); }
+.bar-family-range-track i { position: absolute; top: 50%; width: 8px; height: 8px; border: 2px solid var(--surface); border-radius: var(--radius-full); background: var(--bar-family-range-color, var(--text)); box-shadow: 0 0 0 1px var(--border-strong); transform: translate(-50%, -50%); }
 .bar-family-range .bar-family-list-row { min-height: 28px; align-content: center; }
 .bar-family-range .bar-family-list-row:is(:hover, :focus-visible) .bar-family-range-track { background: var(--secondary); }
 .bar-family-range .bar-family-list-row:is(:hover, :focus-visible) .bar-family-range-track i { box-shadow: 0 0 0 2px var(--bar-family-range-color, var(--text)); }
@@ -76,7 +76,7 @@
   justify-self: start;
   padding: 5px 9px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--secondary);
   font: inherit;
@@ -117,7 +117,7 @@
 .bar-family-grouped-list[data-interacting] .bar-family-grouped-bar:not([data-active]) { opacity: .38; }
 .bar-family-grouped-bar:hover .bar-family-grouped-track > span,
 .bar-family-grouped-bar:focus-visible .bar-family-grouped-track > span { filter: saturate(1.08) brightness(.96); }
-.bar-family-grouped-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.bar-family-grouped-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-xs); }
 .bar-family-grouped-track { display: block; min-width: 0; height: var(--bar-family-thickness, 10px); border-radius: var(--bar-family-radius, 5px); overflow: hidden; }
 .bar-family-grouped-value { min-width: 4ch; text-align: end; color: var(--text); font-size: 14px; font-weight: 600; line-height: 22px; font-variant-numeric: tabular-nums; }
 .bar-family-grouped-track > span { display: block; height: 100%; border-radius: inherit; }
@@ -198,7 +198,7 @@
   border-bottom: 1px solid var(--border);
   font-size: var(--bar-family-font-size, 14px);
 }
-.bar-family-segment-key { width: 8px; height: 8px; border-radius: 50%; }
+.bar-family-segment-key { width: 8px; height: 8px; border-radius: var(--radius-full); }
 .bar-family-segment-annotations strong,
 .bar-family-segment-annotations small { display: block; }
 .bar-family-segment-annotations strong { font-size: inherit; font-weight: 580; }
@@ -267,7 +267,7 @@
   position: relative;
   display: block;
   height: var(--bar-family-thickness, 18px);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--text) 7%, transparent);
 }
 .bar-family-bullet-value,
@@ -278,7 +278,7 @@
   top: -4px;
   bottom: -4px;
   width: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
   background: var(--text);
   transform: translateX(-1px);
 }

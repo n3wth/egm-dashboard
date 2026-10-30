@@ -99,7 +99,7 @@
   align-content: space-between;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--preview-text) 11%, var(--preview-background));
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--preview-background);
   color: var(--preview-text);
   font-family: var(--preview-font);
@@ -137,7 +137,7 @@
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
 }
 .theme-preview-geometry {
   display: flex;

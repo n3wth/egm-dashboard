@@ -71,7 +71,7 @@
   left: 50%;
   width: 14px;
   height: 1.5px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: currentColor;
   content: "";
   transform: translate(-50%, -50%);

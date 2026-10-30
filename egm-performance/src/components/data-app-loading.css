@@ -1,7 +1,7 @@
 .component-skeleton { --skeleton-fill: color-mix(in srgb, var(--text) 9%, var(--surface)); flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .component-loading-body { display: flex; flex: 1; min-height: 0; }
 .component-skeleton-shape { flex: 1; display: flex; align-items: end; gap: 12px; height: var(--component-state-height, 240px); min-height: 0; padding: 12px 16px 32px 48px; animation: component-skeleton-pulse 1.4s ease-in-out infinite alternate; }
-.component-skeleton-shape i { display: block; background: var(--skeleton-fill); border-radius: 4px; width: 100%; height: var(--skeleton-height); }
+.component-skeleton-shape i { display: block; background: var(--skeleton-fill); border-radius: var(--radius-xs); width: 100%; height: var(--skeleton-height); }
 .component-skeleton-shape.is-table { display: grid; align-content: space-between; padding: 12px 0; gap: 12px; }
 .component-skeleton-shape.is-table i { height: 14px; background: linear-gradient(to right, var(--skeleton-fill) 0 30%, transparent 30% 39%, var(--skeleton-fill) 39% 58%, transparent 58% 68%, var(--skeleton-fill) 68%); }
 .component-skeleton-shape.is-metric { padding: 0; align-items: center; }
@@ -65,7 +65,7 @@
 .dashboard-shell-loading-actions { flex-shrink: 0; }
 .dashboard-shell-loading-line.is-logo { width: 28px; height: 20px; flex-shrink: 0; }
 .dashboard-shell-loading-line.is-nav-icon { width: 20px; height: 20px; flex-shrink: 0; }
-.dashboard-shell-loading-line.is-avatar { width: 28px; height: 28px; border-radius: 50%; }
+.dashboard-shell-loading-line.is-avatar { width: 28px; height: 28px; border-radius: var(--radius-full); }
 .dashboard-shell-loading-line {
   height: 12px;
   max-width: 100%;
