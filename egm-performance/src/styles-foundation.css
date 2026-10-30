@@ -862,13 +862,6 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
 .dashboard-ask-menu-prompt {
   color: transparent;
 }
-.dashboard-ask-panel[data-phase="menu"]:not([data-exploration="true"]):not(.chart-pinned-card) {
-  left: -32px;
-  width: 64px;
-}
-.dashboard-ask-panel[data-phase="menu"]:not([data-exploration="true"]):not(.chart-pinned-card) .dashboard-ask-menu {
-  width: 64px;
-}
 .dashboard-ask-panel[data-phase="menu"]:not([data-exploration="true"]):not(.chart-pinned-card) .dashboard-ask-shared-prompt {
   left: 0;
   right: 0;
