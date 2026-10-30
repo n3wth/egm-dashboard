@@ -9,7 +9,6 @@ import {TrendSparkline} from './TrendSparkline.jsx'
 import {Mentions} from './Mentions.jsx'
 import {pathLabel, popularPageRows, repoPathHref} from './repo-paths.mjs'
 import {sourceIcon} from './source-icon.mjs'
-import {SiteName} from './SiteName.jsx'
 import {weeklyChange,starWeeklyChange,weeklyChangeLabel} from './weekly-change.mjs'
 import {channelViews,isSearchVideo} from './referrer-channels.mjs'
 import {InsightCallout} from './InsightCallout.jsx'
@@ -20,6 +19,7 @@ import {trackDashboardSection} from './usage-analytics.js'
 import {EmptyState,StaleNotice} from './DataStates.jsx'
 import {CollectionStatus} from './CollectionStatus.jsx'
 import {count} from './states.mjs'
+import {suggestExperiment} from './suggested-experiment.mjs'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = count
@@ -75,19 +75,18 @@ function Table({id,queryId,title,rows,columns,searchable=false,sourceRows=rows,n
   return <DataComponent {...{id,queryId,title}} kind="table" variant="card" displayRows={rows} sourceRows={sourceRows}>{rows.length?<DataTable rows={rows} columns={columns} searchable={searchable} label={title} {...(pageSize?{pageSize}:{})}/>:<EmptyState/>}{note&&<p className="egm-note">{note}</p>}</DataComponent>
 }
 function AcrossEgm({queries,reach,web}) {
-  const ids=['website','reach','youtube_videos','research_evidence'].filter(id=>queries[id])
+  const ids=['website','reach','youtube_videos','research_evidence','issue_queue','mentions'].filter(id=>queries[id])
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
   const popularVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views).slice(0,3)
-  const discussion=(queries.research_evidence?.rows??[]).find(row=>row.status==='verified'&&row.themes?.length&&safeExternalUrl(row.url))
-  const experiment={workflow:'Choose one small repo task. Ask three new users to run EGM on it, then record completion and where they stop.',demo:'Show a short EGM demo to three new users. Ask them to repeat the workflow and record whether they finish.',install:'Ask three new users to install EGM and run its first example. Record installation failures and first successful runs.',friction:'Ask three users to repeat the workflow described by this source. Record the step where each gets stuck.'}[discussion?.themes?.[0]?.theme]
+  const experiment=suggestExperiment(queries)
   const viewShare=ratio(web.referralViews,reach.views)
   const visitorShare=ratio(web.referralVisitors,reach.visitors)
-  const displayRows=[{signal:'Website referrals',views:web?.referralViews??null,viewShare,visitorShare},...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(discussion?[{signal:'Verified project reference',url:discussion.url,theme:discussion.themes[0].theme}]:[])]
+  const displayRows=[{signal:'Website referrals',views:web?.referralViews??null,viewShare,visitorShare},...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(experiment?[{signal:'Suggested experiment',url:experiment.winner.url,score:experiment.winner.score}]:[])]
   return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
     <div className="egm-overview-signals" data-reviewed-rows>
       <article><h3>egm.dev referrals</h3><p className="egm-overview-website-copy">{viewShare!=null&&visitorShare!=null?<><strong>{percentage(viewShare)}</strong> of repo views and <strong>{percentage(visitorShare)}</strong> of unique visitors arrived from egm.dev.</>:'egm.dev was not among GitHub’s top ten referrers, so its share is unknown.'}</p><a className="egm-overview-next" href="/website">Website <Icon name="arrowUpRight" size={14}/></a></article>
       <article><h3>Popular videos</h3>{popularVideos.length?<div className="egm-overview-videos">{popularVideos.map(video=><a className="egm-overview-video" key={video.videoId} href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noreferrer" aria-label={`${video.title??'YouTube video'}. ${n(video.views)} YouTube views. Open YouTube.`}><span className="egm-overview-video-thumb"><VideoThumbnail id={video.videoId} sizes="(max-width: 600px) 50vw, 140px"/><span className="egm-overview-video-views" aria-hidden="true">{compact(video.views)}</span></span><span className="egm-overview-video-title" title={video.title}>{video.title??'YouTube video'}</span></a>)}</div>:<p>No YouTube view counts collected yet.</p>}<a className="egm-overview-next" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a></article>
-      <article><h3>Suggested experiment</h3>{discussion&&experiment?<><p className="egm-overview-action">{experiment}<span className="egm-overview-qualifier">Suggested from this description, not from a measured user problem.</span></p><a className="egm-overview-source" href={discussion.url} target="_blank" rel="noreferrer"><SiteName url={discussion.url}/></a></>:<p>No verified discussion evidence yet.</p>}<a className="egm-overview-next" href="/research">Research <Icon name="arrowUpRight" size={14}/></a></article>
+      <article><h3>Suggested experiment</h3>{experiment?<><p className="egm-overview-action">{experiment.action}</p><p className="egm-overview-qualifier">{experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><p className="egm-overview-qualifier">{experiment.rule}</p></>:<p>No issue, verified quote, or mention is available yet.</p>}</article>
     </div>
   </DataComponent>
 }
