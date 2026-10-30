@@ -56,9 +56,18 @@
   .egm-highlight-experiment { grid-column: 2; grid-row: 1; }
   .egm-highlight-videos { grid-column: 1 / -1; grid-row: 2; }
 }
-.egm-overview-heading { margin-bottom: 20px; }
+.egm-overview-heading { margin-bottom: 16px; }
 .egm-overview-heading .component-title { font-size: 20px; font-weight: 600; line-height: 28px; letter-spacing: -.5px; }
-.egm-overview-heading .egm-copy { text-wrap: balance; }
+.egm-dash-hero { margin: 0 0 16px; }
+.egm-dash-hero > .component-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; min-height: 28px; margin-bottom: 8px; }
+.egm-dash-hero > .component-header > .component-title { flex: 0 1 auto; font-size: 20px; font-weight: 600; line-height: 28px; letter-spacing: -.5px; }
+.egm-dash-hero > .component-header > .component-header-controls { flex: 1 1 auto; }
+.egm-dash-hero > .component-header > .menu-trigger { position: relative; grid-column: auto; grid-row: auto; margin-left: auto; flex: 0 0 32px; }
+.egm-dash-hero-range { display: inline-flex; align-items: baseline; gap: 8px; margin: 0; color: var(--secondary); font-size: 13px; font-weight: 400; line-height: 20px; font-variant-numeric: tabular-nums; }
+.egm-dash-hero-note { color: var(--secondary); font-size: 12px; font-weight: 400; line-height: 16px; }
+.egm-dash-hero-headline { margin: 8px 0 0; max-width: 72ch; color: var(--text); font-size: 18px; font-weight: 400; line-height: 28px; }
+.egm-dash-hero-facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.egm-dash-hero-facts li { padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 13px; font-weight: 400; line-height: 20px; font-variant-numeric: tabular-nums; }
 .egm-single-row .dashboard-ask-button { box-shadow: none !important; line-height: 1; color: var(--secondary); }
 .egm-single-row .dashboard-ask-button:not(:hover):not(:focus-visible) { border-color: transparent !important; background: transparent !important; }
 .egm-development-grid .egm-block--metric > .dashboard-component[data-component-kind="metric"] { min-height: 112px; gap: 8px; }

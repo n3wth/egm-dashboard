@@ -873,15 +873,15 @@
   --data-card-background: var(--background);
 }
 .dashboard-component[data-component-variant="card"] {
-  --data-card-menu-inline-offset: -4px;
+  --data-card-menu-inline-offset: 0px;
   --card-surface: var(--data-card-background, var(--surface));
-  padding: 16px 20px;
+  padding: 16px;
   border: 1px solid var(--card-surface-border, var(--border));
   border-radius: var(--data-card-radius, var(--card-radius));
   background: var(--card-surface);
   box-shadow: var(--card-shadow);
 }
-.dashboard-component[data-component-variant="card"][data-card-padding="spacious"] { --data-card-menu-inline-offset: 0px; padding: 20px; }
+.dashboard-component[data-component-variant="card"][data-card-padding="spacious"] { --data-card-menu-inline-offset: 0px; padding: 16px; }
 .dashboard-component[data-component-variant="card"]:not([data-component-kind="metric"]) .component-title,
 .data-inline-chart-content .component-title {
   font-size: var(--text-md-size);

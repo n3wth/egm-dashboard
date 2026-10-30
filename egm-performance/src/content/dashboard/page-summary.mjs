@@ -1,4 +1,5 @@
 import {percentage} from './percentage.mjs'
+import {reportingRange} from './overview-summary.mjs'
 import {channelViews} from './referrer-channels.mjs'
 const valid=value=>Number.isFinite(value)&&value>=0
 const n=value=>value.toLocaleString('en-US')
@@ -45,5 +46,7 @@ export function pageSummary(page,queries={}) {
     if(queries.mentions&&social)add(`${n(social)} social posts are recorded in the primary discovery collection.`,'mentions')
     else if(!measured.length&&queries.mentions)add(`${n(new Set(rows('mentions').map(row=>row.url).filter(Boolean)).size)} source links are recorded in the primary discovery collection.`,'mentions')
   }
-  return sentences.length?{sentences:sentences.slice(0,2),queryIds:[...ids]}:null
+  if(!sentences.length)return null
+  const kept=sentences.slice(0,2)
+  return {sentences:kept,queryIds:[...ids],headline:kept[0],facts:kept.slice(1),range:reportingRange(queries)}
 }

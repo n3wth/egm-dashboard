@@ -8,6 +8,9 @@ test('uses exact recorded traffic and distinct referral denominators',()=>{
   assert.match(summary.sentences[1],/64% of the views GitHub attributes to its top ten referrers \(30% of all repo views\)/)
   assert.equal(summary.sentences.length,2)
   assert.deepEqual(new Set(summary.queryIds),new Set(['reach','traffic','referrers']))
+  assert.equal(summary.headline,'88% of the 29,252 repo views arrived in the last three days.')
+  assert.deepEqual(summary.facts,['3,624 recorded stars','An even spread would be 75%','Google + YouTube = 64% of attributed views'])
+  assert.deepEqual(summary.range,{label:'Oct 23 – Oct 26',note:'UTC'})
 })
 test('no canned recommendation is appended to the summary',()=>{
   const summary=overviewSummary({reach:{rows:[{stars:5,views:10}]}})
