@@ -79,6 +79,7 @@ a.egm-ask-cite:hover { background: var(--border-strong); }
 .egm-ask-actions button:focus-visible { outline: 1px solid var(--text); }
 .egm-ask-error p { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .egm-ask-error button {  border: 1px solid var(--border); border-radius: var(--control-radius); padding: 5px 9px; color: var(--text); background: transparent; font: inherit; }
+.egm-ask-error button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-ask-composer-wrap { position: sticky; z-index: 2; bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--egm-ask-keyboard, 0px)); display: grid; justify-items: center; gap: 6px; margin-top: auto; padding-top: 12px; padding-bottom: 4px; background: var(--dashboard-background, var(--background)); }
 .egm-ask-jump { position: absolute; top: -40px; right: 0; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text); }
 .egm-ask-composer { display: flex; align-items: flex-end; gap: 10px; width: 100%; padding: 10px 10px 10px 14px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); box-sizing: border-box; }
