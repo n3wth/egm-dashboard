@@ -13,6 +13,7 @@ const views = {
   review: {title:'Your account needs a review',description:'Your sign-in details have changed. Ask Oliver to review your account before continuing.',action:'Sign in again',note:'Dashboard access remains restricted.',status:403},
   session_unavailable: {title:'Temporarily unavailable',description:'We can’t verify your session right now. Please try again shortly.',action:'Try again',note:'Your account and access are unchanged.',status:503,retry:true},
   invite_invalid: {title:'This invitation is unavailable',description:'It may have expired, been used, been revoked, or been sent to a different email address. Ask Oliver for a new invitation.',action:'Sign in with Google',note:'Without an invitation, access requires approval.',status:403},
+  invite_reopen: {title:'Open your invitation again',description:'This browser no longer has your invitation. Open the invitation link from your email or message again to continue.',action:'',note:'If the link does not work, ask Oliver for a new invitation.',status:400},
   invite_account: {title:'Use the invited account',description:'This invitation was sent to a different email address. Sign in with the Google account it was sent to.',action:'Try again',note:'Only the invited address can use it.',status:403,link:'/auth/invite'},
   invite_denied: {title:'Access is unavailable',description:'This account was declined earlier, so the invitation can’t be used. Ask Oliver to review it.',action:'Use another account',note:'',status:403,link:'/auth/login'},
   not_found: {title:'Page not found',description:'This page doesn’t exist or has moved.',action:'Open the dashboard',note:'',status:404,link:'/'},
@@ -27,7 +28,9 @@ const views = {
 export function renderAccessPage(state='signin',{headers:extraHeaders={},href}={}) {
   const view=views[state]??views.error
   const hasHandoff=state==='signin'||state==='invite'
-  const action=view.retry
+  const action=!view.action
+    ? ''
+    : view.retry
     ? `<a href="${escape(href??'')}" class="action">${view.action}</a>`
     : view.link
     ? `<a href="${escape(href??view.link)}" class="action">${view.action}</a>`

@@ -77,3 +77,11 @@ test('not found, wrong account and retry pages link to the right next step',asyn
 test('pages that host POST forms keep the origin so same-origin checks pass',async()=>{
   for(const state of ['invite','pending','denied']) assert.equal(renderAccessPage(state).headers.get('referrer-policy'),'same-origin',state)
 })
+test('the reopen invitation page offers no sign-in that would skip the invitation',async()=>{
+  const response=renderAccessPage('invite_reopen')
+  const html=await response.text()
+  assert.equal(response.status,400)
+  assert.match(html,/<h1>Open your invitation again<\/h1>/)
+  assert.doesNotMatch(html,/class="action[ "]|\/auth\/login|Continue with Google/)
+  assert.doesNotMatch(html,/—/)
+})

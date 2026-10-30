@@ -49,9 +49,12 @@ export async function open(token,secrets,audience) {
 const cookie = (name,value,age=3600) => `${name}=${value}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${age}`
 // The signed cookie ends 30 days after sign-in. The session row ends 7 days after the last visit, never after the cookie.
 const SESSION_IDLE=7*86400, SESSION_MAX=30*86400, SESSION_RENEW_STEP=3600
+// The invitation outlives one sign-in attempt so a failed or slow attempt can return to it.
+const inviteLifetime = 3600
+const inviteCookie = async (token,env) => cookie('__Host-egm_invite',await seal({token},env.SESSION_SECRET,'invitation',inviteLifetime),inviteLifetime)
 const cookieValue = (request,name) => request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1)
 const navigation = (request,url) => request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
-const unavailable = request => navigation(request,new URL(request.url)) ? renderAccessPage('unavailable',new URL(request.url).pathname==='/auth/callback'?{href:'/auth/login'}:{}) : new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})
+const unavailable = request => navigation(request,new URL(request.url)) ? renderAccessPage('unavailable',new URL(request.url).pathname==='/auth/callback'?{href:cookieValue(request,'__Host-egm_invite')?'/auth/invite':'/auth/login'}:{}) : new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})
 const json = (value,status=200,headers={}) => new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json','cache-control':'private, no-store',...headers}})
 export function profilePhoto(value) {
   try {const url=new URL(value);return typeof value==='string'&&value.length<=2048&&url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.port&&!url.username&&!url.password?url.href:null}catch{return null}
@@ -217,19 +220,22 @@ export async function handle(request,env,ctx) {
   if(url.pathname==='/auth/invite' && request.method==='GET') {
     const supplied=url.searchParams.get('invitation_token')
     const invitation=supplied ? {token:supplied} : await open(cookieValue(request,'__Host-egm_invite'),sessionSecrets(env),'invitation')
-    if(!validInvitationToken(invitation?.token)) return renderAccessPage('invite_invalid')
+    if(!invitation) return renderAccessPage('invite_reopen')
+    if(!validInvitationToken(invitation.token)) return renderAccessPage('invite_invalid')
     try {
       const active=await env.DB.prepare('SELECT id FROM invitations WHERE token_hash=? AND expires_at>? AND redeemed_at IS NULL AND revoked_at IS NULL').bind(await invitationHash(invitation.token),Date.now()).first()
       if(!active) return renderAccessPage('invite_invalid')
     } catch { return renderAccessPage('session_unavailable') }
-    if(supplied) return new Response(null,{status:303,headers:{location:'/auth/invite','set-cookie':cookie('__Host-egm_invite',await seal({token:invitation.token},env.SESSION_SECRET,'invitation',600),600),'cache-control':'private, no-store','referrer-policy':'no-referrer'}})
+    if(supplied) return new Response(null,{status:303,headers:{location:'/auth/invite','set-cookie':await inviteCookie(invitation.token,env),'cache-control':'private, no-store','referrer-policy':'no-referrer'}})
     return renderAccessPage('invite')
   }
   if((url.pathname==='/auth/login' && request.method==='GET') || (url.pathname==='/auth/invite/continue' && request.method==='POST')) {
     const continuing=url.pathname==='/auth/invite/continue'
     if(continuing && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
-    const invitationToken=continuing?(await open(cookieValue(request,'__Host-egm_invite'),sessionSecrets(env),'invitation'))?.token:null
+    const invitation=continuing?await open(cookieValue(request,'__Host-egm_invite'),sessionSecrets(env),'invitation'):null
+    const invitationToken=invitation?.token??null
     if(continuing) {
+      if(!invitation) return renderAccessPage('invite_reopen')
       if(!validInvitationToken(invitationToken)) return renderAccessPage('invite_invalid')
       try {
         const active=await env.DB.prepare('SELECT id FROM invitations WHERE token_hash=? AND expires_at>? AND redeemed_at IS NULL AND revoked_at IS NULL').bind(await invitationHash(invitationToken),Date.now()).first()
@@ -242,18 +248,23 @@ export async function handle(request,env,ctx) {
     for(const [k,v] of Object.entries({client_id:env.WORKOS_CLIENT_ID,provider:'GoogleOAuth',redirect_uri:env.APP_URL+'/auth/callback',response_type:'code',state,code_challenge:challenge,code_challenge_method:'S256'})) auth.searchParams.set(k,v)
     const headers=new Headers({location:auth.href,'cache-control':'no-store','referrer-policy':'no-referrer'})
     headers.append('set-cookie',cookie('__Host-egm_flow',await seal({verifier,state,invitationToken},env.SESSION_SECRET,'login',600),600))
-    if(continuing) headers.append('set-cookie',cookie('__Host-egm_invite','',0))
+    if(continuing) headers.append('set-cookie',await inviteCookie(invitationToken,env))
     return new Response(null,{status:302,headers})
   }
   if(url.pathname==='/auth/callback' && request.method==='GET') {
     const flow=await open(cookieValue(request,'__Host-egm_flow'),sessionSecrets(env),'login')
     const clear=cookie('__Host-egm_flow','',0)
-    const fail=(page,options)=>{const response=renderAccessPage(page,options);response.headers.append('set-cookie',clear);return response}
-    if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return fail(flow?.state===url.searchParams.get('state') && url.searchParams.has('error')?'login_cancelled':'login_expired')
     // A failed attempt keeps a pending invitation so the person can retry without a new link.
-    const back=async()=>flow.invitationToken?{href:'/auth/invite',headers:{'set-cookie':cookie('__Host-egm_invite',await seal({token:flow.invitationToken},env.SESSION_SECRET,'invitation',600),600)}}:{href:'/auth/login'}
+    let invitationToken=flow?.invitationToken||(await open(cookieValue(request,'__Host-egm_invite'),sessionSecrets(env),'invitation'))?.token
+    const fail=async page=>{
+      const response=renderAccessPage(page,{href:invitationToken?'/auth/invite':'/auth/login'})
+      response.headers.append('set-cookie',clear)
+      response.headers.append('set-cookie',invitationToken?await inviteCookie(invitationToken,env):cookie('__Host-egm_invite','',0))
+      return response
+    }
+    if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return fail(flow?.state===url.searchParams.get('state') && url.searchParams.has('error')?'login_cancelled':'login_expired')
     const auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,grant_type:'authorization_code',code:url.searchParams.get('code'),code_verifier:flow.verifier}),signal:AbortSignal.timeout(10000)})
-    if(!auth.ok) return fail(auth.status===429?'rate_limited':auth.status>=500?'unavailable':'error',await back())
+    if(!auth.ok) return fail(auth.status===429?'rate_limited':auth.status>=500?'unavailable':'error')
     const {user,access_token:accessToken,refresh_token:refreshToken}=await auth.json()
     if(!user?.id || !user.email_verified || typeof user.email!=='string') return fail('verify')
     const email=user.email.trim().toLowerCase()
@@ -263,9 +274,11 @@ export async function handle(request,env,ctx) {
     const isOwner=isDashboardOwner({id:user.id,email},env)
     let invited=false
     if(flow.invitationToken) {
-      try { invited=await redeemInvitation(env,flow.invitationToken,user) } catch { return fail('error',await back()) }
+      try { invited=await redeemInvitation(env,flow.invitationToken,user) } catch { return fail('error') }
       if(!invited && existing?.status==='denied') return fail('invite_denied')
-      if(!invited) return await invitationForOtherAccount(env,flow.invitationToken,user).catch(()=>false) ? fail('invite_account',await back()) : fail('invite_invalid')
+      if(!invited && await invitationForOtherAccount(env,flow.invitationToken,user).catch(()=>false)) return fail('invite_account')
+      invitationToken=null
+      if(!invited) return fail('invite_invalid')
     }
     if(!existing && !invited) {
       await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,[user.first_name,user.last_name].filter(Boolean).join(' ')||email,isOwner?'approved':'pending',new Date().toISOString()).run()
@@ -290,6 +303,7 @@ export async function handle(request,env,ctx) {
     }
     const headers=new Headers({location:'/overview','cache-control':'private, no-store'})
     headers.append('set-cookie',clear)
+    headers.append('set-cookie',cookie('__Host-egm_invite','',0))
     headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid,profilePictureUrl:profilePhoto(user.profile_picture_url)},sessionSecrets(env),'session',SESSION_MAX),SESSION_MAX))
     ctx?.waitUntil?.(capturePosthogEvent(env,{distinct_id:user.id,event:'dashboard_signed_in',properties:{$geoip_disable:true}}))
     return new Response(null,{status:302,headers})
