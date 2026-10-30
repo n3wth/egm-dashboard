@@ -3518,16 +3518,17 @@ main[data-data-app-content="report"] .report-recommendations > p {
 /* The icon navbar stays one centered row. Narrow widths scroll the tabs instead of resizing or hiding controls. */
 @media (max-width: 650px) {
   .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period > time:first-child { display: inline; }
-  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period { font-size: 12px; gap: 4px !important; }
-  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period > time:last-child { font-size: 12px; }
+  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period { font-size: var(--nav-meta-size, 13px); font-weight: 400; gap: var(--nav-gap, 4px) !important; font-variant-numeric: tabular-nums; }
+  .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period > time:last-child { font-size: var(--nav-meta-size, 13px); font-weight: 400; }
 }
 @media (max-width: 599px) {
   .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-inner {
     display: flex;
     align-items: center;
-    height: 52px;
-    min-height: 52px;
-    gap: 8px;
+    height: var(--nav-height, 56px);
+    min-height: var(--nav-height, 56px);
+    gap: var(--nav-group-gap, 16px);
+    padding-inline: var(--dashboard-content-mobile-gutter, 16px);
     padding-block: 0;
   }
   .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-copy {

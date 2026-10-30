@@ -34,10 +34,12 @@ import monitor from '@material-symbols/svg-400/rounded/monitor.svg?raw'
 import darkMode from '@material-symbols/svg-400/rounded/dark_mode.svg?raw'
 import moreHoriz from '@material-symbols/svg-400/rounded/more_horiz.svg?raw'
 import palette from '@material-symbols/svg-400/rounded/palette.svg?raw'
+import person from '@material-symbols/svg-400/rounded/person.svg?raw'
 import add from '@material-symbols/svg-400/rounded/add.svg?raw'
 import refresh from '@material-symbols/svg-400/rounded/refresh.svg?raw'
 import autorenew from '@material-symbols/svg-400/rounded/autorenew.svg?raw'
 import search from '@material-symbols/svg-400/rounded/search.svg?raw'
+import showChart from '@material-symbols/svg-400/rounded/show_chart.svg?raw'
 import settings from '@material-symbols/svg-400/rounded/settings.svg?raw'
 import verifiedUser from '@material-symbols/svg-400/rounded/verified_user.svg?raw'
 import web from '@material-symbols/svg-400/rounded/web.svg?raw'
@@ -92,6 +94,7 @@ export const roundedIcons = {
   moon: darkMode,
   more: moreHoriz,
   palette: palette,
+  person: person,
   plus: add,
   refresh: refresh,
   remix: autorenew,
@@ -111,6 +114,7 @@ export const roundedIcons = {
   undo: undo,
   users: group,
   bar_chart: barChart,
+  show_chart: showChart,
   north_east: northEast,
   group: group,
   language: language,

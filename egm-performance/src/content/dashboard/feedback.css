@@ -1,4 +1,4 @@
-.egm-feedback-trigger { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; height: 36px; min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: transparent; box-shadow: none; color: var(--text); font-size: 13px; font-weight: 500; line-height: 1; }
+.egm-feedback-trigger { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; height: var(--nav-control, 36px); min-height: var(--nav-control, 36px); padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: transparent; box-shadow: none; color: var(--text); font-size: 13px; font-weight: 500; line-height: 1; }
 .egm-feedback-trigger:hover { background: var(--border); }
 .egm-feedback-trigger:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-feedback-dialog form { display: grid; gap: 16px; }
