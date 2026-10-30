@@ -96,7 +96,7 @@ function inviteCookie(request) {
   return values.length === 1 ? values[0].slice('__Host-boing_invite='.length) : null
 }
 
-// Unwired auth endpoints. State is both signed and stored for one-time use;
+// Auth endpoints routed by boing-worker.mjs for /auth/boing/login and /callback. State is both signed and stored for one-time use;
 // PKCE verifier stays server-side. The trusted options are for local tests.
 export async function handleBoingAuth(request, env, { requestWorkos = fetch, createSession = createBoingSession, endSession = endBoingSession, acceptInvite = acceptWorkosInvitationToken, now = Date.now(), loginAdmission = admitLogin } = {}) {
   try {

@@ -1,8 +1,0 @@
-.egm-growth-advice { max-width: 860px; line-height: 1.6; }
-.egm-growth-prompts { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
-.egm-growth-prompts button { color: var(--text); background: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font: inherit; cursor: pointer; }
-.egm-growth-prompts button:disabled { opacity: .6; cursor: wait; }
-.egm-growth-prompts button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-.egm-growth-result { border-top: 1px solid var(--border); margin-top: 24px; padding-top: 16px; }
-.egm-growth-result h2 { font-size: 18px; }
-.egm-growth-answer { white-space: pre-wrap; }

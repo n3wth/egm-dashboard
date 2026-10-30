@@ -50,7 +50,6 @@ const cookieValue = (request,name) => request.headers.get('cookie')?.split(';').
 const navigation = (request,url) => request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
 const unavailable = request => navigation(request,new URL(request.url)) ? renderAccessPage('unavailable',new URL(request.url).pathname==='/auth/callback'?{href:'/auth/login'}:{}) : new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})
 const json = (value,status=200,headers={}) => new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json','cache-control':'private, no-store',...headers}})
-const escape = value => String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
 export function profilePhoto(value) {
   try {const url=new URL(value);return typeof value==='string'&&value.length<=2048&&url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.port&&!url.username&&!url.password?url.href:null}catch{return null}
 }
@@ -299,7 +298,7 @@ export async function handle(request,env,ctx) {
     if(request.method==='GET' && url.pathname.startsWith('/_data/') && request.headers.get('accept')?.includes('text/html')) return renderAccessPage('signin')
     if(!appPath || request.method!=='GET') return json({error:'sign_in_required'},401)
     // A valid session cookie with no live session means it ended elsewhere (sign-out, revoked).
-    return renderAccessPage(await open(cookieValue(request,'__Host-egm_session'),env.SESSION_SECRET,'session')?'session_expired':'signin')
+    return renderAccessPage(await open(cookieValue(request,'__Host-egm_session'),sessionSecrets(env),'session')?'session_expired':'signin')
   }
   if(user.status!=='approved') return renderAccessPage(user.status==='pending'?'pending':'denied')
   if(url.pathname==='/api/feedback') {

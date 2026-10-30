@@ -236,6 +236,36 @@ test('workspace switch scopes requests and discards a delayed previous snapshot'
   }
 })
 
+test('clears the pending GitHub connection when repository authorization expired', async () => {
+  const ids = ['project-list', 'projects-status', 'retry-projects', 'project-empty', 'project-detail', 'detail-status', 'metrics', 'workspace-select', 'workspace-status', 'retry-workspaces', 'organization', 'project-title', 'project-meta', 'presentation-status', 'presentation-settings', 'presentation-form', 'presentation-title', 'presentation-description', 'presentation-save', 'refresh', 'export-project', 'export-status', 'website-settings', 'website-form', 'website-url', 'website-save', 'website-status', 'invitation-form', 'invitation-token', 'invitation-submit', 'invitation-status', 'create-project-section', 'create-project-form', 'create-project-name', 'create-project-submit', 'create-project-status']
+  const elements = Object.fromEntries(ids.map(id => [id, new Element(id)]))
+  const previous = { document: globalThis.document, fetch: globalThis.fetch, sessionStorage: globalThis.sessionStorage }
+  let pending = JSON.stringify({ organizationId: 'org-b', projectId: 'p2' })
+  try {
+    globalThis.document = { getElementById: id => elements[id], createElement: () => new Element(), body: { append() {} } }
+    globalThis.sessionStorage = { getItem: () => pending, setItem: (_, value) => { pending = value }, removeItem: () => { pending = null } }
+    globalThis.fetch = async path => {
+      if (path === '/api/boing/organizations') return json({ organizations: [{ id: 'org-a', name: 'A', role: 'owner' }, { id: 'org-b', name: 'B', role: 'owner' }] })
+      if (path === '/api/boing/projects') return json({ projects: [{ id: 'p1', name: 'First' }, { id: 'p2', name: 'Second' }] })
+      if (path === '/api/boing/github/repositories') return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: { 'content-type': 'application/json' } })
+      if (path === '/api/boing/members') return json({ members: [] })
+      if (path.endsWith('/access')) return json({ userIds: [] })
+      if (path.endsWith('/sources')) return json({ sources: [] })
+      return new Response('', { status: 404 })
+    }
+    await import('./app.mjs?github-expired')
+    const status = elements['project-detail'].children[1].children[3]
+    for (let n = 0; n < 20 && !/expired/.test(status.textContent); n++) await tick()
+    assert.match(status.textContent, /expired/)
+    assert.equal(pending, null)
+    for (let n = 0; n < 10; n++) await tick()
+  } finally {
+    globalThis.document = previous.document
+    globalThis.fetch = previous.fetch
+    globalThis.sessionStorage = previous.sessionStorage
+  }
+})
+
 test('resumes repository selection for the original project and workspace after GitHub', async () => {
   const ids = ['project-list', 'projects-status', 'retry-projects', 'project-empty', 'project-detail', 'detail-status', 'metrics', 'workspace-select', 'workspace-status', 'retry-workspaces', 'organization', 'project-title', 'project-meta', 'presentation-status', 'presentation-settings', 'presentation-form', 'presentation-title', 'presentation-description', 'presentation-save', 'refresh', 'export-project', 'export-status', 'website-settings', 'website-form', 'website-url', 'website-save', 'website-status', 'invitation-form', 'invitation-token', 'invitation-submit', 'invitation-status', 'create-project-section', 'create-project-form', 'create-project-name', 'create-project-submit', 'create-project-status']
   const elements = Object.fromEntries(ids.map(id => [id, new Element(id)]))

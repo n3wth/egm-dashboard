@@ -62,7 +62,7 @@ const privateKey = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyE
 const requestWorkos = async url => { const q = new URL(url).searchParams; return Response.json({ object: 'list', data: [{ user_id: q.get('user_id'), organization_id: q.get('organization_id'), status: 'active' }], list_metadata: { after: null } }) }
 const requestGithub = async url => url.endsWith('/access_tokens') ? Response.json({ token: 'secret', expires_at: '2099-01-01' }) : Response.json({ total_count: 1, repositories: [{ id: 123, full_name: 'account/repo' }] })
 const handleBoingAiInsight = (request, env, user, options) => handleScopedAiInsight(request, env, user, 'org-a', { requestWorkos, requestGithub, ...options })
-const request = (body, headers = {}) => new Request(origin + '/api/boing/ai-insight', { method: 'POST', headers: { origin, 'content-type': 'application/json', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) })
+const request = (body, headers = {}) => new Request(origin + '/api/boing/ai-insight', { method: 'POST', headers: { origin, 'content-type': 'application/json', ...headers }, body: typeof body === 'string' || body instanceof Uint8Array ? body : JSON.stringify(body) })
 const disclosure = 'Project snapshot data is sent to the configured AI processor.'
 const env = (db, aiRun) => ({ APP_URL: origin, DB: db, WORKOS_API_KEY: 'test', GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: privateKey, AI: { run: aiRun }, BOING_AI_BUDGET_APPROVED: 'true', BOING_AI_PROCESSOR_DISCLOSURE: disclosure })
 
@@ -388,6 +388,14 @@ test('bounded input and output', async () => {
   assert.equal((await handleBoingAiInsight(new Request(origin + '/x', { method: 'GET', headers: { origin } }), e, owner)).status, 405)
   assert.equal((await handleBoingAiInsight(request({ projectId: 'proj-a' }, { origin: 'https://evil.test' }), e, owner)).status, 403)
   assert.equal((await handleBoingAiInsight(request('{bad'), e, owner)).status, 400)
+  const jsonp = await handleBoingAiInsight(request({ projectId: 'proj-a' }, { 'content-type': 'application/jsonp' }), e, owner)
+  assert.equal(jsonp.status, 400)
+  assert.equal((await jsonp.json()).error, 'json_required')
+  assert.equal((await handleBoingAiInsight(request({ projectId: 'proj-a' }, { 'content-type': 'Application/JSON; charset=utf-8' }), e, owner)).status, 200)
+  const badUtf8 = new Uint8Array([...new TextEncoder().encode('{"projectId":"proj-a","focus":"'), 0xff, ...new TextEncoder().encode('"}')])
+  const invalid = await handleBoingAiInsight(request(badUtf8), e, owner)
+  assert.equal(invalid.status, 400)
+  assert.equal((await invalid.json()).error, 'invalid_json')
   assert.equal((await handleBoingAiInsight(request({ projectId: 'proj-a', focus: 'x'.repeat(BOING_AI_LIMITS.maxFocusLength + 1) }), e, owner)).status, 400)
   assert.equal((await handleBoingAiInsight(request({ projectId: 'proj-a', extra: 1 }), e, owner)).status, 400)
   assert.equal((await handleBoingAiInsight(request({ projectId: 'proj-a', focus: 'x'.repeat(9000) }), e, owner)).status, 413)

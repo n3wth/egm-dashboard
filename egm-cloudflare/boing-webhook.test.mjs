@@ -52,6 +52,11 @@ test('bound request and missing database fail closed', async () => {
   const { env } = fixture()
   const oversized = new Request('https://example.test/', { method: 'POST', headers: { 'x-github-delivery': 'a', 'x-github-event': 'installation', 'content-length': String(1024 * 1024 + 1) }, body: 'x' })
   assert.equal((await handleBoingGithubWebhook(oversized, env)).status, 413)
+  const body = new ReadableStream({ pull(controller) { controller.error(new Error('internal detail')) } })
+  const broken = new Request('https://example.test/', { method: 'POST', headers: { 'x-github-delivery': 'a', 'x-github-event': 'installation' }, body, duplex: 'half' })
+  const response = await handleBoingGithubWebhook(broken, env)
+  assert.equal(response.status, 400)
+  assert.deepEqual(await response.json(), { error: 'invalid_body' })
   assert.equal((await handleBoingGithubWebhook(await signed(payload), {})).status, 503)
 })
 

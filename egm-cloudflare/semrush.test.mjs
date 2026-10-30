@@ -9,6 +9,7 @@ function mock({ failAt, noDataAt, unbounded = false, actualSchema = false } = {}
   const request = async (url, init) => {
     assert.equal(url, 'https://mcp.semrush.com/v2/mcp')
     assert.equal(init.headers.authorization, 'Apikey fixture-secret')
+    assert.equal(init.redirect, 'error')
     const body = JSON.parse(init.body)
     calls.push(body)
     let result = { protocolVersion: '2025-03-26', capabilities: {} }

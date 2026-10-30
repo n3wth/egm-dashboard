@@ -1,9 +1,8 @@
 // Isolated, opt-in, project-scoped AI insight service for Boing.
 //
-// Not wired into worker.mjs. A caller that has already authenticated a
-// session and current WorkOS membership for the server-supplied organization
-// invokes handleBoingAiInsight; this module
-// re-checks every gate itself and fails closed on any doubt.
+// Wired via boing-router.mjs, which authenticates the session, resolves current
+// WorkOS membership and consumes the ai.insight quota before calling
+// handleBoingAiInsight; this module re-checks every gate itself and fails closed on any doubt.
 //
 // Trust model:
 // - user must have a freshly verified active Boing session (never trust
@@ -115,7 +114,7 @@ async function readBoundedJson(request) {
   const bytes = new Uint8Array(size)
   let offset = 0
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length }
-  try { return JSON.parse(new TextDecoder().decode(bytes)) } catch { fail('invalid_json', 400) }
+  try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) } catch { fail('invalid_json', 400) }
 }
 
 /**
@@ -234,7 +233,7 @@ export async function handleBoingAiInsight(request, env, user, organizationId, o
     if (!isVerifiedUser(user)) return reply({ error: 'verified_user_required' }, 403)
     if (request.method !== 'POST') return reply({ error: 'method_not_allowed' }, 405)
     if (!env?.APP_URL || new URL(request.url).origin !== env.APP_URL || request.headers.get('origin') !== env.APP_URL) return reply({ error: 'invalid_origin' }, 403)
-    if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) return reply({ error: 'json_required' }, 400)
+    if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type') ?? '')) return reply({ error: 'json_required' }, 400)
     const payload = await readBoundedJson(request)
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return reply({ error: 'invalid_request' }, 400)
     const allowed = new Set(['projectId', 'focus'])

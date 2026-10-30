@@ -45,7 +45,7 @@ export async function collectExaResearch(env, request = fetch, previousQueries =
       if (totalCostDollars >= 1) return result('budget_limited', 'Known research spend reached $1')
       requests++
       const egmAngle = angle.angle !== 'Comparable workflow candidates'
-      const response = await request('https://api.exa.ai/search', { method: 'POST', headers: { 'x-api-key': env.EXA_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ query: angle.query, objective: angle.objective, type: 'auto', numResults: 5, contents: { highlights: true }, excludeDomains: egmAngle ? ownDomains : ['github.com/google/elephant-goldfish-model'], startPublishedDate: new Date(time - 180 * day).toISOString() }), signal: AbortSignal.timeout(20000) })
+      const response = await request('https://api.exa.ai/search', { method: 'POST', redirect: 'error', headers: { 'x-api-key': env.EXA_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ query: angle.query, objective: angle.objective, type: 'auto', numResults: 5, contents: { highlights: true }, excludeDomains: egmAngle ? ownDomains : ['github.com/google/elephant-goldfish-model'], startPublishedDate: new Date(time - 180 * day).toISOString() }), signal: AbortSignal.timeout(20000) })
       if (!response.ok) throw Error(response.status === 401 ? 'unauthorized' : response.status === 402 ? 'insufficient_credit' : response.status === 429 ? 'rate_limit' : 'provider_error')
       const body = await response.json()
       const cost = body.costDollars?.total

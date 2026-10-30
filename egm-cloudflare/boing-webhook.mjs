@@ -44,7 +44,7 @@ export async function handleBoingGithubWebhook(request, env, { now = Date.now() 
   const eventType = request.headers.get('x-github-event')
   if (!id || !/^[a-zA-Z0-9-]{1,128}$/.test(id) || !['installation', 'installation_repositories'].includes(eventType)) return json({ error: 'invalid_event' }, 400)
   let raw
-  try { raw = await boundedBody(request) } catch (error) { return json({ error: error.message }, error.message === 'too_large' ? 413 : 400) }
+  try { raw = await boundedBody(request) } catch (error) { const tooLarge = error?.message === 'too_large'; return json({ error: tooLarge ? 'too_large' : 'invalid_body' }, tooLarge ? 413 : 400) }
   if (!await verifyGitHubWebhook(raw, request.headers.get('x-hub-signature-256'), env.GITHUB_WEBHOOK_SECRET)) return json({ error: 'invalid_signature' }, 401)
   let event
   try { event = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)) } catch { return json({ error: 'invalid_event' }, 400) }
