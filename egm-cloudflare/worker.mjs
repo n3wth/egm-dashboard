@@ -14,6 +14,7 @@ import {rbacConfigured,workosSessionConfigured,storeWorkosSession,validatedWorko
 import {syncWorkosMember,syncWorkosMemberships} from './workos-membership.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
 import {readVerifiedWorkosEmail,reconcileVerifiedEmail} from './workos-identity.mjs'
+import {cachedWorkosRead} from './workos-request-cache.mjs'
 import {issueUserSessionsWidgetToken} from './workos-widgets.mjs'
 import {accessLive,accessChanged} from './access-live.mjs'
 import {readBody} from './request-body.mjs'
@@ -67,7 +68,17 @@ async function identity(request,env) {
   const {session_expires_at:expiresAt,...user}=row
   const identity={...user,sessionId:session.sid,profilePictureUrl:profilePhoto(session.profilePictureUrl)}
   if(env.WORKOS_WIDGETS_ENABLED==='true') {
-    const current=await validatedWorkosSession(env,session.sid,user.id)
+    const load=async()=>{
+      const [current,email]=await Promise.all([
+        validatedWorkosSession(env,session.sid,user.id),
+        readVerifiedWorkosEmail(env,user.id)
+      ])
+      return {cacheable:current.status==='active'&&!!email,current,email}
+    }
+    const checked=Number(env.WORKOS_CHECK_CACHE_MS)>0
+      ? await cachedWorkosRead(env,`session:${session.sid}:${user.id}`,Number(env.WORKOS_CHECK_CACHE_MS),load)
+      : await load()
+    const {current,email}=checked
     if(current.status==='revoked') {
       await env.DB.batch([
         env.DB.prepare('DELETE FROM workos_sessions WHERE session_id=? AND user_id=?').bind(session.sid,user.id),
@@ -76,9 +87,7 @@ async function identity(request,env) {
       return null
     }
     if(current.status==='reauthenticate') return null
-    if(current.status!=='active') return {sessionUnavailable:true}
-    const email=await readVerifiedWorkosEmail(env,user.id)
-    if(!email) return {sessionUnavailable:true}
+    if(current.status!=='active' || !email) return {sessionUnavailable:true}
     if(await reconcileVerifiedEmail(env,user,email)==='conflict') return {identityConflict:true}
     identity.email=email
     identity.workosAccessToken=current.accessToken
@@ -87,15 +96,28 @@ async function identity(request,env) {
   if(renewed-expiresAt>=SESSION_RENEW_STEP) try { await env.DB.prepare('UPDATE sessions SET expires_at=? WHERE id=? AND user_id=? AND expires_at<?').bind(renewed,session.sid,user.id,renewed).run() } catch {}
   return identity
 }
-async function accessManager(user,env) {
-  if (!user || user.status!=='approved' || user.verified!==1) return false
-  if (env.WORKOS_RBAC_ENABLED!=='true') return isDashboardOwner(user,env)
-  if (!rbacConfigured(env)) return false
-  try { return (await workosAdminPermission(env,user.sessionId,user.id)).status==='allowed' } catch { return false }
+async function accessDecision(user,env) {
+  if (!user || user.status!=='approved' || user.verified!==1) return 'denied'
+  if (env.WORKOS_RBAC_ENABLED!=='true') return isDashboardOwner(user,env) ? 'allowed' : 'denied'
+  if (!rbacConfigured(env)) return 'denied'
+  try {
+    const load=()=>workosAdminPermission(env,user.sessionId,user.id)
+    const result=Number(env.WORKOS_CHECK_CACHE_MS)>0
+      ? await cachedWorkosRead(env,`admin:${user.sessionId}`,Number(env.WORKOS_CHECK_CACHE_MS),async()=>{
+        const permission=await load()
+        return {cacheable:permission.status==='allowed'||permission.status==='denied',status:permission.status}
+      })
+      : await load()
+    if (result.status==='allowed') return 'allowed'
+    if (result.status==='retryable' || result.status==='unavailable') return 'unavailable'
+    return 'denied'
+  } catch { return 'unavailable' }
 }
+const ownerGate = decision => decision==='unavailable' ? json({error:'access_check_unavailable'},503) : decision==='allowed' ? null : json({error:'owner_required'},403)
 let jwksCache
 // Logs only a reason code and claim shape (audience, issuer match, org/role presence), never the token or user identity.
-const mcpDeny=(reason,claims)=>{console.warn('MCP auth rejected',JSON.stringify({reason,aud:claims?[claims.aud].flat().slice(0,4):null,has_role:claims?Boolean(claims.role):null,has_permissions:claims?Array.isArray(claims.permissions):null}));return false}
+const mcpFailure=reason=>reason==='jwks_fetch'||reason==='workos_unavailable'?'unavailable':reason==='not_owner'||reason==='role'||reason==='unknown_user'?'forbidden':'unauthorized'
+const mcpDeny=(reason,claims)=>{console.warn('MCP auth rejected',JSON.stringify({reason,aud:claims?[claims.aud].flat().slice(0,4):null,has_role:claims?Boolean(claims.role):null,has_permissions:claims?Array.isArray(claims.permissions):null}));return {status:mcpFailure(reason)}}
 async function mcpOwner(request,env) {
   let claims
   try {
@@ -130,14 +152,20 @@ async function mcpOwner(request,env) {
     if(!jwk) return mcpDeny('jwks_kid',claims)
     const publicKey=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify'])
     if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',publicKey,un64(s),enc.encode(`${h}.${p}`))) return mcpDeny('signature',claims)
-    if(claims.resolveRole && !await connectTokenIsAdmin(env,claims.sub,claims.org_id)) return mcpDeny('role',claims)
+    if(claims.resolveRole) {
+      try { if(!await connectTokenIsAdmin(env,claims.sub,claims.org_id)) return mcpDeny('role',claims) }
+      catch { return mcpDeny('workos_unavailable',claims) }
+    }
     const user=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(claims.sub).first()
-    return isDashboardOwner(user,env) && user.verified===1 && user.status==='approved' ? user : mcpDeny(user?'not_owner':'unknown_user',claims)
+    return isDashboardOwner(user,env) && user.verified===1 && user.status==='approved' ? {status:'ok',user} : mcpDeny(user?'not_owner':'unknown_user',claims)
   } catch { return mcpDeny('exception',claims) }
 }
 async function mcp(request,env,ctx) {
-  const owner=await mcpOwner(request,env)
-  if(!owner) return json({error:'unauthorized'},401,{'WWW-Authenticate':`Bearer resource_metadata="${env.APP_URL}/.well-known/oauth-protected-resource"`})
+  const auth=await mcpOwner(request,env)
+  if(auth.status==='unavailable') return json({error:'verification_unavailable'},503)
+  if(auth.status==='forbidden') return json({error:'forbidden'},403)
+  if(auth.status!=='ok') return json({error:'unauthorized'},401,{'WWW-Authenticate':`Bearer resource_metadata="${env.APP_URL}/.well-known/oauth-protected-resource"`})
+  const owner=auth.user
   if(request.method!=='POST') return new Response('Use POST',{status:405})
   const text=await readBody(request,16384)
   if(text===null) return json({error:'too_large'},413)
@@ -335,13 +363,15 @@ export async function handle(request,env,ctx) {
   }
   if(url.pathname==='/api/access-live') {
     if(request.method!=='GET' || request.headers.get('upgrade')?.toLowerCase()!=='websocket' || request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_request'},400)
-    if(!await accessManager(user,env)) return json({error:'owner_required'},403)
+    const liveDenied=ownerGate(await accessDecision(user,env))
+    if(liveDenied) return liveDenied
     const live=accessLive(env)
     return live?live.fetch(request):json({error:'unavailable'},503)
   }
   if(url.pathname==='/api/access-pending') {
     if(request.method!=='GET') return json({error:'method_not_allowed'},405)
-    if(!await accessManager(user,env)) return json({error:'owner_required'},403)
+    const pendingDenied=ownerGate(await accessDecision(user,env))
+    if(pendingDenied) return pendingDenied
     const row=await env.DB.prepare("SELECT EXISTS(SELECT 1 FROM users WHERE status='pending' AND verified=1) AS pending").first()
     return json({pending:row?.pending===1})
   }
@@ -350,18 +380,22 @@ export async function handle(request,env,ctx) {
   if(url.pathname==='/api/ask') return handleAsk(request,env,user,{waitUntil:promise=>ctx?.waitUntil?.(promise)})
   if(url.pathname==='/api/access' || url.pathname==='/api/invitations' || url.pathname==='/api/invitations/revoke') {
     if(request.method==='POST' && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
-    user.canManageAccess=await accessManager(user,env)
+    const accessDenied=ownerGate(await accessDecision(user,env))
+    if(accessDenied) return accessDenied
+    user.canManageAccess=true
     const response=await (url.pathname==='/api/access'?manageAccess(request,env,user):manageInvitations(request,env,user))
     if(url.pathname==='/api/access' && request.method==='POST' && response.ok) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     return response
   }
   if(url.pathname==='/api/refresh' && request.method==='POST') {
-    if(request.headers.get('origin')!==env.APP_URL || !await accessManager(user,env)) return json({error:'owner_required'},403)
+    if(request.headers.get('origin')!==env.APP_URL) return json({error:'owner_required'},403)
+    const refreshDenied=ownerGate(await accessDecision(user,env))
+    if(refreshDenied) return refreshDenied
     return json(await runRefresh(env))
   }
   if(url.pathname==='/api/presentation') {
     if(request.method==='PUT' && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
-    const canManageAccess=await accessManager(user,env)
+    const canManageAccess=(await accessDecision(user,env))==='allowed'
     const canEdit=canManageAccess
     const read=async()=>{
       const record=await env.DB.prepare('SELECT body,revision FROM presentation WHERE id=1').first()

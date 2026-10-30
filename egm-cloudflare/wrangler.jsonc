@@ -26,6 +26,8 @@
     "WORKOS_RBAC_ISSUER": "https://api.workos.com/user_management/client_01KT21TBYTKHENW4172A587X7Q",
     "WORKOS_RBAC_PERMISSION": "egm:dashboard:admin",
     "WORKOS_WIDGETS_ENABLED": "true",
+    // Reuse a successful WorkOS session or admin check for this many milliseconds. 0 disables the cache.
+    "WORKOS_CHECK_CACHE_MS": "45000",
     "WORKOS_OWNER_USER_ID": "user_01M5SCP5F3JTK0NFFBMS0NFJAB"
   }
 }

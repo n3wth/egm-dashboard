@@ -78,9 +78,9 @@ export async function submitFeedback(request, env, user, fetcher = fetch) {
     data = JSON.parse(body)
   } catch { return Response.json({ error: 'invalid_request' }, { status: 400 }) }
   if (!data || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.id ?? '') || !['Bug report', 'Feature request'].includes(data.kind) || typeof data.message !== 'string' || !data.message.trim() || data.message.length > 2000 || !Number.isSafeInteger(data.surveyIteration) || data.surveyIteration < 0) return Response.json({ error: 'invalid_feedback' }, { status: 400 })
+  // D1 is the record. PostHog is checked when it answers, and synced later either way.
   const activeSurvey = await loadFeedbackSurvey(env, fetcher)
-  if (!activeSurvey.ok) return Response.json({ error: 'unavailable' }, { status: 503 })
-  if ((await activeSurvey.json()).current_iteration !== data.surveyIteration) return Response.json({ error: 'survey_changed' }, { status: 409 })
+  if (activeSurvey.ok && (await activeSurvey.json()).current_iteration !== data.surveyIteration) return Response.json({ error: 'survey_changed' }, { status: 409 })
   try {
     const now = Date.now()
     await env.DB.prepare('INSERT OR IGNORE INTO feedback_items(id,author_id,kind,message,created_at,survey_iteration) SELECT ?,?,?,?,?,? WHERE (SELECT count(*) FROM feedback_items WHERE author_id=? AND created_at>?)<10').bind(data.id, user.id, data.kind, data.message.trim(), now, data.surveyIteration, user.id, now - 3600000).run()
