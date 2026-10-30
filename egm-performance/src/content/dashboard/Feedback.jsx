@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Button, Dialog } from '../../data-app-public.jsx'
+import { Button, Dialog, Icon } from '../../data-app-public.jsx'
+import { navbarIconSize } from './navbar-icons.mjs'
 import {failureMessage,retryableStatus,statusMessage} from './request-errors.mjs'
 import './feedback.css'
 
@@ -65,7 +66,7 @@ export function Feedback() {
 
   if (!import.meta.env.DEV && globalThis.location?.hostname !== 'egm.n3wth.com') return null
   return <>
-    <button type="button" className="dashboard-header-action-button egm-feedback-trigger" onClick={() => { setAttempt(0); setOpen(true) }}>Feedback</button>
+    <button type="button" className="dashboard-header-action-button egm-feedback-trigger" aria-label="Feedback" onClick={() => { setAttempt(0); setOpen(true) }}><Icon name="feedback" size={navbarIconSize} className="egm-feedback-icon"/><span className="egm-feedback-label">Feedback</span></button>
     <Dialog open={open} onClose={close} showClose={!busy} title="Give feedback" className="egm-feedback-dialog">
       {sent ? <div role="status"><p>Thanks for your feedback.</p><Button onClick={close}>Done</Button></div> : unavailable ? <div role="alert"><p>{unavailable.message}</p><div className="egm-feedback-actions"><Button onClick={close}>Close</Button>{unavailable.retry && <Button variant="primary" onClick={() => setAttempt(value => value + 1)}>Try again</Button>}</div></div> : !survey ? <p role="status">Loading feedback…</p> : <form onSubmit={submit}>
         <p>Tell us about a bug or suggest an improvement. Your feedback is sent to PostHog and connected review tools.</p>

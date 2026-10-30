@@ -22,6 +22,7 @@ import database from '@material-symbols/svg-400/rounded/database.svg?raw'
 import history from '@material-symbols/svg-400/rounded/history.svg?raw'
 import download from '@material-symbols/svg-400/rounded/download.svg?raw'
 import edit from '@material-symbols/svg-400/rounded/edit.svg?raw'
+import feedback from '@material-symbols/svg-400/rounded/feedback.svg?raw'
 import visibility from '@material-symbols/svg-400/rounded/visibility.svg?raw'
 import publicIcon from '@material-symbols/svg-400/rounded/public.svg?raw'
 import info from '@material-symbols/svg-400/rounded/info.svg?raw'
@@ -83,6 +84,7 @@ export const roundedIcons = {
   download: download,
   edit: edit,
   eye: visibility,
+  feedback: feedback,
   globe: publicIcon,
   info: info,
   italic: formatItalic,

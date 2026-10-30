@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {overviewSummary} from './overview-summary.mjs'
+import {overviewSummary,reportingRangeLabel} from './overview-summary.mjs'
 
 test('uses exact recorded traffic and distinct referral denominators',()=>{
   const summary=overviewSummary({reach:{rows:[{stars:3624,views:29252}]},traffic:{rows:[{date:'2026-10-23',views:3406},{date:'2026-10-24',views:6000},{date:'2026-10-25',views:8000},{date:'2026-10-26',views:11846}]},referrers:{rows:[{referrer:'Google',count:5481},{referrer:'youtube.com',count:3313},{referrer:'other',count:4970}]}})
@@ -8,9 +8,14 @@ test('uses exact recorded traffic and distinct referral denominators',()=>{
   assert.match(summary.sentences[1],/64% of the views GitHub attributes to its top ten referrers \(30% of all repo views\)/)
   assert.equal(summary.sentences.length,2)
   assert.deepEqual(new Set(summary.queryIds),new Set(['reach','traffic','referrers']))
-  assert.equal(summary.headline,'88% of the 29,252 repo views arrived in the last three days.')
-  assert.deepEqual(summary.facts,['3,624 recorded stars','An even spread would be 75%','Google + YouTube = 64% of attributed views'])
-  assert.deepEqual(summary.range,{label:'Oct 23 – Oct 26',note:'UTC'})
+  assert.equal(summary.headline,'88% of 29,252 repo views arrived in the last 3 days.')
+  assert.deepEqual(summary.facts,['vs 75% if evenly spread','3,624 recorded stars','Google + YouTube = 64% of attributed views'])
+  assert.deepEqual(summary.range,{label:'Oct 23 – 26',note:'UTC'})
+})
+test('one compact label for the traffic dates',()=>{
+  assert.equal(reportingRangeLabel(['2026-10-29','2026-10-16']),'Oct 16 – 29')
+  assert.equal(reportingRangeLabel(['2026-10-30','2026-11-02']),'Oct 30 – Nov 2')
+  assert.equal(reportingRangeLabel(['2026-10-16']),null)
 })
 test('no canned recommendation is appended to the summary',()=>{
   const summary=overviewSummary({reach:{rows:[{stars:5,views:10}]}})

@@ -1,6 +1,7 @@
 import { dataAppExportOptions } from "../export-catalog.js";
 import { Feedback } from "../content/dashboard/Feedback.jsx";
 import { navbarAccountIcon, navbarAskIcon, navbarIconSize, navbarRefreshIcon, navbarSparkleSize } from "../content/dashboard/navbar-icons.mjs";
+import { reportingRangeLabel } from "../content/dashboard/overview-summary.mjs";
 import { useOptionalDataAppShell } from "../DataAppContext.jsx";
 import { dataAppBuildState } from "../build-state.js";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
@@ -80,7 +81,7 @@ function ReviewedFreshness({ generatedAt }) {
   );
 }
 
-function RelativeFreshness({ generatedAt }) {
+function RelativeFreshness({ generatedAt, rangeLabel }) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60000);
@@ -94,7 +95,8 @@ function RelativeFreshness({ generatedAt }) {
     : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago`
       : `${Math.floor(minutes / 1440)}d ago`;
   const exact = new Date(timestamp).toLocaleString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" });
-  return <time dateTime={generatedAt} title={`Updated ${exact}`} aria-label={`Updated ${exact}`} style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon name={navbarRefreshIcon} size={navbarIconSize}/>{age}</time>;
+  const label = rangeLabel ? `Updated ${exact}. Reporting period ${rangeLabel}, UTC.` : `Updated ${exact}`;
+  return <time dateTime={generatedAt} title={label} aria-label={label} style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon name={navbarRefreshIcon} size={navbarIconSize}/>{age}</time>;
 }
 
 function DataAppVerificationBadge({
@@ -1152,7 +1154,7 @@ export function DataAppTopbar({
         >
           <div className="dashboard-tabs-collapse-inner">
             <DashboardTabs
-              trailing={reportingDates.length ? <span className="dashboard-reporting-period" aria-label={`Reporting period ${reportingDates[0]} through ${reportingDates.at(-1)}, Pacific time`} title={`Reporting period ${reportingDates[0]} through ${reportingDates.at(-1)}, Pacific time`} style={{display:'inline-flex',alignItems:'center',gap:4,lineHeight:1}}><time dateTime={reportingDates[0]} title="Traffic reporting period, Pacific time">{new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'America/Los_Angeles'}).formatRange(new Date(reportingDates[0]+'T00:00:00Z'),new Date(new Date(reportingDates.at(-1)+'T00:00:00Z').valueOf()+86400000))}</time>{generatedAt && <> · <RelativeFreshness generatedAt={generatedAt}/></>}</span> : null}
+              trailing={null}
               tabs={tabs}
               activeTabId={activeTabId}
               editMode={mode === "edit" && !saving && !editingBlocked}
@@ -1215,6 +1217,7 @@ export function DataAppTopbar({
               </div>
             )}
             <div className="dashboard-topbar-actions">
+              {mode !== "edit" && generatedAt && <span className="dashboard-reporting-period"><RelativeFreshness generatedAt={generatedAt} rangeLabel={reportingRangeLabel(reportingDates)}/></span>}
               {mode !== "edit" && (
                 <>
                   <span className="egm-account-menu">
