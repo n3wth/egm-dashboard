@@ -6,6 +6,7 @@ import { ChartTooltip, DataComponent, DataTable, EvidenceChart, Icon, MetricSpar
 import './egm.css'
 import {Research} from './Research.jsx'
 import {Mentions} from './Mentions.jsx'
+import {pathLabel, popularPageRows, repoPathHref} from './repo-paths.mjs'
 import {sourceIcon} from './source-icon.mjs'
 import {SiteName} from './SiteName.jsx'
 import {weeklyChange,starWeeklyChange,weeklyChangeLabel} from './weekly-change.mjs'
@@ -25,22 +26,16 @@ const shortDate = date => new Intl.DateTimeFormat('en-US',{month:'short',day:'nu
 const performanceDate = value => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(value)) : 'Unavailable'
 const sum = (rows, field) => rows.reduce((a,r) => a+r[field],0)
 const line = (y,fields=[y]) => ({type:'line',x:'date',y,fields,colors:Object.fromEntries(fields.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),stackable:false,showXAxisLabel:false,showYAxisLabel:false,valueDecimals:0,startAtZero:true})
-const pathLabel = value => {
-  const path = value.replace(/^\/google\/elephant-goldfish-model(?=\/|$)/,'')
-  if (!path) return 'Repo home'
-  if (path === '/tree/main') return 'Source root'
-  return path.replace(/^\/(blob|tree)\/main(?=\/|$)/,'')
-}
-const repoPathLink = value => {
-  if (typeof value !== 'string') return '—'
+const pageLink = (value, row) => {
   const label = pathLabel(value)
-  if (!/^\/google\/elephant-goldfish-model(?:\/[^?#\\\s]*)?$/.test(value) || value.split('/').some(part=>part==='.' || part==='..')) return label
-  return <a href={`https://github.com${value}`} target="_blank" rel="noreferrer">{label}</a>
+  const href = repoPathHref(value)
+  if (!href) return label
+  return <a href={href} target="_blank" rel="noreferrer" title={row?.combined ? 'Opens the main URL. Views also include the HEAD URL.' : undefined}>{label}</a>
 }
 const combinedReferralViews = rows => channelViews(rows).map(row=>({...row,__categoryIcon:sourceIcon(row.source)}))
 const referrerSpec = {type:'horizontalBar',presentation:'plot',x:'source',y:'count',valueDecimals:0,showValues:true,showXAxisLabel:false,showYAxisLabel:false}
 const referrerDescription = 'GitHub reports only its top ten referring sources, grouped here by channel (LinkedIn web and Android combined). Traffic outside the top ten is unattributed. Unique visitors cannot be deduplicated across sources.'
-const pageColumns = [{field:'path',label:'Page',renderCell:repoPathLink},{field:'count',label:'Views'},{field:'uniques',label:'Unique visitors'}]
+const pageColumns = [{field:'path',label:'Page',renderCell:pageLink},{field:'count',label:'Views'},{field:'uniques',label:'Unique visitors',renderCell:(value,row)=>row?.combined?<span title="Unique visitors overlap across the main and HEAD URLs and are not added." aria-label="Unique visitors unknown">—</span>:n(value)}]
 const downloadColumns = [{field:'release',label:'Release'},{field:'asset',label:'Asset'},{field:'downloads',label:'Downloads'}]
 const webVitals = {largest_contentful_paint:'Largest Contentful Paint',interaction_to_next_paint:'Interaction to Next Paint',cumulative_layout_shift:'Cumulative Layout Shift'}
 function StarTooltip({active,payload=[],label}) {
@@ -68,8 +63,15 @@ function Plot({id,queryId,title,rows,spec,description,sourceRows=rows,children,c
   const brandedSpec = { ...spec, colors: spec.colors ?? {[spec.y]:'var(--chart-1)'} }
   return <Changed value={JSON.stringify(rows)}><EvidenceChart {...{id,queryId,title,rows,description,sourceRows,chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart></Changed>
 }
-function Table({id,queryId,title,rows,columns,searchable=false}) {
-  return <DataComponent {...{id,queryId,title}} kind="table" variant="card" displayRows={rows} sourceRows={rows}>{rows.length?<DataTable {...{rows,columns,searchable}} label={title} />:<EmptyState/>}</DataComponent>
+function ChannelName({row}) {
+  return <span className="egm-channel-name">{row.__categoryIcon&&<img src={row.__categoryIcon} width="16" height="16" alt=""/>}{row.source}</span>
+}
+function ViewBar({value,max}) {
+  const width=max>0?Math.max(0,Math.min(100,value/max*100)):0
+  return <span className="egm-view-bar"><span aria-hidden="true"><span style={{width:`${width}%`}}/></span><span>{n(value)}</span></span>
+}
+function Table({id,queryId,title,rows,columns,searchable=false,sourceRows=rows,note,pageSize}) {
+  return <DataComponent {...{id,queryId,title}} kind="table" variant="card" displayRows={rows} sourceRows={sourceRows}>{rows.length?<DataTable rows={rows} columns={columns} searchable={searchable} label={title} {...(pageSize?{pageSize}:{})}/>:<EmptyState/>}{note&&<p className="egm-note">{note}</p>}</DataComponent>
 }
 function AcrossEgm({queries,reach,web}) {
   const ids=['website','reach','youtube_videos','research_evidence'].filter(id=>queries[id])
@@ -84,7 +86,7 @@ function AcrossEgm({queries,reach,web}) {
     <div className="egm-overview-signals" data-reviewed-rows>
       <article><h3>egm.dev referrals</h3><p className="egm-overview-website-copy">{viewShare!=null&&visitorShare!=null?<><strong>{percentage(viewShare)}</strong> of repo views and <strong>{percentage(visitorShare)}</strong> of unique visitors arrived from egm.dev.</>:'egm.dev was not among GitHub’s top ten referrers, so its share is unknown.'}</p><a className="egm-overview-next" href="/website">Website <Icon name="arrowUpRight" size={14}/></a></article>
       <article><h3>Popular videos</h3>{popularVideos.length?<div className="egm-overview-videos">{popularVideos.map(video=><a className="egm-overview-video" key={video.videoId} href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noreferrer" aria-label={`${video.title??'YouTube video'}. ${n(video.views)} YouTube views. Open YouTube.`}><span className="egm-overview-video-thumb"><VideoThumbnail id={video.videoId} sizes="(max-width: 600px) 50vw, 140px"/><span className="egm-overview-video-views" aria-hidden="true">{compact(video.views)}</span></span><span className="egm-overview-video-title" title={video.title}>{video.title??'YouTube video'}</span></a>)}</div>:<p>No YouTube view counts collected yet.</p>}<a className="egm-overview-next" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a></article>
-      <article><h3>Suggested experiment</h3>{discussion&&experiment?<><p className="egm-overview-action">{experiment}</p><a className="egm-overview-source" href={discussion.url} target="_blank" rel="noreferrer"><SiteName url={discussion.url}/></a></>:<p>No verified discussion evidence yet.</p>}<a className="egm-overview-next" href="/research">Research <Icon name="arrowUpRight" size={14}/></a></article>
+      <article><h3>Suggested experiment</h3>{discussion&&experiment?<><p className="egm-overview-action">{experiment}<span className="egm-overview-qualifier">Suggested from this description, not from a measured user problem.</span></p><a className="egm-overview-source" href={discussion.url} target="_blank" rel="noreferrer"><SiteName url={discussion.url}/></a></>:<p>No verified discussion evidence yet.</p>}<a className="egm-overview-next" href="/research">Research <Icon name="arrowUpRight" size={14}/></a></article>
     </div>
   </DataComponent>
 }
@@ -125,7 +127,11 @@ function DashboardTab() {
       {weeklyText&&<p className="egm-metric-secondary" data-reviewed-rows title={`Latest seven complete reported days (${weekly.mid}–${weekly.end}) compared with the preceding seven.${weekly.reconstructed?' New stars are reconstructed from current stargazers by Pacific date; removed stars are unavailable and the partial current day is excluded.':` Additive daily ${field} counts, UTC days.`}`}>{weeklyText}</p>}
     </DataComponent>
   }
-  const popularPages = id => <Table id={id} queryId="paths" title="Popular repo pages" rows={rows('paths')} columns={pageColumns} />
+  const popularPages = id => {
+    const sourceRows=rows('paths')
+    const pages=popularPageRows(sourceRows)
+    return <Table id={id} queryId="paths" title="Popular repo pages" rows={pages} sourceRows={sourceRows} columns={pageColumns} pageSize={12} note={pages.some(row=>row.combined)?'Views for the same file at /blob/main and /blob/HEAD are combined. Unique visitors are not added, because those audiences overlap by an unknown amount.':undefined} />
+  }
   const clonePlot = id => <Plot id={id} queryId="traffic" title="Daily clone activity" rows={daily} spec={{...line('clones',['clones','cloners']),legend:{labels:{clones:'Clone operations',cloners:'Unique cloners per day'}}}} description={`${window}. Clone operations include repeat and automated clones; daily unique cloners cannot be summed.`} />
   // Same ranked table as Acquisition, compact for the overview.
   const referrerTable = (id,title) => {
@@ -143,12 +149,13 @@ function DashboardTab() {
     const attributed = sum(channels,'count')
     const searchVideoViews=sum(channels.filter(row=>isSearchVideo(row.source)),'count')
     const channelRows = channels.map(row=>({...row,shareOfRepoViews:ratio(row.count,reach.views),shareOfReportedReferrals:ratio(row.count,attributed)}))
+    const maxChannel=channels[0]?.count??0
     return <>
       <PageSummary page="acquisition" queries={queries}/>
       <Section id="acquisition-channels-heading" spacing="none">
         <DataComponent id="acquisition-shares" queryId="referrers" queryIds={['referrers','reach']} title="Repo views by channel" kind="table" variant="card" displayRows={channelRows} sourceRowsByQuery={{referrers:rows('referrers'),reach:rows('reach')}}>
           {attributed>0&&reach.views>0&&<InsightCallout>Google and YouTube sent {percentage(searchVideoViews/attributed)} of the views GitHub attributes to its top ten referrers, or {percentage(searchVideoViews/reach.views)} of all repo views in {window}.</InsightCallout>}
-          {!channelRows.length?<EmptyState/>:<DataTable rows={channelRows} searchable={false} label="Repo views by channel" columns={[{field:'source',label:'Channel',renderCell:(value,row)=><span style={{display:'inline-flex',alignItems:'center',gap:8,whiteSpace:'nowrap'}}>{row.__categoryIcon&&<img src={row.__categoryIcon} width="16" height="16" alt=""/>}{value}</span>},{field:'count',label:'Views',renderCell:value=><span style={{display:'flex',alignItems:'center',gap:10,minWidth:105,justifyContent:'flex-end'}}><span aria-hidden="true" style={{display:'block',width:70,height:6,background:'var(--border)',borderRadius:3,overflow:'hidden'}}><span style={{display:'block',height:'100%',width:`${channels[0]?.count?value/channels[0].count*100:0}%`,background:'var(--chart-1)',borderRadius:3}}/></span><span style={{minWidth:38,fontVariantNumeric:'tabular-nums'}}>{n(value)}</span></span>},{field:'shareOfRepoViews',label:'Share of all repo views',renderCell:v=>percentage(v)},{field:'shareOfReportedReferrals',label:'Share of top-ten referrer views',renderCell:v=>percentage(v)}]} />}
+          {!channelRows.length?<EmptyState/>:<DataTable rows={channelRows} searchable={false} pageSize={12} label="Repo views by channel" columns={[{field:'source',label:'Channel',renderCell:(value,row)=><ChannelName row={row}/>},{field:'count',label:'Views',renderCell:value=><ViewBar value={value} max={maxChannel}/>},{field:'shareOfRepoViews',label:'Share of all repo views',renderCell:v=>percentage(v)},{field:'shareOfReportedReferrals',label:'Share of top-ten referrer views',renderCell:v=>percentage(v)}]} />}
           <p className="egm-note">{referrerDescription}</p>
         </DataComponent>
       </Section>

@@ -1,3 +1,5 @@
+import {canonicalRepoPath} from './repo-paths.mjs'
+
 export function safeExternalUrl(value) {
   try {
     const url = new URL(value)
@@ -6,8 +8,19 @@ export function safeExternalUrl(value) {
 }
 
 export function mostViewedDoc(rows) {
-  return rows.filter(row => typeof row.path === 'string' && row.path.includes('/docs/') && Number.isFinite(row.count))
-    .reduce((best, row) => !best || row.count > best.count ? row : best, undefined)
+  const docs = (rows ?? []).filter(row => typeof row?.path === 'string' && row.path.includes('/docs/') && Number.isFinite(row.count))
+  const groups = new Map()
+  for (const row of docs) {
+    const key = canonicalRepoPath(row.path)
+    const group = groups.get(key)
+    if (!group) groups.set(key, {key, rows: [row], count: row.count})
+    else { group.rows.push(row); group.count += row.count }
+  }
+  let best
+  for (const group of groups.values()) if (!best || group.count > best.count) best = group
+  if (!best) return undefined
+  if (best.rows.length === 1) return best.rows[0]
+  return {path: best.key, count: best.count, uniques: null, combined: true}
 }
 
 export function mentionGroup(kind) {

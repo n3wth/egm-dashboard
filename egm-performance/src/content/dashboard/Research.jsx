@@ -7,6 +7,7 @@ import {backlinkPages} from './backlink-pages.js'
 import {PageSummary} from './PageSummary.jsx'
 import {EmptyState} from './DataStates.jsx'
 import {safeExternalUrl,mostViewedDoc,validCrawlDate} from './research-mentions.mjs'
+import {pathLabel} from './repo-paths.mjs'
 
 const link=(url,label,className)=>{const href=safeExternalUrl(url);return href?<a className={className} href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label||'Source unavailable'}</span>}
 const repoLink=(value,row)=>link(row.url,value,'egm-research-repo')
@@ -127,7 +128,7 @@ export function Research() {
       {title:'Show the workflow',evidence:`${media} of ${alternatives.length} peer READMEs contain a matched video or animated media link. EGM: ${yesNo(egm.demo).toLowerCase()}.`,action:egm.demo?'Measure clicks and first successful runs from the existing demo.':'Test a short workflow demonstration showing a concrete input, review, and resulting change.',source:egm.readmeUrl}
     ]:[]),
     ...(total?[{title:'Channel concentration',evidence:`Google and YouTube account for ${percentage(searchVideo/total)} of the views GitHub attributes to its top ten referrers.`,action:'Test one additional distribution channel and compare attributed views. This is an experiment proposal, not evidence of causal lift.',source:'https://github.com/google/elephant-goldfish-model/graphs/traffic'}]:[]),
-    ...(popular?[{title:'Follow observed content interest',evidence:`${popular.path.replace('/google/elephant-goldfish-model','').replace('/blob/main','')} received ${popular.count.toLocaleString('en-US')} views.`,action:'Test a clearer route from this documentation page to installation and the first successful workflow.',source:'https://github.com'+popular.path}]:[])
+    ...(popular?[{title:'Follow observed content interest',evidence:`${pathLabel(popular.path)} received ${popular.count.toLocaleString('en-US')} views${popular.combined?' across its main and HEAD URLs':''}.`,action:'Test a clearer route from this documentation page to installation and the first successful workflow.',source:'https://github.com'+popular.path}]:[])
   ]
   const recommendationIcons={'First-run discovery':'arrowUpRight','Show the workflow':'monitor','Channel concentration':'link','Follow observed content interest':'textDocument'}
   return <>
