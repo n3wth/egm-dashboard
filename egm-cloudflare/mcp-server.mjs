@@ -4,6 +4,7 @@ import {feedbackEventsRpc,feedbackSubmittedEvent,flushFeedbackEvents} from './fe
 import {rbacConfigured} from './workos-session.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
 import {accessChanged} from './access-live.mjs'
+import {notifyAccessDecision} from './decision-email.mjs'
 import {readBody} from './request-body.mjs'
 
 const enc = new TextEncoder()
@@ -101,13 +102,20 @@ export async function mcp(request,env,ctx) {
     let data
     if(name==='list_access_requests' && !Object.keys(a).length) data=(await env.DB.prepare("SELECT id AS request_id,email,name,created_at,status FROM users WHERE status='pending' ORDER BY created_at").all()).results
     else if(name==='decide_access_request' && typeof a.request_id==='string' && ['approved','denied'].includes(a.decision) && Object.keys(a).every(k=>['request_id','decision'].includes(k))) {
-      const result=await env.DB.prepare("UPDATE users SET status=?, decided_at=?, decided_by=? WHERE id=? AND status='pending'").bind(a.decision,new Date().toISOString(),owner.id,a.request_id).run()
-      if(!result.meta.changes) return error(-32602,'Request missing or already decided')
-      await env.DB.prepare('INSERT INTO audit VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),a.request_id,a.decision,owner.id,new Date().toISOString()).run()
-      ctx?.waitUntil(accessChanged(env).catch(()=>{}))
-      data={request_id:a.request_id,status:a.decision}
+      data=await decideAccessRequest(env,owner,a.request_id,a.decision,ctx)
+      if(!data) return error(-32602,'Request missing or already decided')
     } else return error(-32602,'Invalid tool arguments')
     return reply({content:[{type:'text',text:JSON.stringify(data)}]})
   }
   return error(-32601,'Method not found')
+}
+
+export async function decideAccessRequest(env,owner,requestId,decision,ctx) {
+  const at=new Date().toISOString()
+  const result=await env.DB.prepare("UPDATE users SET status=?, decided_at=?, decided_by=? WHERE id=? AND status='pending'").bind(decision,at,owner.id,requestId).run()
+  if(!result.meta.changes) return null
+  await env.DB.prepare('INSERT INTO audit VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),requestId,decision,owner.id,at).run()
+  ctx?.waitUntil?.(accessChanged(env).catch(()=>{}))
+  ctx?.waitUntil?.(notifyAccessDecision(env,{userId:requestId,decision,fromStatus:'pending'},ctx.decisionEmailFetcher).catch(error=>console.error('Decision email failed',error?.message)))
+  return {request_id:requestId,status:decision}
 }

@@ -282,7 +282,7 @@ export async function handle(request,env,ctx) {
     const accessDenied=ownerGate(await accessDecision(user,env))
     if(accessDenied) return accessDenied
     user.canManageAccess=true
-    const response=await (url.pathname==='/api/access'?manageAccess(request,env,user):manageInvitations(request,env,user))
+    const response=await (url.pathname==='/api/access'?manageAccess(request,env,user,fetch,ctx):manageInvitations(request,env,user))
     if(url.pathname==='/api/access' && request.method==='POST' && response.ok) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     return response
   }
