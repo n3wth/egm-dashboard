@@ -3,6 +3,7 @@ import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
 import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
+import {askTableColumns,askCellText} from './ask-table.mjs'
 import {AskTransport,answerText,askNeedsSignIn,askRetryable,citeId,linkCitations,messageResult,messageText} from './ask-transport.mjs'
 import {MessageResponse} from './MessageResponse.jsx'
 import {AskStarters} from './AskStarters.jsx'
@@ -53,7 +54,7 @@ export function AnswerCard({card,index,turnId}) {
   const props={id:`ask-result-${turnId}-${index}-${card.queryId}`,title:card.title,queryId:source?card.queryId:undefined,sourceRows:source?.rows??rows,displayRows:rows,variant:'card',showActions:Boolean(source)}
   const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt}/>
   if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,index%2?'var(--chart-4)':'var(--chart-1)'])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
-  if(card.type==='table')return <DataComponent {...props} kind="table"><DataTable rows={rows} searchable={false} pageSize={5} columns={(card.columns??[]).map(field=>({field,label:card.columnLabels?.[field]??field}))} label={card.title}/>{card.rowsTruncated&&<p className="egm-note">Showing {rows.length} of {card.rowCount} rows.</p>}{foot}</DataComponent>
+  if(card.type==='table')return <DataComponent {...props} kind="table"><DataTable rows={rows} searchable={false} pageSize={5} columns={askTableColumns(card.columns,rows,card.columnLabels).map(column=>({field:column.field,label:column.label,...(column.clip?{renderCell:(value,row)=>{const {text,tooltip}=askCellText(value,row,column);const href=column.link?sourceHref(row?.url):column.field==='url'?sourceHref(value):null;return <span className="egm-cell-clip" title={tooltip}>{href?<a href={href} target="_blank" rel="noreferrer">{text}</a>:text}</span>}}:{})}))} label={card.title}/>{card.rowsTruncated&&<p className="egm-note">Showing {rows.length} of {card.rowCount} rows.</p>}{foot}</DataComponent>
   if(card.type==='metric')return <DataComponent {...props} kind="custom"><dl className="egm-ask-metrics">{(card.metrics??[]).map((metric,i)=><div key={i}><dt>{metric.label}</dt><dd>{format(metric.value)}</dd></div>)}</dl>{foot}</DataComponent>
   return null
 }
