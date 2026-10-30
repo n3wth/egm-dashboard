@@ -277,7 +277,7 @@
   top: 50%;
   width: 2px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--secondary);
   opacity: .55;
   pointer-events: none;
@@ -409,7 +409,7 @@
   width: 34px;
   height: 20px;
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--border-strong);
   transition: background 160ms ease;
 }
@@ -420,7 +420,7 @@
   left: 2px;
   width: 16px;
   height: 16px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--surface-raised);
   content: "";
   transition: transform 160ms ease;
@@ -438,8 +438,8 @@
 
 .data-switch[data-size="compact"] { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 6px 8px; color: var(--secondary); font: inherit; font-size: 14px; border-radius: var(--control-radius); cursor: pointer; white-space: nowrap; }
 .data-switch[data-size="compact"]:hover { background: var(--interaction-hover); color: var(--text); }
-.data-switch[data-size="compact"] .data-switch-track { position: relative; width: 28px; height: 16px; border-radius: 10px; background: var(--border-strong); transition: background 120ms ease; }
-.data-switch[data-size="compact"] .data-switch-track::after { content: ""; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: var(--surface); transition: transform 120ms ease; }
+.data-switch[data-size="compact"] .data-switch-track { position: relative; width: 28px; height: 16px; border-radius: var(--radius-xl); background: var(--border-strong); transition: background 120ms ease; }
+.data-switch[data-size="compact"] .data-switch-track::after { content: ""; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: var(--radius-full); background: var(--surface); transition: transform 120ms ease; }
 .data-switch[data-size="compact"][aria-checked="true"] .data-switch-track { background: var(--text); }
 .data-switch[data-size="compact"][aria-checked="true"] .data-switch-track::after { transform: translateX(12px); }
 

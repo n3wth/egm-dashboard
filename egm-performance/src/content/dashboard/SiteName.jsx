@@ -15,7 +15,7 @@ export function SiteName({url,host,label,children,className=''}) {
   const name=children??label??hostname?.replace(/^www\./,'')??''
   const [failed,setFailed]=useState(null)
   const available=hostname&&failed!==hostname&&!failedHosts.has(hostname)
-  const iconStyle={width:16,height:16,flex:'0 0 16px',borderRadius:4,objectFit:'contain',verticalAlign:'middle'}
+  const iconStyle={width:16,height:16,flex:'0 0 16px',borderRadius:'var(--radius-xs)',objectFit:'contain',verticalAlign:'middle'}
   const provider=({'exa.ai':'Exa','tavily.com':'Tavily','parallel.ai':'Parallel'})[hostname?.replace(/^www\./,'')]
   const brand=({'github.com':'GitHub','youtube.com':'YouTube','youtu.be':'YouTube','linkedin.com':'LinkedIn','google.com':'Google','microsoft.com':'Teams','teams.microsoft.com':'Teams','threads.com':'Threads','threads.net':'Threads','bing.com':'Bing','duckduckgo.com':'DuckDuckGo','egm.dev':'egm.dev'})[hostname?.replace(/^www\./,'')]
   const brandSvg=brand?channelIcons[brand]?.replace('<svg ','<svg width="16" height="16" aria-hidden="true" '):null

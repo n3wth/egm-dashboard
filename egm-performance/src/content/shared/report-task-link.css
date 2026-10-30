@@ -15,7 +15,7 @@
 .report-task-link > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .report-task-link > .dashboard-icon { flex-shrink: 0; }
 .report-task-link:hover { text-decoration: underline; text-underline-offset: 0.2em; }
-.report-task-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 2px; }
+.report-task-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: var(--radius-2xs); }
 
 /* Align the task with the text of a single Markdown bullet, not its marker.
    Unbulleted recommendations keep their normal left edge. */
