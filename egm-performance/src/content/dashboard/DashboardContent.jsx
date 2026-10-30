@@ -20,6 +20,7 @@ import {EmptyState,StaleNotice} from './DataStates.jsx'
 import {CollectionStatus} from './CollectionStatus.jsx'
 import {count} from './states.mjs'
 import {suggestExperiment} from './suggested-experiment.mjs'
+import {videoGrid} from './video-grid.mjs'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = count
@@ -74,10 +75,22 @@ function ViewBar({value,max}) {
 function Table({id,queryId,title,rows,columns,searchable=false,sourceRows=rows,note,pageSize}) {
   return <DataComponent {...{id,queryId,title}} kind="table" variant="card" displayRows={rows} sourceRows={sourceRows}>{rows.length?<DataTable rows={rows} columns={columns} searchable={searchable} label={title} {...(pageSize?{pageSize}:{})}/>:<EmptyState/>}{note&&<p className="egm-note">{note}</p>}</DataComponent>
 }
+function useVideoGrid(available) {
+  const [width,setWidth]=useState(()=>globalThis.innerWidth||1280)
+  useEffect(()=>{
+    const update=()=>setWidth(window.innerWidth)
+    update()
+    window.addEventListener('resize',update)
+    return ()=>window.removeEventListener('resize',update)
+  },[])
+  return videoGrid(available,width)
+}
 function AcrossEgm({queries,reach,web}) {
   const ids=['website','reach','youtube_videos','research_evidence','issue_queue','mentions'].filter(id=>queries[id])
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
-  const popularVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views).slice(0,12)
+  const rankedVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views)
+  const grid=useVideoGrid(rankedVideos.length)
+  const popularVideos=rankedVideos.slice(0,grid.count)
   const experiment=suggestExperiment(queries)
   const viewShare=ratio(web.referralViews,reach.views)
   const visitorShare=ratio(web.referralVisitors,reach.visitors)
@@ -91,10 +104,10 @@ function AcrossEgm({queries,reach,web}) {
       </article>
       <article className="egm-highlight egm-highlight-videos">
         <h3>Popular videos</h3>
-        {popularVideos.length?<div className="egm-overview-videos">{popularVideos.map(video=>{
+        {popularVideos.length?<div className="egm-overview-videos" style={{'--video-columns':grid.columns}}>{popularVideos.map(video=>{
           const title=video.title??'YouTube video'
           return <a className="egm-overview-video" key={video.videoId} href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noreferrer">
-            <VideoThumbnail id={video.videoId} sizes="(max-width: 700px) 33vw, (max-width: 1600px) 16vw, 12vw" alt={`${title} preview`}/>
+            <span className="egm-overview-video-frame"><VideoThumbnail id={video.videoId} poster="mqdefault" sizes="(max-width: 799px) 33vw, (max-width: 1279px) 25vw, 16vw" alt={`${title} preview`}/></span>
             <span className="egm-overview-video-title" title={title}>{title}</span>
             <span className="egm-overview-video-views">{compact(video.views)} views</span>
           </a>
