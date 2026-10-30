@@ -27,12 +27,14 @@ export function aiGenerationEvent(env,data) {
   return {api_key:env.POSTHOG_PROJECT_TOKEN,distinct_id:data.userId,event:'$ai_generation',properties:Object.fromEntries(Object.entries(properties).filter(([,value])=>value!==undefined))}
 }
 
-export async function captureAiGeneration(env,data,fetcher=fetch) {
+export async function capturePosthogEvent(env,event,fetcher=fetch) {
   try {
     if(!env.POSTHOG_PROJECT_TOKEN||!env.POSTHOG_HOST)return false
     const host=new URL(env.POSTHOG_HOST)
     if(host.protocol!=='https:'||!hosts.includes(host.hostname))return false
-    const response=await fetcher(new URL('/i/v0/e/',host).href,{method:'POST',redirect:'manual',headers:{'content-type':'application/json'},body:JSON.stringify(aiGenerationEvent(env,data)),signal:AbortSignal.timeout(5000)})
+    const response=await fetcher(new URL('/i/v0/e/',host).href,{method:'POST',redirect:'manual',headers:{'content-type':'application/json'},body:JSON.stringify({api_key:env.POSTHOG_PROJECT_TOKEN,...event}),signal:AbortSignal.timeout(5000)})
     return response.ok
   } catch {return false}
 }
+
+export const captureAiGeneration=(env,data,fetcher=fetch)=>capturePosthogEvent(env,aiGenerationEvent(env,data),fetcher)
