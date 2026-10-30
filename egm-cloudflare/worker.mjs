@@ -47,9 +47,8 @@ export async function open(token,secrets,audience) {
   } catch { return null }
 }
 const cookie = (name,value,age=3600) => `${name}=${value}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${age}`
-// Activity keeps a session for 7 more days, up to 30 days after sign-in.
+// The signed cookie ends 30 days after sign-in. The session row ends 7 days after the last visit, never after the cookie.
 const SESSION_IDLE=7*86400, SESSION_MAX=30*86400, SESSION_RENEW_STEP=3600
-const sessionCookie = async (env,sid,profilePictureUrl,authAt,lifetime) => cookie('__Host-egm_session',await seal({sid,profilePictureUrl,authAt},sessionSecrets(env),'session',lifetime),lifetime)
 const cookieValue = (request,name) => request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1)
 const navigation = (request,url) => request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
 const unavailable = request => navigation(request,new URL(request.url)) ? renderAccessPage('unavailable',new URL(request.url).pathname==='/auth/callback'?{href:'/auth/login'}:{}) : new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})
@@ -81,17 +80,9 @@ async function identity(request,env) {
     identity.email=email
     identity.workosAccessToken=current.accessToken
   }
-  identity.renewal=await renewSession(env,session,user.id,expiresAt)
+  const renewed=Math.min(now()+SESSION_IDLE,session.exp)
+  if(renewed-expiresAt>=SESSION_RENEW_STEP) try { await env.DB.prepare('UPDATE sessions SET expires_at=? WHERE id=? AND user_id=? AND expires_at<?').bind(renewed,session.sid,user.id,renewed).run() } catch {}
   return identity
-}
-// Sessions signed before authAt was added keep their original expiry.
-async function renewSession(env,session,userId,expiresAt) {
-  const time=now()
-  if(!Number.isSafeInteger(session.authAt) || session.authAt>time) return null
-  const next=Math.min(time+SESSION_IDLE,session.authAt+SESSION_MAX)
-  if(!(next-expiresAt>=SESSION_RENEW_STEP)) return null
-  try { await env.DB.prepare('UPDATE sessions SET expires_at=? WHERE id=? AND user_id=? AND expires_at<?').bind(next,session.sid,userId,next).run() } catch { return null }
-  return sessionCookie(env,session.sid,profilePhoto(session.profilePictureUrl),session.authAt,next-time)
 }
 async function accessManager(user,env) {
   if (!user || user.status!=='approved' || user.verified!==1) return false
@@ -281,8 +272,8 @@ export async function handle(request,env,ctx) {
       if(!isOwner) ctx?.waitUntil(Promise.allSettled([flushApprovalEvents(env).catch(error=>console.error('Approval event flush failed',error?.message)),flushGrokNotifications(env)]))
       if(!isOwner) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     }
-    const sid=random(),signedIn=now()
-    await env.DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(sid,user.id,signedIn+SESSION_IDLE).run()
+    const sid=random()
+    await env.DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(sid,user.id,now()+SESSION_IDLE).run()
     if((env.WORKOS_RBAC_ENABLED==='true' && rbacConfigured(env)) || workosSessionConfigured(env)) {
       // Migration or provider failures do not prevent ordinary sign-in; they
       // leave privileged operations unavailable until a fresh valid session.
@@ -299,18 +290,11 @@ export async function handle(request,env,ctx) {
     }
     const headers=new Headers({location:'/overview','cache-control':'private, no-store'})
     headers.append('set-cookie',clear)
-    headers.append('set-cookie',await sessionCookie(env,sid,profilePhoto(user.profile_picture_url),signedIn,SESSION_IDLE))
+    headers.append('set-cookie',cookie('__Host-egm_session',await seal({sid,profilePictureUrl:profilePhoto(user.profile_picture_url)},sessionSecrets(env),'session',SESSION_MAX),SESSION_MAX))
     ctx?.waitUntil?.(capturePosthogEvent(env,{distinct_id:user.id,event:'dashboard_signed_in',properties:{$geoip_disable:true}}))
     return new Response(null,{status:302,headers})
   }
   const user=await identity(request,env)
-  const response=await route(request,env,ctx,url,pagePaths,user)
-  if(!user?.renewal || response.status===101) return response
-  const renewed=new Response(response.body,response)
-  renewed.headers.append('set-cookie',user.renewal)
-  return renewed
-}
-async function route(request,env,ctx,url,pagePaths,user) {
   if(user?.sessionUnavailable) {
     return navigation(request,url)?renderAccessPage('session_unavailable'):json({error:'session_verification_unavailable'},503)
   }

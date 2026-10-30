@@ -15,10 +15,10 @@ function setup() {
 }
 const maxAge = response => Number(response.headers.get('set-cookie')?.match(/__Host-egm_session=[^;]+;.*Max-Age=(\d+)/)?.[1])
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) <= 2, `${actual} is not near ${expected}`)
-async function visit(env, db, { authAt, expiresAt }) {
+async function visit(env, db, { cookieEndsAt, expiresAt }) {
   db.prepare('DELETE FROM sessions').run()
   db.prepare("INSERT INTO sessions VALUES('s1','user_a',?)").run(expiresAt)
-  const token = await seal({ sid: 's1', authAt }, env.SESSION_SECRET, 'session', Math.max(1, expiresAt - clock()))
+  const token = await seal({ sid: 's1' }, env.SESSION_SECRET, 'session', cookieEndsAt - clock())
   const response = await handle(new Request(env.APP_URL + '/api/snapshot-version', { headers: { cookie: '__Host-egm_session=' + token } }), env)
   return { response, expiresAt: db.prepare("SELECT expires_at FROM sessions WHERE id='s1'").get()?.expires_at }
 }
@@ -37,52 +37,46 @@ test('sign-in starts a 7-day session and records a sign-in event', async () => {
     const response = await handle(new Request(`${env.APP_URL}/auth/callback?state=${encodeURIComponent(flow.state)}&code=test`, { headers: { cookie: `__Host-egm_flow=${flowCookie}` } }), env, { waitUntil: promise => pending.push(promise) })
     await Promise.all(pending)
     assert.equal(response.status, 302)
-    assert.equal(maxAge(response), 7 * day)
+    assert.equal(maxAge(response), 30 * day)
     const token = response.headers.get('set-cookie').match(/__Host-egm_session=([^;]+)/)[1]
     const session = await open(token, env.SESSION_SECRET, 'session')
-    near(session.authAt, clock())
-    near(session.exp, clock() + 7 * day)
+    near(session.exp, clock() + 30 * day)
     near(db.prepare('SELECT expires_at FROM sessions WHERE id=?').get(session.sid).expires_at, clock() + 7 * day)
     assert.deepEqual(captured.map(({ distinct_id, event, properties }) => ({ distinct_id, event, properties })), [{ distinct_id: 'user_a', event: 'dashboard_signed_in', properties: { $geoip_disable: true } }])
   } finally { globalThis.fetch = priorFetch }
 })
 
-test('activity extends the session to 7 days ahead and reissues the cookie', async () => {
+test('activity extends the session to 7 days after the last visit', async () => {
   const { db, env } = setup()
-  const { response, expiresAt } = await visit(env, db, { authAt: clock() - 3 * day, expiresAt: clock() + 2 * day })
+  const { response, expiresAt } = await visit(env, db, { cookieEndsAt: clock() + 27 * day, expiresAt: clock() + 2 * day })
   assert.equal(response.status, 200)
-  near(maxAge(response), 7 * day)
+  assert.equal(response.headers.get('set-cookie'), null)
   near(expiresAt, clock() + 7 * day)
-  const token = response.headers.get('set-cookie').match(/__Host-egm_session=([^;]+)/)[1]
-  const session = await open(token, env.SESSION_SECRET, 'session')
-  assert.equal(session.sid, 's1')
-  near(session.authAt, clock() - 3 * day)
 })
 
-test('renewal never extends a session past 30 days after sign-in', async () => {
+test('renewal never extends a session past the signed cookie, 30 days after sign-in', async () => {
   const { db, env } = setup()
-  const capped = await visit(env, db, { authAt: clock() - 29.5 * day, expiresAt: clock() + 3600 })
-  near(maxAge(capped.response), day / 2)
+  const capped = await visit(env, db, { cookieEndsAt: clock() + day / 2, expiresAt: clock() + 3600 })
+  assert.equal(capped.response.status, 200)
   near(capped.expiresAt, clock() + day / 2)
-  const final = await visit(env, db, { authAt: clock() - 30 * day + 600, expiresAt: clock() + 600 })
-  assert.equal(final.response.headers.get('set-cookie'), null)
+  const final = await visit(env, db, { cookieEndsAt: clock() + 600, expiresAt: clock() + 600 })
+  assert.equal(final.response.status, 200)
   near(final.expiresAt, clock() + 600)
 })
 
-test('recent renewals and legacy sessions do not rewrite the session', async () => {
+test('a session renewed within the last hour is not rewritten', async () => {
   const { db, env } = setup()
-  for (const authAt of [clock() - 60, undefined]) {
-    const { response, expiresAt } = await visit(env, db, { authAt, expiresAt: authAt ? clock() + 7 * day - 60 : clock() + 1800 })
-    assert.equal(response.status, 200)
-    assert.equal(response.headers.get('set-cookie'), null)
-    near(expiresAt, authAt ? clock() + 7 * day - 60 : clock() + 1800)
-  }
+  const { response, expiresAt } = await visit(env, db, { cookieEndsAt: clock() + 30 * day, expiresAt: clock() + 7 * day - 60 })
+  assert.equal(response.status, 200)
+  near(expiresAt, clock() + 7 * day - 60)
 })
 
-test('an expired session row is not renewed', async () => {
+test('an idle session ends after 7 days and shows the session ended page', async () => {
   const { db, env } = setup()
-  const { response, expiresAt } = await visit(env, db, { authAt: clock() - 8 * day, expiresAt: clock() - 1 })
+  const { response, expiresAt } = await visit(env, db, { cookieEndsAt: clock() + 20 * day, expiresAt: clock() - 1 })
   assert.equal(response.status, 401)
-  assert.equal(response.headers.get('set-cookie'), null)
   near(expiresAt, clock() - 1)
+  const token = await seal({ sid: 's1' }, env.SESSION_SECRET, 'session', 20 * day)
+  const page = await handle(new Request(env.APP_URL + '/overview', { headers: { cookie: '__Host-egm_session=' + token } }), env)
+  assert.match(await page.text(), /Your session ended/)
 })
