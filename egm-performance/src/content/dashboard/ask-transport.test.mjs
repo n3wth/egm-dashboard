@@ -126,3 +126,8 @@ test('answerSections places each card after the section that first cites it', as
   assert.deepEqual(sections.map(section=>[section.text,section.cards.map(item=>item.index)]),[['Intro',[]],['## One\nVideo [2]',[1]],['## Two\nSite [1] and [2]',[0,2]]])
   assert.deepEqual(answerSections('Plain [1]',[]).map(section=>section.text),['Plain [1]'])
 })
+test('answerSections spreads cards across citing sections before stacking them', async () => {
+  const {answerSections}=await import('./ask-transport.mjs')
+  const sections=answerSections('## A\nx [1] [2] [3]\n## B\ny [1] [2]\n## C\nz [3]',[{sourceId:'1'},{sourceId:'2'},{sourceId:'3'}])
+  assert.deepEqual(sections.map(section=>section.cards.map(item=>item.card.sourceId)),[['1'],['2'],['3']])
+})

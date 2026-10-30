@@ -39,6 +39,21 @@
   --mark-radius: 8;
   --card-shadow: 0 4px 12px rgb(0 0 0 / 1%);
   --shadow: 0 8px 16px -4px rgb(0 0 0 / 12%);
+  /* Ask answer scale: shared by every Ask primitive so new answer types inherit spacing and type. */
+  --ask-space-1: 4px;
+  --ask-space-2: 8px;
+  --ask-space-3: 12px;
+  --ask-space-4: 16px;
+  --ask-space-5: 24px;
+  --ask-space-6: 32px;
+  --ask-text-caption: 11px;
+  --ask-text-meta: 12px;
+  --ask-text-body: 14px;
+  --ask-text-heading: 16px;
+  --ask-text-title: 18px;
+  --ask-text-metric: 22px;
+  --ask-leading-body: 1.6;
+  --ask-leading-heading: 1.3;
 }
 
 :root:not([data-app-theme]),

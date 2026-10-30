@@ -113,13 +113,14 @@ export function linkCitations(text,sources,messageId) {
   return ids.size?text.replace(/\[(\d+)\](?!\()/g,(match,id)=>ids.has(id)?`[${id}](#${citeId(messageId,id)})`:match):text
 }
 
-// Splits a final answer at Markdown headings and places each card after the section that first cites its source; uncited cards follow the last section.
+// Splits a final answer at Markdown headings and places each card after a section that cites its source,
+// preferring the first citing section without a card so evidence spreads instead of stacking; otherwise the first citing section, else the last section.
 // shortcut: a heading-like line inside a fenced code block also splits; answers are told not to emit code, revisit if they do.
 export function answerSections(text,cards) {
   const sections=text.split(/\n(?=#{1,4} )/).map(part=>({text:part,cards:[]}))
   ;(cards??[]).forEach((card,index)=>{
-    const at=card.sourceId?sections.findIndex(section=>section.text.includes(`[${card.sourceId}]`)):-1
-    ;(at>=0?sections[at]:sections.at(-1)).cards.push({card,index})
+    const citing=card.sourceId?sections.filter(section=>section.text.includes(`[${card.sourceId}]`)):[]
+    ;(citing.find(section=>!section.cards.length)??citing[0]??sections.at(-1)).cards.push({card,index})
   })
   return sections
 }

@@ -1,3 +1,5 @@
+// Character budget for one answer, shared with the non-streaming path in ask.mjs.
+export const ASK_ANSWER_CHARS=12000
 // Workers AI stream:true returns SSE response tokens, not a completed response.
 export function streamAsk(run,finalize,signal,timeoutMs=30000,hooks={}) {
   const encoder=new TextEncoder()
@@ -29,7 +31,7 @@ export function streamAsk(run,finalize,signal,timeoutMs=30000,hooks={}) {
           const payload=JSON.parse(value)
           if(payload.error)throw Error('provider_failed')
           if(typeof payload.response==='string'&&payload.response) {
-            if(answer.length+payload.response.length>6000)throw Error('output_too_large')
+            if(answer.length+payload.response.length>ASK_ANSWER_CHARS)throw Error('output_too_large')
             answer+=payload.response
             send({type:'delta',text:payload.response})
           }
