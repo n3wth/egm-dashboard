@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Platform administration · Boing</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./admin.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="topbar"><a class="brand" href="/" aria-label="Boing home"><span class="brand-mark" aria-hidden="true"><img src="./logo/boing-approved.png" alt=""></span><span aria-hidden="true">boıng</span></a><span class="badge">BETA PREVIEW</span><form class="signout" action="/auth/logout" method="post"><button type="submit">Sign out</button></form></header>
+  <main id="main" class="account-page">
+    <a class="account-back" href="/account.html">← Account</a>
+    <h1>Platform administration</h1>
+    <p id="admin-status" class="status" role="status" aria-live="polite">Checking access…</p>
+    <section class="info" id="admin-panel" hidden>
+      <h2>Create a staging workspace</h2>
+      <p>The owner must already have a verified WorkOS account and active membership in the specified WorkOS organization. This does not send an invitation.</p>
+      <form id="admin-form">
+        <label for="admin-name">Workspace name</label><input id="admin-name" maxlength="100" required>
+        <label for="admin-org">WorkOS organization ID</label><input id="admin-org" pattern="org_[A-Za-z0-9]+" required>
+        <label for="admin-owner">WorkOS owner user ID</label><input id="admin-owner" pattern="user_[A-Za-z0-9]+" required>
+        <label for="admin-email">Owner email</label><input id="admin-email" type="email" maxlength="254" required>
+        <button id="admin-submit" type="submit">Create workspace</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

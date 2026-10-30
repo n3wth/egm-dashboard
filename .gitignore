@@ -13,3 +13,5 @@ work/
 *.log
 !egm-cloudflare/assets/fonts/
 !egm-cloudflare/assets/fonts/*.woff2
+.claude/
+/egm-dashboard/

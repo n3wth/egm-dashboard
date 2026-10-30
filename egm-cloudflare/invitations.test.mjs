@@ -50,9 +50,19 @@ test('verified redemption is single-use and pending users are approved and audit
   assert.equal(await redeemInvitation(env, invitation.token, { ...person(), email_verified: false }), false)
   const attempts = await Promise.all([redeemInvitation(env, invitation.token, person()), redeemInvitation(env, invitation.token, person('other','other@example.org'))])
   assert.equal(attempts.filter(Boolean).length, 1)
-  assert.equal(db.prepare("SELECT status FROM users WHERE id='guest'").get().status, 'approved')
+  const winner = attempts[0] ? 'guest' : 'other'
+  assert.equal(db.prepare('SELECT status FROM users WHERE id=?').get(winner).status, 'approved')
+  if (winner === 'other') assert.equal(db.prepare("SELECT status FROM users WHERE id='guest'").get().status, 'pending')
+  assert.equal(db.prepare('SELECT redeemed_by FROM invitations WHERE id=?').get(invitation.id).redeemed_by, winner)
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='invitation_approved'").get().n, 1)
   assert.equal(await redeemInvitation(env, invitation.token, person()), false)
+})
+test('redeeming an invitation approves an existing pending user', async () => {
+  const { db, env } = setup(), invitation = await create(env)
+  db.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').run('guest', 'guest@example.org', 'Guest', 'pending', new Date().toISOString())
+  assert.equal(await redeemInvitation(env, invitation.token, person()), true)
+  assert.equal(db.prepare("SELECT status FROM users WHERE id='guest'").get().status, 'approved')
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='invitation_approved' AND user_id='guest'").get().n, 1)
 })
 test('expired, revoked, altered and denied-user invitations never grant access', async () => {
   const { db, env } = setup()

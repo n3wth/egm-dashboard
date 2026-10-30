@@ -1,0 +1,29 @@
+// Example only: do not deploy this file as-is. Provision a separate staging
+// Worker, D1 database and WorkOS application; replace each placeholder.
+// Create the schema explicitly from boing-schema.mjs on an empty staging D1.
+// Existing schemas need an explicit, verified migration, not this initializer.
+// Configure WORKOS_API_KEY and BOING_AUTH_SECRET as Worker secrets, not here.
+// Register the exact /auth/boing/callback with WorkOS and configure edge rate
+// limiting. Onboarding and other production flows are not yet complete.
+{
+  "name": "boing-staging-example",
+  "main": "boing-worker.mjs",
+  "compatibility_date": "2026-10-28",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../boing-app",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "REPLACE_WITH_SEPARATE_STAGING_DATABASE",
+    "database_id": "REPLACE_WITH_STAGING_DATABASE_ID"
+  }],
+  "vars": {
+    "APP_URL": "https://REPLACE_WITH_STAGING_HOST.invalid",
+    "WORKOS_CLIENT_ID": "REPLACE_WITH_STAGING_WORKOS_CLIENT_ID",
+    "WORKOS_RBAC_ISSUER": "REPLACE_WITH_STAGING_WORKOS_ISSUER"
+  }
+}
