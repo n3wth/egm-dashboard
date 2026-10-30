@@ -1,5 +1,6 @@
-// One stroke set for the top bar. Every glyph is a 24px outline at stroke width 1.5.
-export const navbarIconSize = 16
+// Tab and refresh marks are 24px outlines at stroke width 2, drawn at 20px.
+// The Ask mark is the filled Gemini sparkle at the same 20px box.
+export const navbarIconSize = 20
 
 const pageIcons = {
   reach: 'navOverview',
@@ -18,4 +19,4 @@ export function navbarIcon(id) {
   return pageIcons[id] ?? 'textDocument'
 }
 
-export const navbarStrokeIcons = [...Object.values(pageIcons), navbarAskIcon, navbarRefreshIcon]
+export const navbarStrokeIcons = [...Object.values(pageIcons), navbarRefreshIcon]
