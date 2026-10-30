@@ -69,8 +69,10 @@ function ChannelName({row}) {
   return <span className="egm-channel-name">{row.__categoryIcon&&<img src={row.__categoryIcon} width="16" height="16" alt=""/>}{row.source}</span>
 }
 function ViewBar({value,max}) {
-  const width=max>0?Math.max(0,Math.min(100,value/max*100)):0
-  return <span className="egm-view-bar"><span aria-hidden="true"><span style={{width:`${width}%`}}/></span><span>{n(value)}</span></span>
+  const known=Number.isFinite(value)
+  const amount=known?value:0
+  const width=max>0?Math.max(0,Math.min(100,amount/max*100)):0
+  return <span className="egm-view-bar"><span className="egm-view-bar-track" aria-hidden="true"><span style={{width:`${width}%`}}/></span><span className="egm-view-bar-value">{known?n(value):<span aria-label="Views unknown">—</span>}</span></span>
 }
 function Table({id,queryId,title,rows,columns,searchable=false,sourceRows=rows,note,pageSize}) {
   return <DataComponent {...{id,queryId,title}} kind="table" variant="card" displayRows={rows} sourceRows={sourceRows}>{rows.length?<DataTable rows={rows} columns={columns} searchable={searchable} label={title} {...(pageSize?{pageSize}:{})}/>:<EmptyState/>}{note&&<p className="egm-note">{note}</p>}</DataComponent>
