@@ -89,7 +89,7 @@
     "src/components/EditableText.jsx": "d86a22e16e067f284bd51ae7b96a6d5b0af51b8098f267a0790b0962dfe38ad0",
     "src/components/EvidenceChart.jsx": "3b836656e696325fc402535fe7a8dcd95b5e0ada6c3363aa64fc1cb3e1da79c5",
     "src/components/ExecutiveSummary.jsx": "375a8bc90881e493690d55838e677877a6ff27b6c585dad9af5dfbf0705c4e38",
-    "src/components/Icon.jsx": "ba5cc5a065ca7c17bb8fd5fd5b7b8cdf28142407a76ae269c5a9efac6916dc89",
+    "src/components/Icon.jsx": "dc0afa45d914ea86daba7b3c34af442fee2eb1d77c808ab049aadbfee80c496a",
     "src/components/MetricCard.jsx": "d12e774297ff9e002dc243cfbf3541c54469da98dc24d77c093ad34b326745ac",
     "src/components/PublishReviewDialog.jsx": "02894bfb21d21f8605e92230f8553007b2c843c17560bc852375a62c57363d8b",
     "src/components/QueryDataBoundary.jsx": "a5229b8f6142652f6ac16bcf35ba10b0753206a54fff2cc74e21565620aec2e0",

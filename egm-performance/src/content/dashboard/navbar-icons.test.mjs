@@ -3,6 +3,18 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { navbarAccountIcon, navbarAskIcon, navbarIcon, navbarIconSize, navbarRefreshIcon, navbarRoundedIcons } from './navbar-icons.mjs'
 
+test('dashboard icons no longer load the old material symbol JSON', () => {
+  assert.equal(existsSync(new URL('./material-symbols.json', import.meta.url)), false)
+  const icon = readFileSync(new URL('../../components/Icon.jsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(icon, /material-symbols\.json/)
+  assert.match(icon, /gemini: "navSparkle"/)
+  const map = readFileSync(new URL('./material-rounded.mjs', import.meta.url), 'utf8')
+  for (const name of ['check', 'chevronDown', 'edit', 'lightbulb', 'trash', 'sun', 'search', 'refresh']) {
+    assert.match(map, new RegExp(`\\b${name}:`))
+  }
+  assert.match(map, /check_box-fill\.svg/)
+})
+
 test('navbar icons are 20px Material Symbols Rounded, except the filled Ask sparkle', () => {
   assert.equal(navbarIconSize, 20)
   assert.equal(navbarIcon('reach'), 'bar_chart')
