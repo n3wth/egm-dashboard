@@ -7,11 +7,18 @@
 .egm-chart-home { margin: 0 0 8px; color: var(--text); font-size: 13px; line-height: 1.5; }
 .egm-experiment-evidence { margin: 8px 0 0; padding: 0; list-style: none; }
 .egm-experiment-evidence a { color: var(--text); }
-.egm-collection-status { margin: 0 0 20px; }
-.egm-collection-status h2 { margin: 0 0 8px; font-size: 13px; font-weight: 500; }
-.egm-collection-status ul { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 8px 16px; margin: 0; padding: 0; list-style: none; }
-.egm-collection-status li { display: grid; gap: 2px; min-width: 0; padding-top: 8px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.4; color: var(--secondary); }
-.egm-collection-status li span:first-child { color: var(--text); font-weight: 500; }
+.egm-collection-status { margin: 28px 0 0; }
+.egm-collection-status summary { display: flex; align-items: baseline; gap: 12px; width: fit-content; max-width: 100%; cursor: pointer; font-size: 13px; line-height: 1.4; }
+.egm-collection-status summary:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.egm-collection-title { color: var(--text); font-weight: 500; }
+.egm-collection-summary { color: var(--secondary); }
+.egm-collection-status ul { display: grid; gap: 0; margin: 12px 0 0; padding: 0; list-style: none; }
+.egm-collection-status li { display: grid; grid-template-columns: minmax(9rem, 14rem) minmax(12rem, 1.2fr) minmax(10rem, 1fr); gap: 8px 20px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.4; }
+.egm-collection-name { color: var(--text); font-weight: 500; }
+.egm-collection-time, .egm-collection-state { color: var(--secondary); }
+@media (max-width: 720px) {
+  .egm-collection-status li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
 .egm-dashboard-grid { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: 20px; }
 .egm-dashboard-grid > .egm-block { grid-column: span var(--egm-span); min-width: 0; }
 .egm-metric-reading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; }

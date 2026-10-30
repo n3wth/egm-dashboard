@@ -92,7 +92,7 @@ function AcrossEgm({queries,reach,web}) {
 }
 export function DashboardContent() {
   const {snapshot} = useDataApp()
-  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><CollectionStatus refreshStatus={snapshot?.refreshStatus}/><DashboardTab/></>
+  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/><CollectionStatus refreshStatus={snapshot?.refreshStatus}/></>
 }
 function DashboardTab() {
   const {queries,appTitle,setAppTitle} = useDataApp()
