@@ -1,0 +1,9 @@
+{
+  "name": "boing",
+  "private": true,
+  "type": "module",
+  "description": "Unlaunched multi-tenant product. Not imported by the EGM production Worker and not run by the root test script.",
+  "scripts": {
+    "test": "node --test worker/*.test.mjs app/*.test.mjs"
+  }
+}
