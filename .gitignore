@@ -1,5 +1,6 @@
 **/node_modules/
 **/.wrangler/
+boing/site-deploy/.cloudflare/
 **/dist/
 **/.impeccable/
 **/.DS_Store
