@@ -3,6 +3,11 @@
 // and does not send, including after Resend's 24 hour window.
 export const decisionSender = 'EGM Dashboard <updates@n3wth.com>'
 export const dashboardUrl = 'https://egm.n3wth.com'
+// Public after the worker that ships these files is deployed. Email clients fetch them with no session.
+export const logoBlackUrl = 'https://egm.n3wth.com/email/egm-mark-black.png'
+export const logoWhiteUrl = 'https://egm.n3wth.com/email/egm-mark-white.png'
+const logoWidth = 36
+const logoHeight = 21
 
 const encoder = new TextEncoder()
 
@@ -67,11 +72,24 @@ function paragraph(text, margin) {
   return `<p class="text" style="margin:0 0 ${margin}px;font-size:16px;line-height:1.6;color:#181818">${escapeHtml(text)}</p>`
 }
 
+function logoMark() {
+  const frame = 'border:0;outline:none;text-decoration:none'
+  const light = `<img class="logo-light" src="${logoBlackUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:block;width:${logoWidth}px;height:${logoHeight}px;${frame}">`
+  const dark = `<img class="logo-dark" src="${logoWhiteUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:none;max-height:0;overflow:hidden;width:${logoWidth}px;height:${logoHeight}px;${frame}">`
+  return `<p style="margin:0 0 24px;background:transparent;background-color:transparent">${light}${dark}</p>`
+}
+
+function dashboardButton(link) {
+  const href = escapeHtml(link.href)
+  const label = escapeHtml(link.label)
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 20px"><tr><td class="button" bgcolor="#000000" style="background-color:#000000"><a href="${href}" style="display:inline-block;padding:14px 22px;font-family:Arial,sans-serif;font-size:16px;font-weight:600;line-height:20px;color:#ffffff;text-decoration:none;background-color:#000000">${label}</a></td></tr></table>`
+}
+
 function document({ subject, heading, preheader, paragraphs, link }) {
   const blocks = [paragraph(paragraphs[0], 16)]
-  if (link) blocks.push(`<p class="text" style="margin:0 0 20px;font-size:16px;line-height:1.6;color:#181818"><a class="link" href="${escapeHtml(link.href)}" style="color:#1b6ef3;font-weight:600">${escapeHtml(link.label)}</a></p>`)
+  if (link) blocks.push(dashboardButton(link))
   paragraphs.slice(1).forEach((text, index, rest) => blocks.push(paragraph(text, index === rest.length - 1 ? 32 : 16)))
-  return `<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${escapeHtml(subject)}</title><style>:root{color-scheme:light dark;supported-color-schemes:light dark}body,.wrap{margin:0;background:transparent;background-color:transparent}@media (prefers-color-scheme:dark){.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.link{color:#7cacf8 !important}}</style></head><body class="text" style="margin:0;padding:0;background:transparent;background-color:transparent;font-family:Arial,sans-serif;color:#181818"><div lang="en" dir="ltr" class="wrap" style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px 0;line-height:1.6;background:transparent;background-color:transparent"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preheader)}</div><p class="text" style="margin:0 0 24px;font-size:14px;font-weight:700;letter-spacing:.04em;color:#181818">EGM</p><h1 class="heading" style="font-size:24px;line-height:1.25;margin:0 0 16px;font-weight:700;color:#181818">${escapeHtml(heading)}</h1>${blocks.join('')}<p class="muted" style="margin:0;font-size:13px;line-height:1.6;color:#5b5b5b">n3wth.com</p></div></body></html>`
+  return `<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${escapeHtml(subject)}</title><style>:root{color-scheme:light dark;supported-color-schemes:light dark}body,.wrap{margin:0;background:transparent;background-color:transparent}.logo-dark{display:none !important;max-height:0;overflow:hidden}@media (prefers-color-scheme:dark){.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.logo-light{display:none !important}.logo-dark{display:block !important;max-height:none !important;overflow:visible !important}.button,.button a{background-color:#ffffff !important}.button a{color:#000000 !important}}</style></head><body class="text" style="margin:0;padding:0;background:transparent;background-color:transparent;font-family:Arial,sans-serif;color:#181818"><div lang="en" dir="ltr" class="wrap" style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px 0;line-height:1.6;background:transparent;background-color:transparent"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preheader)}</div>${logoMark()}<h1 class="heading" style="font-size:24px;line-height:1.25;margin:0 0 16px;font-weight:700;color:#181818">${escapeHtml(heading)}</h1>${blocks.join('')}<p class="muted" style="margin:0;font-size:13px;line-height:1.6;color:#5b5b5b">n3wth.com</p></div></body></html>`
 }
 
 export function decisionEmail(decision) {
@@ -86,11 +104,11 @@ export function decisionEmailPreview(decision, scheme) {
   switch (scheme) {
     case 'light':
       chrome = '#ffffff'
-      forced = '.heading,.text{color:#181818 !important}.muted{color:#5b5b5b !important}.link{color:#1b6ef3 !important}'
+      forced = '.heading,.text{color:#181818 !important}.muted{color:#5b5b5b !important}.logo-light{display:block !important;max-height:none !important}.logo-dark{display:none !important;max-height:0 !important}.button,.button a{background-color:#000000 !important}.button a{color:#ffffff !important}'
       break
     case 'dark':
       chrome = '#181818'
-      forced = '.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.link{color:#7cacf8 !important}'
+      forced = '.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.logo-light{display:none !important}.logo-dark{display:block !important;max-height:none !important;overflow:visible !important}.button,.button a{background-color:#ffffff !important}.button a{color:#000000 !important}'
       break
     default: {
       const unexpected = scheme

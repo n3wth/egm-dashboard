@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { readFileSync } from 'node:fs'
 import { manageAccess } from './access-management.mjs'
-import { decisionEmail, decisionEmailPreview, decisionSender, notifyAccessDecision } from './decision-email.mjs'
+import { decisionEmail, decisionEmailPreview, decisionSender, logoBlackUrl, logoWhiteUrl, notifyAccessDecision } from './decision-email.mjs'
 import { decideAccessRequest } from './mcp-server.mjs'
 import { handle, seal } from './worker.mjs'
 
@@ -105,14 +105,26 @@ test('decision mail is flat and transparent in light and dark', () => {
   assert.match(approved.html, /name="supported-color-schemes" content="light dark"/)
   assert.match(approved.html, /prefers-color-scheme:dark/)
   assert.match(approved.html, /#f5f5f5/)
-  assert.match(approved.html, /#7cacf8/)
   assert.match(approved.html, /background-color:transparent/)
-  const backgrounds = approved.html.match(/background(?:-color)?:\s*[^;}"]+/g) ?? []
-  assert.ok(backgrounds.length > 0)
-  assert.ok(backgrounds.every(value => value.endsWith('transparent')))
+  assert.match(approved.html, /body,\.wrap\{[^}]*background-color:transparent/)
+  assert.doesNotMatch(approved.html, />EGM</)
+  assert.match(approved.html, new RegExp(`class="logo-light" src="${logoBlackUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" width="36" height="21" alt="EGM"`))
+  assert.match(approved.html, new RegExp(`class="logo-dark" src="${logoWhiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" width="36" height="21" alt="EGM"`))
+  assert.match(approved.html, /\.logo-dark\{display:none !important/)
+  assert.match(approved.html, /prefers-color-scheme:dark\)\{\.heading,\.text\{color:#f5f5f5 !important\}.*\.logo-light\{display:none !important\}\.logo-dark\{display:block !important/)
+  assert.match(approved.html, /<table role="presentation"[^>]*>.*bgcolor="#000000".*padding:14px 22px[^>]*>Open the dashboard<\/a>/)
+  assert.match(approved.html, /\.button,\.button a\{background-color:#ffffff !important\}\.button a\{color:#000000 !important\}/)
   assert.doesNotMatch(approved.html, /linear-gradient|box-shadow|font-style:\s*italic|<em|<i[\s>]/i)
   assert.match(approved.html, /<h1[^>]*>You're in<\/h1>/)
   assert.match(approved.html, /lang="en" dir="ltr"/)
+  const black = readFileSync(new URL('../assets/branding/egm-mark-black.png', import.meta.url))
+  const white = readFileSync(new URL('../assets/branding/egm-mark-white.png', import.meta.url))
+  assert.equal(black.readUInt32BE(16), 72)
+  assert.equal(black.readUInt32BE(20), 42)
+  assert.equal(white.readUInt32BE(16), 72)
+  assert.equal(white.readUInt32BE(20), 42)
+  assert.equal(black[25], 6)
+  assert.equal(white[25], 6)
   const light = decisionEmailPreview('approved', 'light')
   const dark = decisionEmailPreview('approved', 'dark')
   assert.match(light, /html\{background-color:#ffffff\}/)
@@ -120,10 +132,14 @@ test('decision mail is flat and transparent in light and dark', () => {
   assert.match(dark, /html\{background-color:#181818\}/)
   assert.match(dark, /background-color:transparent/)
   assert.match(dark, /#f5f5f5 !important/)
+  assert.match(dark, /\.logo-light\{display:none !important\}\.logo-dark\{display:block !important/)
+  assert.match(light, /\.logo-light\{display:block !important/)
   const denied = decisionEmail('denied')
   assert.equal(denied.subject, 'Your EGM Growth Dashboard request was not approved')
   assert.match(denied.text, /does not have access/)
-  assert.doesNotMatch(denied.html, /egm\.n3wth\.com/)
+  assert.match(denied.html, new RegExp(logoBlackUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+  assert.doesNotMatch(denied.html, /href="https:\/\/egm\.n3wth\.com"/)
+  assert.doesNotMatch(denied.html, /Open the dashboard/)
   assert.doesNotMatch(denied.text, /egm\.n3wth\.com/)
   assert.match(decisionEmailPreview('denied', 'dark'), /html\{background-color:#181818\}/)
   assert.match(decisionEmailPreview('denied', 'light'), /background-color:transparent/)
@@ -218,7 +234,8 @@ test('denial mail uses its own flag and both decision paths', async () => {
   assert.equal(mail.sent[0].body.subject, 'Your EGM Growth Dashboard request was not approved')
   assert.equal(mail.sent[0].body.from, decisionSender)
   assert.equal(mail.sent[0].init.headers['idempotency-key'], 'egm-decision/other/denied')
-  assert.doesNotMatch(mail.sent[0].body.html, /egm\.n3wth\.com/)
+  assert.doesNotMatch(mail.sent[0].body.html, /href="https:\/\/egm\.n3wth\.com"/)
+  assert.match(mail.sent[0].body.html, /egm-mark-black\.png/)
   assert.equal(await decideAccessRequest(env, owner, 'other', 'denied', tool), null)
   await Promise.all(tool.pending)
   assert.equal(mail.sent.length, 1)
