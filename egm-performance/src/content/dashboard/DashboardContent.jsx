@@ -21,6 +21,7 @@ import {CollectionStatus} from './CollectionStatus.jsx'
 import {count} from './states.mjs'
 import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
+import {PageLink} from './PageLink.jsx'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = count
@@ -102,7 +103,7 @@ function AcrossEgm({queries,reach,web}) {
       <article className="egm-highlight egm-highlight-referrals">
         <h3>egm.dev referrals</h3>
         <p className="egm-highlight-value">{viewShare!=null&&visitorShare!=null?<><strong>{percentage(viewShare)}</strong> of repo views and <strong>{percentage(visitorShare)}</strong> of unique visitors arrived from egm.dev.</>:'egm.dev was not among GitHub’s top ten referrers, so its share is unknown.'}</p>
-        <a className="egm-highlight-link" href="/website">Website <Icon name="arrowUpRight" size={14}/></a>
+        <PageLink className="egm-highlight-link" page="website">Website <Icon name="arrowUpRight" size={14}/></PageLink>
       </article>
       <article className="egm-highlight egm-highlight-videos">
         <h3>Popular videos</h3>
@@ -114,7 +115,7 @@ function AcrossEgm({queries,reach,web}) {
             <span className="egm-overview-video-views">{compact(video.views)} views</span>
           </a>
         })}</div>:<p className="egm-highlight-value">No YouTube view counts collected yet.</p>}
-        <a className="egm-highlight-link" href="/mentions">Mentions <Icon name="arrowUpRight" size={14}/></a>
+        <PageLink className="egm-highlight-link" page="mentions">Mentions <Icon name="arrowUpRight" size={14}/></PageLink>
       </article>
       <article className="egm-highlight egm-highlight-experiment">
         <h3>Suggested experiment</h3>
@@ -169,9 +170,9 @@ function DashboardTab() {
     return <Table id={id} queryId="paths" title="Popular repo pages" rows={pages} sourceRows={sourceRows} columns={pageColumns} pageSize={12} note={pages.some(row=>row.combined)?'Views for the same file at /blob/main and /blob/HEAD are combined. Unique visitors are not added, because those audiences overlap by an unknown amount.':undefined} />
   }
   const clonePlot = id => <Plot id={id} queryId="traffic" title="Daily clone activity" rows={daily} spec={{...line('clones',['clones','cloners']),legend:{labels:{clones:'Clone operations',cloners:'Unique cloners per day'}}}} description={`${window}. Clone operations include repeat and automated clones; daily unique cloners cannot be summed.`} />
-  const chartHome = ({id, queryId, queryIds, title, summary, href, linkLabel, displayRows, sourceRows, sourceRowsByQuery}) => <DataComponent {...{id, queryId, queryIds, title}} kind="custom" variant="card" displayRows={displayRows} sourceRows={sourceRows} sourceRowsByQuery={sourceRowsByQuery}>
+  const chartHome = ({id, queryId, queryIds, title, summary, page, linkLabel, displayRows, sourceRows, sourceRowsByQuery}) => <DataComponent {...{id, queryId, queryIds, title}} kind="custom" variant="card" displayRows={displayRows} sourceRows={sourceRows} sourceRowsByQuery={sourceRowsByQuery}>
     <p className="egm-chart-home">{summary}</p>
-    <a className="egm-overview-next" href={href}>{linkLabel} <Icon name="arrowUpRight" size={14}/></a>
+    <PageLink className="egm-overview-next" page={page}>{linkLabel} <Icon name="arrowUpRight" size={14}/></PageLink>
   </DataComponent>
   const downloadsTable = id => <Table id={id} queryId="downloads" title="Release asset downloads" rows={rows('downloads')} columns={downloadColumns} />
   if(activeTabId==='acquisition') {
@@ -243,7 +244,7 @@ function DashboardTab() {
         {(()=>{const contribution=rows('website_contribution')[0];return Number.isFinite(contribution?.rank)&&contribution.rank>0?<InsightCallout>egm.dev ranks #{contribution.rank} among GitHub’s top ten referrers and accounts for {percentage(contribution.topTenShare)} of the views attributed to them.</InsightCallout>:<InsightCallout>egm.dev is not among GitHub’s top ten referrers for {window}, so its rank and share are unknown.</InsightCallout>})()}
         <p className="egm-note">Referral views measure arrivals at the GitHub repo from egm.dev, not website visits or conversion. Total egm.dev visitor counts are not collected.</p>
       </DataComponent>
-      {chartHome({id:'website-referrals',queryId:'referrers',title:'Views by referring source',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads recorded referrals with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',href:'/acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRows:rows('referrers')})}
+      {chartHome({id:'website-referrals',queryId:'referrers',title:'Views by referring source',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads recorded referrals with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRows:rows('referrers')})}
     </Section>
   </>
   if(activeTabId==='development') return <>
@@ -285,10 +286,10 @@ function DashboardTab() {
       {item('stars',3,metric('stars','reach','Total stars',reach.stars,`GitHub accounts starring the repo at the last refresh. This is a snapshot total, not stars gained during the traffic window. ${n(reach.forks)} forks; ${n(reach.watchers)} watching.`),'metric')}
       {item('overview-across-egm',12,<AcrossEgm {...{queries,reach,web}}/>,'custom')}
       {item('visitor-trend',6,<Plot id="visitor-trend" queryId="traffic" title="Daily views and unique visitors" rows={daily} spec={{...line('views',['views','visitors']),legend:{labels:{views:'Views',visitors:'Unique visitors per day'}}}} description={`${window}. GitHub reports each day separately; daily unique visitors cannot be summed.`} />)}
-      {item('clone-trend',6,chartHome({id:'clone-trend',queryId:'traffic',title:'Daily clone activity',summary:`${n(reach.clones)} clone operations from ${n(reach.cloners)} unique cloners in ${window}.`,href:'/adoption',linkLabel:'Adoption',displayRows:daily,sourceRows:daily}))}
+      {item('clone-trend',6,chartHome({id:'clone-trend',queryId:'traffic',title:'Daily clone activity',summary:`${n(reach.clones)} clone operations from ${n(reach.cloners)} unique cloners in ${window}.`,page:'adoption',linkLabel:'Adoption',displayRows:daily,sourceRows:daily}))}
       {item('star-history',12,<Plot id="star-history" queryId="star_history" title="Star accumulation" rows={starDisplayRows} sourceRows={starHistory} spec={starSpec} chartOptions={{tooltipContent:<StarTooltip/>}}><p className="egm-note">Cumulative stars by Pacific date, reconstructed from current stargazers; stars removed before collection are unavailable.{partialStarDay?' The faded final segment is the partial current day.':''}</p></Plot>)}
-      {item('referral-chart',6,chartHome({id:'referral-chart',queryId:'referrers',queryIds:['referrers','reach'],title:'Top referring sources by repo views',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',href:'/acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRowsByQuery:{referrers:rows('referrers'),reach:rows('reach')}}))}
-      {item('popular-paths',6,chartHome({id:'popular-paths',queryId:'paths',title:'Popular repo pages',summary:popularPageRows(rows('paths'))[0]?`${pathLabel(popularPageRows(rows('paths'))[0].path)} has ${n(popularPageRows(rows('paths'))[0].count)} views.`:'No popular pages are recorded for this window.',href:'/acquisition',linkLabel:'Acquisition',displayRows:popularPageRows(rows('paths')),sourceRows:rows('paths')}))}
+      {item('referral-chart',6,chartHome({id:'referral-chart',queryId:'referrers',queryIds:['referrers','reach'],title:'Top referring sources by repo views',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRowsByQuery:{referrers:rows('referrers'),reach:rows('reach')}}))}
+      {item('popular-paths',6,chartHome({id:'popular-paths',queryId:'paths',title:'Popular repo pages',summary:popularPageRows(rows('paths'))[0]?`${pathLabel(popularPageRows(rows('paths'))[0].path)} has ${n(popularPageRows(rows('paths'))[0].count)} views.`:'No popular pages are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:popularPageRows(rows('paths')),sourceRows:rows('paths')}))}
     </SortableRegion>
   </>
 }
