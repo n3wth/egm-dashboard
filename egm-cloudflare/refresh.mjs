@@ -1,5 +1,5 @@
 import seed from '../egm-performance/src/data.json' with {type:'json'}
-import {activityRows,alignTraffic,downloadRows,issueQueue,referralHistory,staleStarCaveat,stampCollectedQueries,starHistory,usableStargazers} from './github-snapshot.mjs'
+import {activityRows,alignTraffic,downloadRows,issueQueue,referralHistory,staleStarCaveat,stampCollectedQueries,starHistory,trafficHistory,usableStargazers} from './github-snapshot.mjs'
 import {collectResearch} from './research.mjs'
 
 export function refreshEnabled(env,time=Date.now()) {
@@ -52,6 +52,7 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   } catch { /* Last known build remains a valid dated star-history fallback. */ }
   const set=(id,rows)=>{data.queries[id].rows=rows}
   set('traffic',traffic)
+  data.queries.traffic_history=trafficHistory([...(previousQueries.traffic_history?.rows??seed.queries.traffic_history?.rows??[]),...(previousQueries.traffic?.rows??[])],traffic,started)
   set('reach',[{views:views.count,visitors:views.uniques,clones:clones.count,cloners:clones.uniques,stars:repo.stargazers_count,forks:repo.forks_count,watchers:repo.subscribers_count}])
   set('referrers',referrers)
   set('paths',paths)

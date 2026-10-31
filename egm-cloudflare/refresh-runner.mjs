@@ -1,4 +1,5 @@
 import { refreshSnapshot } from './refresh.mjs'
+import { trafficHistory } from './github-snapshot.mjs'
 import { collectSemrush } from './semrush.mjs'
 import { collectMentions } from './mentions.mjs'
 import { collectExa } from './exa.mjs'
@@ -63,6 +64,11 @@ export async function runRefresh(env, request = fetch, services = {}) {
     }
     const merged = { ...latest, queries: { ...previous.queries, ...latest.queries } }
     const oldQueries = previous.queries ?? {}
+    // The GitHub collector reads saved history best-effort; never let a failed read shrink it.
+    if (latest !== previous && latest.queries?.traffic_history) {
+      const { rows, source } = latest.queries.traffic_history
+      merged.queries.traffic_history = trafficHistory(oldQueries.traffic_history?.rows, rows, source?.executedAt ?? latest.generatedAt)
+    }
     const planned = name => {
       const decision = planCollection(name, merged.queries, budget, clock())
       if (decision === 'run') return true

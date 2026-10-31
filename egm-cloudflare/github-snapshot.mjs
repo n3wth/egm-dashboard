@@ -89,6 +89,50 @@ export function referralHistory(previousRows, started, web, traffic) {
   }
 }
 
+const trafficFields = ['views', 'visitors', 'clones', 'cloners']
+const trafficDay = row => /^\d{4}-\d{2}-\d{2}$/.test(row?.date ?? '') && trafficFields.every(field => Number.isInteger(row[field]) && row[field] >= 0)
+
+// GitHub's rolling window can truncate its oldest day and the current day is
+// partial, so each day keeps the largest count observed for every field.
+export function mergeTrafficRows(previousRows, rows, limit = 730) {
+  const days = new Map()
+  for (const row of [...(previousRows ?? []), ...(rows ?? [])].filter(trafficDay)) {
+    const kept = days.get(row.date)
+    days.set(row.date, { date: row.date, ...Object.fromEntries(trafficFields.map(field => [field, Math.max(row[field], kept?.[field] ?? 0)])) })
+  }
+  return [...days.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-limit)
+}
+
+export function trafficHistory(previousRows, traffic, started) {
+  const rows = mergeTrafficRows(previousRows, traffic)
+  return {
+    rows,
+    source: {
+      label: 'GitHub REST API · google/elephant-goldfish-model · retained daily history',
+      provider: 'GitHub',
+      executedAt: started,
+      coverage: { startDate: rows[0]?.date ?? null, endDate: rows.at(-1)?.date ?? null },
+      filters: ['Repository: google/elephant-goldfish-model', 'Daily traffic buckets use UTC'],
+      metricDefinitions: [
+        { label: 'Repository views', definition: 'Repository page views in each UTC day. Excludes egm.dev website pageviews.' },
+        { label: 'Daily visitors', definition: 'Unique repository visitors within each day. Visitors overlap across days; daily visitors must not be summed to get period visitors.' },
+        { label: 'Clones', definition: 'Clone operations, including automation. Not installs, active users, or retained users.' },
+        { label: 'Daily unique cloners', definition: 'Unique cloners in each UTC day. Not additive across dates.' }
+      ],
+      caveats: [
+        'GitHub returns only the latest 14 days. Each scheduled refresh adds them to this retained history, so days before collection began are unavailable.',
+        'Each day keeps the largest count observed for each field, because GitHub can truncate the oldest day of its window and the current day is partial.',
+        'Days with no observation stay missing, never zero. History grows only while scheduled collection is enabled; at most 730 days are retained.'
+      ],
+      links: [{ label: 'GitHub traffic', url: 'https://github.com/google/elephant-goldfish-model/graphs/traffic' }],
+      evidenceFlow: [{
+        title: 'Retained daily traffic',
+        detail: 'GET /repos/google/elephant-goldfish-model/traffic/views and /traffic/clones on each scheduled refresh, merged by UTC date with the previously saved history'
+      }]
+    }
+  }
+}
+
 export function starHistory(stars) {
   const pacific = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' })
   const starDates = (stars ?? []).map(star => pacific.format(new Date(star.starred_at)))
