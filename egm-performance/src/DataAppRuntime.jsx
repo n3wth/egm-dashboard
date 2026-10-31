@@ -18,6 +18,25 @@ function DataAppLoading() {
   );
 }
 
+function DataAppLoadError({ error, onRetry }) {
+  const offline = globalThis.navigator?.onLine === false;
+  return (
+    <main className="dashboard-shell-loading-error" role="alert" aria-labelledby="data-app-load-error-title">
+      <section className="dashboard-shell-error-card">
+        <h1 id="data-app-load-error-title" className="dashboard-shell-error-title">Couldn’t load the dashboard</h1>
+        <p className="dashboard-shell-error-copy">{offline
+          ? "You appear to be offline. The dashboard will try again when your connection returns."
+          : "The dashboard data didn’t arrive. This is usually temporary, so try again in a moment. If your session expired, reloading the page signs you back in."}</p>
+        {error?.message && <p className="dashboard-shell-error-detail">{error.message}</p>}
+        <div className="dashboard-shell-error-actions">
+          <button type="button" className="button primary" onClick={onRetry}>Try again</button>
+          <button type="button" className="button ghost" onClick={() => globalThis.location?.reload()}>Reload page</button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 
 // The protected runtime accepts authored content and reviewed data at its boundary.
 // Neither the source-build wrapper nor the prebuilt browser bundle owns a second
@@ -34,6 +53,17 @@ export function DataAppRuntime({
   const [presentationRecord, setPresentationRecord] = useState({ presentation: {}, revision: 0 });
   const [error, setError] = useState(null);
   const [queryDataStore, setQueryDataStore] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = () => {
+    setError(null);
+    setAttempt(value => value + 1);
+  };
+
+  useEffect(() => {
+    if (!error) return undefined;
+    globalThis.addEventListener?.("online", retry);
+    return () => globalThis.removeEventListener?.("online", retry);
+  }, [error]);
 
   useEffect(() => {
     if (!hosted) return;
@@ -70,10 +100,10 @@ export function DataAppRuntime({
       controller.abort();
       store?.dispose();
     };
-  }, [hosted]);
+  }, [hosted, attempt]);
 
   if (!snapshot) return error
-    ? <main className="dashboard-shell-loading-error" role="alert">{error.message}</main>
+    ? <DataAppLoadError error={error} onRetry={retry} />
     : <DataAppLoading />;
   return <ResolvedDataApp
     snapshot={snapshot}
