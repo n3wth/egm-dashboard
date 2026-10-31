@@ -26,6 +26,11 @@
 .egm-metric-sparkline { width: 70px; height: 30px; flex-shrink: 0; }
 .egm-metric-secondary { margin: 0; color: var(--secondary); font-size: 12px; line-height: 1.5; }
 .egm-metric-secondary strong { font-weight: 500; color: var(--text); }
+.egm-metric-weekly { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.egm-delta { display: inline-flex; align-items: center; gap: 2px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.egm-delta--up { color: var(--movement-positive); }
+.egm-delta--down { color: var(--movement-negative); }
+.egm-delta--flat { color: var(--movement-total); }
 .egm-highlights { display: grid; grid-template-columns: 1fr; gap: 28px; }
 .egm-highlight { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .egm-highlight h3 { margin: 0; color: var(--text); font-size: 13px; font-weight: 500; line-height: 1.4; }

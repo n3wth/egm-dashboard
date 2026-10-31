@@ -9,7 +9,7 @@ import {TrendSparkline} from './TrendSparkline.jsx'
 import {Mentions} from './Mentions.jsx'
 import {pathLabel, popularPageRows, repoPathHref} from './repo-paths.mjs'
 import {sourceIcon} from './source-icon.mjs'
-import {weeklyChange,starWeeklyChange,weeklyChangeLabel} from './weekly-change.mjs'
+import {weeklyChange,starWeeklyChange,weeklyChangeLabel,weeklyDelta} from './weekly-change.mjs'
 import {channelViews,isSearchVideo} from './referrer-channels.mjs'
 import {InsightCallout} from './InsightCallout.jsx'
 import {OverviewSummary} from './OverviewSummary.jsx'
@@ -142,22 +142,25 @@ function DashboardTab() {
   const recentDays=daily.slice(-3),recentViews=sum(recentDays,'views'),windowViews=sum(daily,'views')
   const item = (id,span,content,kind='chart') => <SortableItem key={id} id={id} label={id} kind={kind} className={`egm-block egm-block--${kind}`} style={{'--egm-span':span}}>{content}</SortableItem>
   const metric = (id,queryId,title,value,description,secondary) => {
-    const field = {'unique-visitors':'visitors','total-views':'views','total-clones':'clones',stars:'stars','website-visitors':'referralVisitors','website-views':'referralViews'}[id]
+    const field = {'unique-visitors':'visitors','total-views':'views','total-clones':'clones','adoption-clones':'clones','adoption-cloners':'cloners','merged-prs':'mergedPRs',stars:'stars','website-visitors':'referralVisitors','website-views':'referralViews'}[id]
+    const fieldNoun = {cloners:'unique cloners',mergedPRs:'merged PRs'}[field]??field
     const websiteMetric=id.startsWith('website-')
-    const historyQuery=websiteMetric?'website_referral_history':id==='stars'?'star_history':'traffic'
+    const historyQuery=websiteMetric?'website_referral_history':id==='stars'?'star_history':id==='merged-prs'?'activity':'traffic'
     const history=rows(historyQuery)
     const trendValues=field?history.map(row=>row[field]).filter(Number.isFinite):[]
     const historyStale=(queries.star_history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
-    const weekly=['total-views','total-clones'].includes(id)?weeklyChange(daily,field):id==='stars'&&!historyStale?starWeeklyChange(history,queries.star_history?.source?.executedAt):null
+    const additiveWeekly=['total-views','total-clones','adoption-clones','merged-prs'].includes(id)
+    const weekly=additiveWeekly?weeklyChange(history,field):id==='stars'&&!historyStale?starWeeklyChange(history,queries.star_history?.source?.executedAt):null
     const weeklyText=weeklyChangeLabel(weekly,id==='stars'?'new':'')
-    const weeklyMissing=['total-views','total-clones','stars'].includes(id)&&!weeklyText&&Number.isFinite(value)
+    const delta=weeklyDelta(weekly)
+    const weeklyMissing=(additiveWeekly||id==='stars')&&!weeklyText&&Number.isFinite(value)
     const queryIds=[...new Set([queryId,...(field&&queries[historyQuery]?[historyQuery]:[]),...(websiteMetric?['reach']:[])])]
-    const trend = {trendValues,trendLabel:websiteMetric?'Each point is the trailing 14-day referral total at that observation; points overlap':id === 'stars' ? 'Cumulative stargazers by Pacific date' : `Daily ${field}, ${window}`,queryIds,sourceRowsByQuery:Object.fromEntries(queryIds.map(key=>[key,rows(key)]))}
+    const trend = {trendValues,trendLabel:websiteMetric?'Each point is the trailing 14-day referral total at that observation; points overlap':id === 'stars' ? 'Cumulative stargazers by Pacific date' : `Daily ${fieldNoun}, ${historyQuery==='traffic'?window:`${dateSpan(history)} UTC`}`,queryIds,sourceRowsByQuery:Object.fromEntries(queryIds.map(key=>[key,rows(key)]))}
     return <DataComponent {...{id,queryId,title,description}} kind="metric" variant="card" queryIds={trend.queryIds} displayRows={rows(queryId)} sourceRows={rows(queryId)} sourceRowsByQuery={trend.sourceRowsByQuery}>
       <div className="egm-metric-reading" data-reviewed-rows><span className="egm-metric-value"><Changed as="span" value={value}>{n(value)}</Changed></span>{field&&trendValues.length>=2&&(!websiteMetric||new Set(trendValues).size>=2)&&<TrendSparkline values={trend.trendValues} label={trend.trendLabel} />}</div>
       {secondary&&<p className="egm-metric-secondary" data-reviewed-rows>{secondary}</p>}
       {weeklyMissing&&<p className="egm-metric-secondary" data-reviewed-rows>{id==='stars'&&historyStale?'Weekly change unavailable · stale history':'Weekly change unavailable'}</p>}
-      {weeklyText&&<p className="egm-metric-secondary" data-reviewed-rows title={`Latest seven complete reported days (${weekly.mid}–${weekly.end}) compared with the preceding seven.${weekly.reconstructed?' New stars are reconstructed from current stargazers by Pacific date; removed stars are unavailable and the partial current day is excluded.':` Additive daily ${field} counts, UTC days.`}`}>{weeklyText}</p>}
+      {weeklyText&&<p className="egm-metric-secondary egm-metric-weekly" data-reviewed-rows title={`Latest seven complete reported days (${weekly.mid}–${weekly.end}) compared with the preceding seven.${weekly.reconstructed?' New stars are reconstructed from current stargazers by Pacific date; removed stars are unavailable and the partial current day is excluded.':` Additive daily ${fieldNoun} counts, UTC days.`}`}>{delta&&<span className={`egm-delta egm-delta--${delta.direction}`}>{delta.direction!=='flat'&&<Icon name={delta.direction==='up'?'arrowUp':'arrowDown'} size={12}/>}{delta.text}<span className="visually-hidden"> week over week</span></span>}<span>{weeklyText}</span></p>}
     </DataComponent>
   }
   const popularPages = id => {
