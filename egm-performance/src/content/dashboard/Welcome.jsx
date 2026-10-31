@@ -18,7 +18,7 @@ export function Welcome() {
     </div>
     <p className="egm-welcome-lede">It tracks how people find, try and talk about EGM, using GitHub traffic for the google/elephant-goldfish-model repo, egm.dev referrals, the issue queue and public mentions.</p>
     <ul className="egm-welcome-notes">
-      <li><strong>Two-week window.</strong> GitHub keeps only 14 days of traffic, so views, visitors and clones cover that window. Stars, issues and PRs are current totals.</li>
+      <li><strong>Two-week totals.</strong> GitHub keeps only 14 days of traffic, so headline views, visitors and clones cover that window. The daily charts keep every day collected since Oct 13; pick a date range on the chart. Stars, issues and PRs are current totals.</li>
       <li><strong>Top ten referrers.</strong> GitHub names only its top ten traffic sources; anything else is unattributed.</li>
       <li><strong>Definitions.</strong> The info icon on every card says exactly what it counts and what it leaves out.</li>
     </ul>

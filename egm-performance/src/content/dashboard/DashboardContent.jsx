@@ -2,7 +2,7 @@ import {percentage} from './percentage.mjs'
 import {dateSpan, ratio} from './metric-safety.mjs'
 import {safeExternalUrl} from './research-mentions.mjs'
 import React, { useEffect, useRef, useState } from 'react'
-import { ChartTooltip, DataComponent, DataTable, EvidenceChart, Icon, Section, SortableItem, SortableRegion, useDataApp, useDashboardTabs } from '../../data-app-public.jsx'
+import { ChartTooltip, DataComponent, DataTable, EvidenceChart, Filters, Icon, Section, SortableItem, SortableRegion, useDataApp, useDashboardTabs, useSectionFilters } from '../../data-app-public.jsx'
 import './egm.css'
 import {Research} from './Research.jsx'
 import {TrendSparkline} from './TrendSparkline.jsx'
@@ -24,6 +24,7 @@ import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
 import {PageFooter} from './PageFooter.jsx'
 import {Welcome} from './Welcome.jsx'
+import {trafficRangeSummary} from './traffic-range.mjs'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = count
@@ -63,10 +64,20 @@ function Changed({value,children,as:Tag='div'}) {
   },[value])
   return <Tag className={changed?'egm-live-changed':undefined} onAnimationEnd={()=>setChanged(false)}>{children}</Tag>
 }
-function Plot({id,queryId,title,rows,spec,description,sourceRows=rows,children,chartOptions}) {
-  if(!rows.length)return <DataComponent {...{id,queryId,title,description}} kind="custom" variant="card" displayRows={[]} sourceRows={sourceRows}><EmptyState chart/></DataComponent>
+function Plot({id,queryId,title,rows,spec,description,sourceRows=rows,children,chartOptions,scopeFilters,headerControls}) {
+  if(!rows.length)return <DataComponent {...{id,queryId,title,description,scopeFilters,headerControls}} kind="custom" variant="card" displayRows={[]} sourceRows={sourceRows}><EmptyState chart/></DataComponent>
   const brandedSpec = { ...spec, colors: spec.colors ?? {[spec.y]:'var(--chart-1)'} }
-  return <Changed value={JSON.stringify(rows)}><EvidenceChart {...{id,queryId,title,rows,description,sourceRows}} chartOptions={{fixedAxisWidths:true,...chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart></Changed>
+  return <Changed value={JSON.stringify(rows)}><EvidenceChart {...{id,queryId,title,rows,description,sourceRows,scopeFilters,headerControls}} chartOptions={{fixedAxisWidths:true,...chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart></Changed>
+}
+function TrafficHistory({id,title,fields,labels,noun,description}) {
+  const {queries}=useDataApp()
+  const queryId=queries.traffic_history?'traffic_history':'traffic'
+  const scope=useSectionFilters([{id:'range',label:'Date range',field:'date',mode:'through',defaultValue:'all',queryIds:[queryId]}],{},{id:`${id}-range`,label:'Date range'})
+  const scoped=scope.componentProps(queryId,['date'])
+  const summary=trafficRangeSummary(scoped.displayRows,fields[0])
+  return <Plot id={id} queryId={queryId} title={title} rows={scoped.displayRows} sourceRows={scoped.sourceRows} scopeFilters={scoped.scopeFilters} headerControls={<Filters {...scope.filterProps}/>} spec={{...line(fields[0],fields),legend:{labels}}} description={`${summary?`${dateSpan(scoped.displayRows)} UTC`:'No days in this range'}. ${description}`}>
+    {summary&&<p className="egm-note">{n(summary.total)} {noun} over {summary.days} {summary.missingDays?'observed ':''}{summary.days===1?'day':'days'}{summary.missingDays?`; ${summary.missingDays} ${summary.missingDays===1?'day has':'days have'} no observation`:''}.</p>}
+  </Plot>
 }
 function ChannelName({row}) {
   return <span className="egm-channel-name">{row.__categoryIcon&&<img src={row.__categoryIcon} width="16" height="16" alt=""/>}{row.source}</span>
@@ -175,7 +186,7 @@ function TabPage({activeTabId}) {
     const pages=popularPageRows(sourceRows)
     return <Table id={id} queryId="paths" title="Popular repo pages" rows={pages} sourceRows={sourceRows} columns={pageColumns} pageSize={12} note={pages.some(row=>row.combined)?'Views for the same file at /blob/main and /blob/HEAD are combined. Unique visitors are not added, because those audiences overlap by an unknown amount.':undefined} />
   }
-  const clonePlot = id => <Plot id={id} queryId="traffic" title="Daily clone activity" rows={daily} spec={{...line('clones',['clones','cloners']),legend:{labels:{clones:'Clone operations',cloners:'Unique cloners per day'}}}} description={`${window}. Clone operations include repeat and automated clones; daily unique cloners cannot be summed.`} />
+  const clonePlot = id => <TrafficHistory id={id} title="Daily clone activity" fields={['clones','cloners']} labels={{clones:'Clone operations',cloners:'Unique cloners per day'}} noun="clone operations" description="Clone operations include repeat and automated clones; daily unique cloners cannot be summed." />
   const chartHome = ({id, queryId, queryIds, title, summary, page, linkLabel, displayRows, sourceRows, sourceRowsByQuery}) => <DataComponent {...{id, queryId, queryIds, title}} kind="custom" variant="card" displayRows={displayRows} sourceRows={sourceRows} sourceRowsByQuery={sourceRowsByQuery}>
     <p className="egm-chart-home">{summary}</p>
     <PageLink className="egm-overview-next" page={page}>{linkLabel} <Icon name="arrowUpRight" size={14}/></PageLink>
@@ -292,7 +303,7 @@ function TabPage({activeTabId}) {
       {item('total-clones',3,metric('total-clones','reach','Clone operations',reach.clones,`Times the repo was copied with Git over ${window}, including repeat copies and automated tools. GitHub counted ${n(reach.cloners)} distinct cloners.`),'metric')}
       {item('stars',3,metric('stars','reach','Total stars',reach.stars,`GitHub accounts starring the repo at the last refresh. This is a snapshot total, not stars gained during the traffic window. ${n(reach.forks)} forks; ${n(reach.watchers)} watching.`),'metric')}
       {item('overview-across-egm',12,<AcrossEgm {...{queries,reach,web}}/>,'custom')}
-      {item('visitor-trend',6,<Plot id="visitor-trend" queryId="traffic" title="Daily views and unique visitors" rows={daily} spec={{...line('views',['views','visitors']),legend:{labels:{views:'Views',visitors:'Unique visitors per day'}}}} description={`${window}. GitHub reports each day separately; daily unique visitors cannot be summed.`} />)}
+      {item('visitor-trend',6,<TrafficHistory id="visitor-trend" title="Daily views and unique visitors" fields={['views','visitors']} labels={{views:'Views',visitors:'Unique visitors per day'}} noun="repo views" description="GitHub reports each day separately; daily unique visitors cannot be summed." />)}
       {item('clone-trend',6,chartHome({id:'clone-trend',queryId:'traffic',title:'Daily clone activity',summary:`${n(reach.clones)} clone operations from ${n(reach.cloners)} unique cloners in ${window}.`,page:'adoption',linkLabel:'Adoption',displayRows:daily,sourceRows:daily}))}
       {item('star-history',12,<Plot id="star-history" queryId="star_history" title="Star accumulation" rows={starDisplayRows} sourceRows={starHistory} spec={starSpec} chartOptions={{tooltipContent:<StarTooltip/>}}><p className="egm-note">Cumulative stars by Pacific date, reconstructed from current stargazers; stars removed before collection are unavailable.{partialStarDay?' The faded final segment is the partial current day.':''}</p></Plot>)}
       {item('referral-chart',6,chartHome({id:'referral-chart',queryId:'referrers',queryIds:['referrers','reach'],title:'Top referring sources by repo views',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRowsByQuery:{referrers:rows('referrers'),reach:rows('reach')}}))}
