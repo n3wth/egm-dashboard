@@ -4,7 +4,6 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { defineConfig } from "vite";
-import { viteSingleFile } from "vite-plugin-singlefile";
 
 const localThreadId = [process.env.CODEX_SESSION_ID, process.env.CODEX_THREAD_ID].find((value) =>
   /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu.test(value ?? ""),
@@ -41,6 +40,21 @@ const snapshotIntegrityPlugin = {
   },
 };
 
+const vendorGroups = [
+  ["react", /\/node_modules\/(react|react-dom|scheduler)\//u],
+  ["charts", /\/node_modules\/(recharts|d3-[\w-]+|victory-vendor|internmap|decimal\.js-light|es-toolkit|immer|reselect|@reduxjs|react-redux|redux|use-sync-external-store|eventemitter3|clsx|tiny-invariant)\//u],
+  ["ask", /\/node_modules\/(ai|@ai-sdk|zod|streamdown|react-markdown|parse5|shiki|@shikijs|mermaid|katex|micromark[\w-]*|mdast-[\w-]+|hast-[\w-]+|unist-[\w-]+|remark-[\w-]+|rehype-[\w-]+|unified|vfile[\w-]*)\//u],
+  ["editor", /\/node_modules\/(lexical|@lexical)\//u],
+  ["workos", /\/node_modules\/(@workos-inc|@radix-ui\/themes|@tanstack)\//u],
+];
+
+function vendorChunk(id) {
+  const path = id.replaceAll("\\", "/");
+  if (path.endsWith("/src/data.json")) return "snapshot";
+  if (!path.includes("/node_modules/")) return undefined;
+  return vendorGroups.find(([, pattern]) => pattern.test(path))?.[0] ?? "vendor";
+}
+
 export default defineConfig(({ command, isSsrBuild }) => ({
   // Gallery launchers and prepared apps consume the same authored reference modules.
   resolve: {
@@ -51,7 +65,6 @@ export default defineConfig(({ command, isSsrBuild }) => ({
   plugins: isSsrBuild
     ? []
     : [
-        viteSingleFile(),
         snapshotIntegrityPlugin,
         {
           name: "data-app-local-task",
@@ -86,5 +99,11 @@ export default defineConfig(({ command, isSsrBuild }) => ({
   define: {
     __DATA_APP_PROJECT_ROOT__: JSON.stringify(command === "serve" ? process.cwd() : ""),
   },
-  build: isSsrBuild ? { rollupOptions: { output: { entryFileNames: "index.js" } } } : {},
+  build: isSsrBuild ? { rollupOptions: { output: { entryFileNames: "index.js" } } } : {
+    // Hashed chunks are served immutable. Libraries change far less often than
+    // authored content or the bundled snapshot, so each gets its own chunk and a
+    // deploy only invalidates what changed. Everything stays statically imported:
+    // a deploy removes the previous chunks, so lazy chunks could 404 in open tabs.
+    rollupOptions: { output: { manualChunks: vendorChunk } },
+  },
 }));

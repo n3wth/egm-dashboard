@@ -1,7 +1,10 @@
-import { mkdir, copyFile } from 'node:fs/promises'
+import { mkdir, copyFile, cp, rm } from 'node:fs/promises'
 
 await mkdir(new URL('../egm-cloudflare/assets/', import.meta.url), { recursive: true })
 await copyFile(new URL('../egm-performance/dist/index.html', import.meta.url), new URL('../egm-cloudflare/assets/index.html', import.meta.url))
+// Hashed app chunks. Replace the folder so a deploy never uploads chunks from an earlier build.
+await rm(new URL('../egm-cloudflare/assets/assets/', import.meta.url), { recursive: true, force: true })
+await cp(new URL('../egm-performance/dist/assets/', import.meta.url), new URL('../egm-cloudflare/assets/assets/', import.meta.url), { recursive: true })
 await mkdir(new URL('../egm-cloudflare/assets/rive/', import.meta.url), { recursive: true })
 await copyFile(new URL('../egm-cloudflare/login-animation.js', import.meta.url), new URL('../egm-cloudflare/assets/rive/egm-login.js', import.meta.url))
 await copyFile(new URL('../egm-performance/node_modules/@rive-app/canvas/rive.js', import.meta.url), new URL('../egm-cloudflare/assets/rive/rive.js', import.meta.url))
