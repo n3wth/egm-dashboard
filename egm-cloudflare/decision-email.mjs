@@ -6,8 +6,9 @@ export const dashboardUrl = 'https://egm.n3wth.com'
 // Public after the worker that ships these files is deployed. Email clients fetch them with no session.
 export const logoBlackUrl = 'https://egm.n3wth.com/email/egm-mark-black.png'
 export const logoWhiteUrl = 'https://egm.n3wth.com/email/egm-mark-white.png'
-const logoWidth = 36
-const logoHeight = 21
+const logoWidth = 56
+const logoHeight = 33
+const footerText = 'Sent because you requested access. n3wth.com'
 
 const encoder = new TextEncoder()
 
@@ -47,10 +48,11 @@ function message(decision) {
       return {
         subject: "You're in to the EGM Growth Dashboard",
         heading: "You're in",
-        preheader: 'Sign in with the same Google account you used to request access.',
+        preheader: 'Your access to the EGM Growth Dashboard is approved.',
         paragraphs: ['Your access to the EGM Growth Dashboard is approved.', 'Sign in with the same Google account you used to request access.'],
+        emphasizeProduct: true,
         link: { href: dashboardUrl, label: 'Open the dashboard' },
-        text: `You're in\n\nYour access to the EGM Growth Dashboard is approved.\n\nOpen the dashboard: ${dashboardUrl}\n\nSign in with the same Google account you used to request access.\n\nn3wth.com`
+        text: `You're in\n\nYour access to the EGM Growth Dashboard is approved.\n\nOpen the dashboard: ${dashboardUrl}\n\nSign in with the same Google account you used to request access.\n\n--\n${footerText}`
       }
     case 'denied':
       return {
@@ -58,8 +60,9 @@ function message(decision) {
         heading: 'Request not approved',
         preheader: 'If you think this is a mistake, ask Oliver to review it.',
         paragraphs: ['Thanks for requesting access to the EGM Growth Dashboard. This account does not have access.', 'If you think this is a mistake, ask Oliver to review it.'],
+        emphasizeProduct: false,
         link: null,
-        text: `Request not approved\n\nThanks for requesting access to the EGM Growth Dashboard. This account does not have access.\n\nIf you think this is a mistake, ask Oliver to review it.\n\nn3wth.com`
+        text: `Request not approved\n\nThanks for requesting access to the EGM Growth Dashboard. This account does not have access.\n\nIf you think this is a mistake, ask Oliver to review it.\n\n--\n${footerText}`
       }
     default: {
       const unexpected = decision
@@ -68,28 +71,44 @@ function message(decision) {
   }
 }
 
-function paragraph(text, margin) {
-  return `<p class="text" style="margin:0 0 ${margin}px;font-size:16px;line-height:1.6;color:#181818">${escapeHtml(text)}</p>`
+const font = `-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif`
+
+function emphasizeProduct(text) {
+  const name = 'EGM Growth Dashboard'
+  const index = text.indexOf(name)
+  if (index < 0) return escapeHtml(text)
+  return `${escapeHtml(text.slice(0, index))}<strong>${escapeHtml(name)}</strong>${escapeHtml(text.slice(index + name.length))}`
+}
+
+function bodyParagraph(html, marginBottom) {
+  const margin = marginBottom ? `0 0 ${marginBottom}px` : '0'
+  return `<p class="text" style="margin:${margin};font-size:14px;line-height:24px;text-align:center;color:#000000">${html}</p>`
 }
 
 function logoMark() {
-  const frame = 'border:0;outline:none;text-decoration:none'
-  const light = `<img class="logo-light" src="${logoBlackUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:block;width:${logoWidth}px;height:${logoHeight}px;${frame}">`
-  const dark = `<img class="logo-dark" src="${logoWhiteUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:none;max-height:0;overflow:hidden;width:${logoWidth}px;height:${logoHeight}px;${frame}">`
-  return `<p style="margin:0 0 24px;background:transparent;background-color:transparent">${light}${dark}</p>`
+  const light = `<img class="logo-light" src="${logoBlackUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:block;margin:0 auto;width:${logoWidth}px;height:${logoHeight}px;border:0">`
+  const dark = `<img class="logo-dark" src="${logoWhiteUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:none;max-height:0;overflow:hidden;margin:0 auto;width:${logoWidth}px;height:${logoHeight}px;border:0">`
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 0 28px">${light}${dark}</td></tr></table>`
 }
 
 function dashboardButton(link) {
   const href = escapeHtml(link.href)
   const label = escapeHtml(link.label)
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 20px"><tr><td class="button" bgcolor="#000000" style="background-color:#000000"><a href="${href}" style="display:inline-block;padding:14px 22px;font-family:Arial,sans-serif;font-size:16px;font-weight:600;line-height:20px;color:#ffffff;text-decoration:none;background-color:#000000">${label}</a></td></tr></table>`
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 24px"><tr><td class="button" align="center" style="border-radius:6px"><a href="${href}" style="display:inline-block;padding:12px 20px;border-radius:6px;background-color:#000000;color:#ffffff;font-size:14px;font-weight:600;line-height:20px;text-decoration:none">${label}</a></td></tr></table>`
 }
 
-function document({ subject, heading, preheader, paragraphs, link }) {
-  const blocks = [paragraph(paragraphs[0], 16)]
+function footer() {
+  return `<hr class="rule" style="margin:28px 0;border:none;border-top:1px solid #eaeaea;width:100%"><p class="muted" style="margin:0;font-size:12px;line-height:24px;text-align:center;color:#666666">Sent because you requested access. <a href="https://n3wth.com" class="muted" style="color:#666666;text-decoration:underline">n3wth.com</a></p>`
+}
+
+function document({ subject, heading, preheader, paragraphs, emphasizeProduct: markProduct, link }) {
+  const htmlParagraphs = paragraphs.map((text, index) => markProduct && index === 0 ? emphasizeProduct(text) : escapeHtml(text))
+  const [first, ...rest] = htmlParagraphs
+  const blocks = [bodyParagraph(first, rest.length || link ? 24 : 0)]
   if (link) blocks.push(dashboardButton(link))
-  paragraphs.slice(1).forEach((text, index, rest) => blocks.push(paragraph(text, index === rest.length - 1 ? 32 : 16)))
-  return `<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${escapeHtml(subject)}</title><style>:root{color-scheme:light dark;supported-color-schemes:light dark}body,.wrap{margin:0;background:transparent;background-color:transparent}.logo-dark{display:none !important;max-height:0;overflow:hidden}@media (prefers-color-scheme:dark){.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.logo-light{display:none !important}.logo-dark{display:block !important;max-height:none !important;overflow:visible !important}.button,.button a{background-color:#ffffff !important}.button a{color:#000000 !important}}</style></head><body class="text" style="margin:0;padding:0;background:transparent;background-color:transparent;font-family:Arial,sans-serif;color:#181818"><div lang="en" dir="ltr" class="wrap" style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px 0;line-height:1.6;background:transparent;background-color:transparent"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preheader)}</div>${logoMark()}<h1 class="heading" style="font-size:24px;line-height:1.25;margin:0 0 16px;font-weight:700;color:#181818">${escapeHtml(heading)}</h1>${blocks.join('')}<p class="muted" style="margin:0;font-size:13px;line-height:1.6;color:#5b5b5b">n3wth.com</p></div></body></html>`
+  rest.forEach((html, index) => blocks.push(bodyParagraph(html, index === rest.length - 1 ? 0 : 24)))
+  const styles = `:root{color-scheme:light dark;supported-color-schemes:light dark}body{margin:0;background:transparent;background-color:transparent}.logo-dark{display:none !important;max-height:0;overflow:hidden}@media (prefers-color-scheme:dark){.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.card{border-color:#333333 !important}.rule{border-top-color:#333333 !important}.logo-light{display:none !important}.logo-dark{display:block !important;max-height:none !important;overflow:visible !important}.button a{background-color:#ffffff !important;color:#000000 !important}}`
+  return `<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${escapeHtml(subject)}</title><style>${styles}</style></head><body style="margin:0;padding:0;background:transparent;background-color:transparent;font-family:${font}"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preheader)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:transparent;background-color:transparent"><tr><td align="center" style="padding:40px 12px"><table role="presentation" class="card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:465px;border:1px solid #eaeaea;border-radius:8px;border-collapse:separate"><tr><td style="padding:32px 28px">${logoMark()}<h1 class="heading" style="margin:0 0 24px;font-size:24px;line-height:32px;font-weight:600;text-align:center;color:#000000">${escapeHtml(heading)}</h1>${blocks.join('')}${footer()}</td></tr></table></td></tr></table></body></html>`
 }
 
 export function decisionEmail(decision) {
@@ -104,18 +123,18 @@ export function decisionEmailPreview(decision, scheme) {
   switch (scheme) {
     case 'light':
       chrome = '#ffffff'
-      forced = '.heading,.text{color:#181818 !important}.muted{color:#5b5b5b !important}.logo-light{display:block !important;max-height:none !important}.logo-dark{display:none !important;max-height:0 !important}.button,.button a{background-color:#000000 !important}.button a{color:#ffffff !important}'
+      forced = '.heading,.text{color:#000000 !important}.muted{color:#666666 !important}.card{border-color:#eaeaea !important}.rule{border-top-color:#eaeaea !important}.logo-light{display:block !important;max-height:none !important}.logo-dark{display:none !important;max-height:0 !important}.button a{background-color:#000000 !important;color:#ffffff !important}'
       break
     case 'dark':
       chrome = '#181818'
-      forced = '.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.logo-light{display:none !important}.logo-dark{display:block !important;max-height:none !important;overflow:visible !important}.button,.button a{background-color:#ffffff !important}.button a{color:#000000 !important}'
+      forced = '.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.card{border-color:#333333 !important}.rule{border-top-color:#333333 !important}.logo-light{display:none !important}.logo-dark{display:block !important;max-height:none !important;overflow:visible !important}.button a{background-color:#ffffff !important;color:#000000 !important}'
       break
     default: {
       const unexpected = scheme
       throw Error(`unknown scheme ${String(unexpected)}`)
     }
   }
-  const style = `<style>html{background-color:${chrome}}body,.wrap{background:transparent !important;background-color:transparent !important}${forced}</style>`
+  const style = `<style>html{background-color:${chrome}}body{background:transparent !important;background-color:transparent !important}${forced}</style>`
   return `<!-- Preview chrome only. The html background stands in for the mail client. The message body and container stay transparent. -->${html.replace('</head>', `${style}</head>`)}`
 }
 
