@@ -7,6 +7,24 @@
 .egm-chart-home { margin: 0 0 8px; color: var(--text); font-size: 13px; line-height: 1.5; }
 .egm-overview-next { display: inline-flex; align-items: center; gap: 5px; color: var(--secondary); font-size: 13px; line-height: 1.4; text-decoration: none; }
 .egm-overview-next:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.egm-welcome { display: grid; gap: 12px; margin: 0 0 20px; padding: 16px; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); }
+.egm-welcome-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.egm-welcome h2 { margin: 0; color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.4; }
+.egm-welcome-close { flex: none; width: 32px; height: 32px; min-height: 32px; margin: -6px -6px 0 0; padding: 0; color: var(--secondary); }
+.egm-welcome-lede { margin: 0; max-width: 80ch; color: var(--text); font-size: 14px; line-height: 1.5; }
+.egm-welcome-notes { display: grid; gap: 4px; margin: 0; padding: 0 0 0 18px; color: var(--secondary); font-size: 13px; line-height: 1.5; }
+.egm-welcome-notes strong { color: var(--text); font-weight: 500; }
+.egm-welcome-pages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0 0; }
+.egm-welcome-page { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--secondary); text-decoration: none; }
+.egm-welcome-page:hover { border-color: var(--border-strong); }
+.egm-welcome-page:focus-visible, .egm-welcome-close:focus-visible, .egm-welcome-done:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.egm-welcome-page > .dashboard-icon { flex: none; margin-top: 1px; color: var(--text); }
+.egm-welcome-page > span { display: grid; gap: 2px; min-width: 0; }
+.egm-welcome-page-title { color: var(--text); font-size: 13px; font-weight: 500; line-height: 1.4; }
+.egm-welcome-page-summary { font-size: 12px; line-height: 1.4; }
+.egm-welcome-done { justify-self: start; }
+@media (max-width: 900px) { .egm-welcome-pages { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 550px) { .egm-welcome-pages { grid-template-columns: 1fr; } }
 .egm-page-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 32px 0 0; }
 .egm-page-footer-link { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); color: var(--secondary); text-decoration: none; }
 .egm-page-footer-link--next { grid-column: 2; justify-content: flex-end; text-align: right; }

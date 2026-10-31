@@ -23,6 +23,7 @@ import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
 import {PageFooter} from './PageFooter.jsx'
+import {Welcome} from './Welcome.jsx'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = count
@@ -278,6 +279,7 @@ function TabPage({activeTabId}) {
   const starSpec={...line('completedStars',['completedStars','partialStars']),showLegend:false,colors:{completedStars:'var(--chart-1)',partialStars:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   return <>
     <OverviewSummary queries={queries}/>
+    <Welcome/>
     <SortableRegion id="reach:canvas" variant="freeform" className="egm-dashboard-grid egm-reach-grid" authoredRevision={4} rows={[
       {id:'reach:metrics',kind:'metrics',items:['unique-visitors','total-views','total-clones','stars']},
       {id:'reach:across',items:['overview-across-egm']},
