@@ -64,11 +64,15 @@ All changes are inside `src/content/`, reuse existing colour variables, and add 
 
 ## Next steps
 
-Not done here because they need protected, Worker or product decisions:
+Done in the second round:
 
-- **Cache the app shell.** Serve fingerprinted assets with long-lived `cache-control` and keep only `/api/*` as `no-store`. This is the single biggest speed win for repeat visits (Worker change).
-- **Split the bundle.** Lazy-load the Ask panel (`ai`, zod, parse5), WorkOS widgets and the editing tools so readers download only the dashboard. Replace the full `@radix-ui/react-icons` import with the icons in use. This needs the single-file build to change.
-- **A real error screen** for a failed snapshot fetch, with a retry button and a link to the Feedback flow (protected bootstrap).
+- **Cached, split bundle.** The single-file build is replaced by content-hashed chunks grouped by library. The Worker serves hashed `/assets/*` files as `private, max-age=31536000, immutable`; the HTML shell and `/api/*` stay `no-store`. Repeat visits download about 121 KB instead of 1.2 MB.
+- **A real error screen** for a failed snapshot fetch, with Try again and Reload page buttons. It retries automatically when the browser comes back online.
+- **Longer history.** Each scheduled refresh merges GitHub's 14-day traffic window into a retained `traffic_history` query in the existing snapshot row, and the daily traffic charts have a date range filter.
+
+Still open:
+
+- **Lazy-load the Ask panel, WorkOS widgets and editing tools.** Chunks are all static imports today: a deploy removes the previous chunks, so a lazy chunk could 404 in a tab opened before the deploy. Lazy loading needs a reload-on-missing-chunk fallback first. Replace the full `@radix-ui/react-icons` import with the icons in use.
+- **A Feedback link on the error screen** once the Feedback flow can open without loaded data.
 - **Labelled tabs on wide screens, or a scroll cue on mobile** in the topbar (protected chrome).
 - **Fix the dev-only deep-link redirect** caused by StrictMode double registration in `registerDashboardTabs` (protected shell).
-- **Longer history.** GitHub's 14-day traffic window limits every trend; storing daily traffic in D1 would allow 30- and 90-day ranges and a real time-range filter.
