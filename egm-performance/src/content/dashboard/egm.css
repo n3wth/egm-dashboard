@@ -122,6 +122,8 @@
   .egm-dashboard-grid { gap: 12px; }
   .egm-reach-grid > .egm-block--metric,
   .egm-development-grid > .egm-block--metric { grid-column: span 6; }
+  .egm-development-grid > .egm-block--metric:nth-child(3 of .egm-block--metric) { grid-column: 1 / -1; }
+  .egm-dashboard-grid > .egm-block--metric .component-header { padding-right: 32px; }
   .egm-dashboard-grid .egm-metric-reading { flex-wrap: wrap; gap: 4px 12px; }
   .egm-dashboard-grid .egm-metric-value { font-size: 26px; }
 }
