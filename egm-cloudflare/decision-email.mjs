@@ -1,0 +1,186 @@
+// One email per person per decision. The row is claimed before Resend is called,
+// and the Idempotency-Key repeats that same pair. A later retry finds the row
+// and does not send, including after Resend's 24 hour window.
+export const decisionSender = 'EGM Dashboard <updates@n3wth.com>'
+export const dashboardUrl = 'https://egm.n3wth.com'
+// Public after the worker that ships these files is deployed. Email clients fetch them with no session.
+export const logoBlackUrl = 'https://egm.n3wth.com/email/egm-mark-black.png'
+export const logoWhiteUrl = 'https://egm.n3wth.com/email/egm-mark-white.png'
+const logoWidth = 36
+const logoHeight = 21
+
+const encoder = new TextEncoder()
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char])
+}
+
+export function decisionEmailEnabled(env, decision) {
+  if (!env?.RESEND_API_KEY || env.DECISION_EMAIL_ENABLED !== 'true') return false
+  switch (decision) {
+    case 'approved':
+      return true
+    case 'denied':
+      return env.DECISION_DENY_EMAIL_ENABLED === 'true'
+    default: {
+      const unexpected = decision
+      throw Error(`unknown decision ${String(unexpected)}`)
+    }
+  }
+}
+
+function validEmail(email) {
+  return typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+export async function decisionIdempotencyKey(userId, decision) {
+  const key = `egm-decision/${userId}/${decision}`
+  if (/^[\x21-\x7E]{1,256}$/.test(key)) return key
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(key))
+  const hex = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+  return `egm-decision/${hex}/${decision}`
+}
+
+function message(decision) {
+  switch (decision) {
+    case 'approved':
+      return {
+        subject: "You're in to the EGM Growth Dashboard",
+        heading: "You're in",
+        preheader: 'Sign in with the same Google account you used to request access.',
+        paragraphs: ['Your access to the EGM Growth Dashboard is approved.', 'Sign in with the same Google account you used to request access.'],
+        link: { href: dashboardUrl, label: 'Open the dashboard' },
+        text: `You're in\n\nYour access to the EGM Growth Dashboard is approved.\n\nOpen the dashboard: ${dashboardUrl}\n\nSign in with the same Google account you used to request access.\n\nn3wth.com`
+      }
+    case 'denied':
+      return {
+        subject: 'Your EGM Growth Dashboard request was not approved',
+        heading: 'Request not approved',
+        preheader: 'If you think this is a mistake, ask Oliver to review it.',
+        paragraphs: ['Thanks for requesting access to the EGM Growth Dashboard. This account does not have access.', 'If you think this is a mistake, ask Oliver to review it.'],
+        link: null,
+        text: `Request not approved\n\nThanks for requesting access to the EGM Growth Dashboard. This account does not have access.\n\nIf you think this is a mistake, ask Oliver to review it.\n\nn3wth.com`
+      }
+    default: {
+      const unexpected = decision
+      throw Error(`unknown decision ${String(unexpected)}`)
+    }
+  }
+}
+
+function paragraph(text, margin) {
+  return `<p class="text" style="margin:0 0 ${margin}px;font-size:16px;line-height:1.6;color:#181818">${escapeHtml(text)}</p>`
+}
+
+function logoMark() {
+  const frame = 'border:0;outline:none;text-decoration:none'
+  const light = `<img class="logo-light" src="${logoBlackUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:block;width:${logoWidth}px;height:${logoHeight}px;${frame}">`
+  const dark = `<img class="logo-dark" src="${logoWhiteUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:none;max-height:0;overflow:hidden;width:${logoWidth}px;height:${logoHeight}px;${frame}">`
+  return `<p style="margin:0 0 24px;background:transparent;background-color:transparent">${light}${dark}</p>`
+}
+
+function dashboardButton(link) {
+  const href = escapeHtml(link.href)
+  const label = escapeHtml(link.label)
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 20px"><tr><td class="button" bgcolor="#000000" style="background-color:#000000"><a href="${href}" style="display:inline-block;padding:14px 22px;font-family:Arial,sans-serif;font-size:16px;font-weight:600;line-height:20px;color:#ffffff;text-decoration:none;background-color:#000000">${label}</a></td></tr></table>`
+}
+
+function document({ subject, heading, preheader, paragraphs, link }) {
+  const blocks = [paragraph(paragraphs[0], 16)]
+  if (link) blocks.push(dashboardButton(link))
+  paragraphs.slice(1).forEach((text, index, rest) => blocks.push(paragraph(text, index === rest.length - 1 ? 32 : 16)))
+  return `<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${escapeHtml(subject)}</title><style>:root{color-scheme:light dark;supported-color-schemes:light dark}body,.wrap{margin:0;background:transparent;background-color:transparent}.logo-dark{display:none !important;max-height:0;overflow:hidden}@media (prefers-color-scheme:dark){.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.logo-light{display:none !important}.logo-dark{display:block !important;max-height:none !important;overflow:visible !important}.button,.button a{background-color:#ffffff !important}.button a{color:#000000 !important}}</style></head><body class="text" style="margin:0;padding:0;background:transparent;background-color:transparent;font-family:Arial,sans-serif;color:#181818"><div lang="en" dir="ltr" class="wrap" style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px 0;line-height:1.6;background:transparent;background-color:transparent"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preheader)}</div>${logoMark()}<h1 class="heading" style="font-size:24px;line-height:1.25;margin:0 0 16px;font-weight:700;color:#181818">${escapeHtml(heading)}</h1>${blocks.join('')}<p class="muted" style="margin:0;font-size:13px;line-height:1.6;color:#5b5b5b">n3wth.com</p></div></body></html>`
+}
+
+export function decisionEmail(decision) {
+  const copy = message(decision)
+  return { subject: copy.subject, text: copy.text, html: document(copy) }
+}
+
+export function decisionEmailPreview(decision, scheme) {
+  const { html } = decisionEmail(decision)
+  let chrome
+  let forced
+  switch (scheme) {
+    case 'light':
+      chrome = '#ffffff'
+      forced = '.heading,.text{color:#181818 !important}.muted{color:#5b5b5b !important}.logo-light{display:block !important;max-height:none !important}.logo-dark{display:none !important;max-height:0 !important}.button,.button a{background-color:#000000 !important}.button a{color:#ffffff !important}'
+      break
+    case 'dark':
+      chrome = '#181818'
+      forced = '.heading,.text{color:#f5f5f5 !important}.muted{color:#a6a6a6 !important}.logo-light{display:none !important}.logo-dark{display:block !important;max-height:none !important;overflow:visible !important}.button,.button a{background-color:#ffffff !important}.button a{color:#000000 !important}'
+      break
+    default: {
+      const unexpected = scheme
+      throw Error(`unknown scheme ${String(unexpected)}`)
+    }
+  }
+  const style = `<style>html{background-color:${chrome}}body,.wrap{background:transparent !important;background-color:transparent !important}${forced}</style>`
+  return `<!-- Preview chrome only. The html background stands in for the mail client. The message body and container stay transparent. -->${html.replace('</head>', `${style}</head>`)}`
+}
+
+async function claim(env, userId, decision, state) {
+  const result = await env.DB.prepare("INSERT OR IGNORE INTO decision_notifications(user_id,decision,state,claimed_at) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM users WHERE id=? AND status=?)").bind(userId, decision, state, new Date().toISOString(), userId, decision).run()
+  return result.meta?.changes === 1
+}
+
+async function settle(env, userId, decision, state, providerId = null) {
+  await env.DB.prepare('UPDATE decision_notifications SET state=?,sent_at=?,provider_id=? WHERE user_id=? AND decision=? AND state=?').bind(state, state === 'sent' ? new Date().toISOString() : null, providerId, userId, decision, 'claimed').run()
+}
+
+// fromStatus must be the status observed before a successful update. Calls
+// without a pending transition return before any read or send, so existing
+// decisions are never backfilled.
+export async function notifyAccessDecision(env, input, fetcher = fetch) {
+  const decision = input?.decision
+  const userId = input?.userId
+  if (input?.fromStatus !== 'pending') return
+  if (decision !== 'approved' && decision !== 'denied') return
+  if (typeof userId !== 'string' || !userId || userId.length > 200) return
+  let accepted = false
+  try {
+    const user = await env.DB.prepare('SELECT email,status FROM users WHERE id=?').bind(userId).first()
+    if (!user || user.status !== decision) return
+    const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : ''
+    if (!decisionEmailEnabled(env, decision)) {
+      await claim(env, userId, decision, 'skipped')
+      return
+    }
+    if (!validEmail(email)) {
+      if (await claim(env, userId, decision, 'failed')) console.error('Decision email failed', decision, 'invalid_email')
+      return
+    }
+    if (!await claim(env, userId, decision, 'claimed')) return
+    const current = await env.DB.prepare('SELECT status FROM users WHERE id=?').bind(userId).first()
+    if (current?.status !== decision) {
+      await settle(env, userId, decision, 'skipped')
+      return
+    }
+    const idempotencyKey = await decisionIdempotencyKey(userId, decision)
+    const response = await fetcher('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json', 'idempotency-key': idempotencyKey },
+      body: JSON.stringify({ from: decisionSender, to: [email], ...decisionEmail(decision) }),
+      redirect: 'manual',
+      signal: AbortSignal.timeout(10000)
+    })
+    if (!response.ok) {
+      await response.text().catch(() => {})
+      console.error('Decision email failed', decision, response.status)
+      await settle(env, userId, decision, 'failed')
+      return
+    }
+    accepted = true
+    let providerId = null
+    try {
+      const item = await response.json()
+      if (typeof item.id === 'string' && item.id && item.id.length <= 200) providerId = item.id
+    } catch {}
+    await settle(env, userId, decision, 'sent', providerId)
+  } catch {
+    console.error('Decision email failed', decision, accepted ? 'unrecorded' : 'unavailable')
+    if (!accepted) {
+      try { await settle(env, userId, decision, 'failed') } catch { console.error('Decision email failed', decision, 'unavailable') }
+    }
+  }
+}

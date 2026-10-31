@@ -22,6 +22,9 @@
     "WORKOS_CLIENT_ID": "client_01M60K01HRESAKEPD135F3KAMM",
     "WORKOS_AUTHKIT_DOMAIN": "https://striking-ripple-85.authkit.app",
     "INVITATION_EMAIL_ENABLED": "true",
+    // Decision mail stays off until the preview is approved. Denial is a second switch.
+    "DECISION_EMAIL_ENABLED": "false",
+    "DECISION_DENY_EMAIL_ENABLED": "false",
     "WORKOS_RBAC_ENABLED": "true",
     "WORKOS_RBAC_ORGANIZATION_ID": "org_01M616GHNTAA6GW7ER7RAXDSR0",
     "WORKOS_RBAC_ISSUER": "https://api.workos.com/user_management/client_01KT21TBYTKHENW4172A587X7Q",

@@ -9,4 +9,7 @@ await copyFile(new URL('../egm-performance/node_modules/@rive-app/canvas/rive.wa
 await copyFile(new URL('../assets/branding/egm-handoff.riv', import.meta.url), new URL('../egm-cloudflare/assets/rive/egm-handoff.riv', import.meta.url))
 await copyFile(new URL('../assets/branding/og.png', import.meta.url), new URL('../egm-cloudflare/assets/og.png', import.meta.url))
 await copyFile(new URL('../assets/branding/apple-touch-icon.png', import.meta.url), new URL('../egm-cloudflare/assets/apple-touch-icon.png', import.meta.url))
+await mkdir(new URL('../egm-cloudflare/assets/email/', import.meta.url), { recursive: true })
+await copyFile(new URL('../assets/branding/egm-mark-black.png', import.meta.url), new URL('../egm-cloudflare/assets/email/egm-mark-black.png', import.meta.url))
+await copyFile(new URL('../assets/branding/egm-mark-white.png', import.meta.url), new URL('../egm-cloudflare/assets/email/egm-mark-white.png', import.meta.url))
 console.log('Prepared Cloudflare dashboard assets')

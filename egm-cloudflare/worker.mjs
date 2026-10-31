@@ -117,7 +117,7 @@ const ownerGate = decision => decision==='unavailable' ? json({error:'access_che
 export async function handle(request,env,ctx) {
   const url=new URL(request.url)
   if(url.origin!==env.APP_URL) return new Response('Not found',{status:404})
-  if(['/favicon.svg','/og.png','/apple-touch-icon.png'].includes(url.pathname) && request.method==='GET') return env.ASSETS.fetch(request)
+  if(['/favicon.svg','/og.png','/apple-touch-icon.png','/email/egm-mark-black.png','/email/egm-mark-white.png'].includes(url.pathname) && request.method==='GET') return env.ASSETS.fetch(request)
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(['/fonts/SuisseIntl-Book.woff2','/fonts/SuisseIntl-Medium.woff2','/fonts/SuisseIntl-Semibold.woff2','/fonts/SuisseIntl-Bold.woff2'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return unavailable(request)
@@ -282,7 +282,7 @@ export async function handle(request,env,ctx) {
     const accessDenied=ownerGate(await accessDecision(user,env))
     if(accessDenied) return accessDenied
     user.canManageAccess=true
-    const response=await (url.pathname==='/api/access'?manageAccess(request,env,user):manageInvitations(request,env,user))
+    const response=await (url.pathname==='/api/access'?manageAccess(request,env,user,fetch,ctx):manageInvitations(request,env,user))
     if(url.pathname==='/api/access' && request.method==='POST' && response.ok) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     return response
   }
