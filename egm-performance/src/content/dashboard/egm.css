@@ -24,7 +24,10 @@
 .egm-welcome-page-summary { font-size: 12px; line-height: 1.4; }
 .egm-welcome-done { justify-self: start; }
 @media (max-width: 900px) { .egm-welcome-pages { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 550px) { .egm-welcome-pages { grid-template-columns: 1fr; } }
+@media (max-width: 550px) {
+  .egm-welcome-page { align-items: center; padding: 8px 10px; }
+  .egm-welcome-page-summary { display: none; }
+}
 .egm-page-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 32px 0 0; }
 .egm-page-footer-link { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); color: var(--secondary); text-decoration: none; }
 .egm-page-footer-link--next { grid-column: 2; justify-content: flex-end; text-align: right; }
@@ -116,8 +119,11 @@
   .egm-development-grid > .egm-block--metric { grid-column: span 4; }
 }
 @media(max-width:550px) {
+  .egm-dashboard-grid { gap: 12px; }
   .egm-reach-grid > .egm-block--metric,
-  .egm-development-grid > .egm-block--metric { grid-column: 1 / -1; }
+  .egm-development-grid > .egm-block--metric { grid-column: span 6; }
+  .egm-dashboard-grid .egm-metric-reading { flex-wrap: wrap; gap: 4px 12px; }
+  .egm-dashboard-grid .egm-metric-value { font-size: 26px; }
 }
 .egm-channel-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .egm-channel-name img { flex: none; }
