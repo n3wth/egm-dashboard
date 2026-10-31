@@ -22,6 +22,7 @@ import {count} from './states.mjs'
 import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
+import {PageFooter} from './PageFooter.jsx'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = count
@@ -129,12 +130,16 @@ export function DashboardContent() {
   return <><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/><CollectionStatus refreshStatus={snapshot?.refreshStatus}/></>
 }
 function DashboardTab() {
-  const {queries,appTitle,setAppTitle} = useDataApp()
+  const {appTitle,setAppTitle} = useDataApp()
   useEffect(() => {
     if (appTitle === 'EGM performance') setAppTitle('EGM Growth Dashboard')
   }, [appTitle,setAppTitle])
   const {activeTabId} = useDashboardTabs(tabs)
   useEffect(() => { trackDashboardSection(activeTabId) }, [activeTabId])
+  return <><TabPage activeTabId={activeTabId}/><PageFooter page={activeTabId}/></>
+}
+function TabPage({activeTabId}) {
+  const {queries} = useDataApp()
   if(activeTabId==='research') return <Research />
   if(activeTabId==='mentions') return <Mentions />
   const rows = id => queries[id]?.rows??[]
