@@ -2,6 +2,7 @@ import {percentage} from './percentage.mjs'
 import {isSearchVideo} from './referrer-channels.mjs'
 import {starWeeklyChange,observedStarChange} from './weekly-change.mjs'
 import {observedStarGrowth} from './star-growth.mjs'
+import {formatObservedAt} from './collection-status.mjs'
 const count=value=>Number.isFinite(value)&&value>=0
 const number=value=>value.toLocaleString('en-US')
 const shortDate=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
@@ -17,6 +18,16 @@ export function reportingRangeLabel(dates=[]) {
 export function reportingRange(queries={}) {
   const label=pacificReportingRangeLabel((queries.traffic?.rows??[]).map(row=>row.date))
   return label?{label,note:'Pacific Time'}:null
+}
+export function trafficCoverageNote(queries={}) {
+  const query=queries.traffic
+  const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value
+  const dates=(query?.rows??[]).map(row=>row.date).filter(validDate).sort()
+  const end=dates.at(-1),observedAt=query?.source?.executedAt
+  const observedDay=typeof observedAt==='string'?observedAt.slice(0,10):null
+  const collected=formatObservedAt(observedAt)
+  if(!end||!validDate(observedDay)||!collected||end>=observedDay)return null
+  return `Traffic available through ${shortDate(end)} (UTC source day). Collected ${collected}; newer days were not included in GitHub’s response.`
 }
 export function pacificReportingRangeLabel(dates=[]) {
   const days=dates.filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date??'')&&Number.isFinite(Date.parse(date))).sort()
