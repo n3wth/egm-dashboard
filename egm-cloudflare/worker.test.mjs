@@ -102,7 +102,7 @@ test('owner publishing rejects cross-origin requests',async()=>{
 test('logout revokes the server session and expires the cookie',async()=>{
   const token=await seal({sid:'logout-session'},secret,'session')
   let revoked
-  const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,DB:{prepare(sql){assert.match(sql,/DELETE FROM sessions/);return {bind(sid){revoked=sid;return {run:async()=>({})}}}}}}
+  const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,DB:{prepare(sql){if(/SELECT user_id FROM sessions/.test(sql))return {bind(){return {first:async()=>null}}};assert.match(sql,/DELETE FROM sessions/);return {bind(sid){revoked=sid;return {run:async()=>({})}}}}}}
   const response=await handle(new Request(env.APP_URL+'/auth/logout',{method:'POST',headers:{cookie:'__Host-egm_session='+token,origin:env.APP_URL}}),env)
   assert.equal(response.status,303)
   assert.equal(revoked,'logout-session')

@@ -1,5 +1,6 @@
 // Owner-authenticated MCP events. No subscription or decision is automatic.
 import {isDashboardOwner} from './owner-identity.mjs'
+import {scheduleWorkosAudit} from './workos-audit-log.mjs'
 const encoder = new TextEncoder()
 const bytes64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
 const un64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0))
@@ -9,6 +10,11 @@ export const accessRequestedEvent = {
   delivery: ['webhook'],
   inputSchema: {type:'object',properties:{},additionalProperties:false},
   payloadSchema: {type:'object',properties:{request_id:{type:'string'},name:{type:'string'},email:{type:'string'},url:{type:'string'}},required:['request_id','name','email','url'],additionalProperties:false}
+}
+// A verified person asked for access. WorkOS errors are ignored and never block sign-in.
+export function auditAccessRequested(env, person, request, waitUntil) {
+  if (!/^user_[A-Za-z0-9]+$/.test(person?.id ?? '')) return Promise.resolve(false)
+  return scheduleWorkosAudit(env, { action: 'egm.access.requested', actorId: person.id, actorName: person.name, targetId: person.id, targetType: 'user', metadata: { email: person.email } }, request, waitUntil)
 }
 export function callbackUrl(value, allowedHosts) {
   if(typeof value !== 'string' || value.length > 2048) throw Error('Invalid callback')

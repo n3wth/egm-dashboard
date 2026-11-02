@@ -241,15 +241,16 @@ test('PostHog AI events record successful and failed generations without the sna
   assert.equal((await handleAsk(request({question:'How many views?',history:[{question:'hi',answer:'hello'}]}),env,user,options)).status,200)
   await Promise.all(pending)
   assert.equal(sent.length,1)
-  const ok=sent[0].properties
-  assert.equal(sent[0].event,'$ai_generation');assert.equal(sent[0].distinct_id,'owner')
+  const recorded=sent[0].batch[0]
+  const ok=recorded.properties
+  assert.equal(recorded.event,'$ai_generation');assert.equal(recorded.distinct_id,'owner')
   assert.equal(ok.$ai_input_tokens,12);assert.equal(ok.$ai_is_error,false)
   assert.deepEqual(ok.$ai_input.map(turn=>turn.content),['hi','hello','How many views?'])
   assert.ok(!JSON.stringify(sent[0]).includes('rawMarkdown'))
   env.INFER.run=async()=>{throw Error('provider_failed')}
   assert.equal((await handleAsk(request({question:'How many views?'}),env,user,options)).status,503)
   await Promise.all(pending)
-  assert.equal(sent.at(-1).properties.$ai_is_error,true);assert.equal(sent.at(-1).properties.$ai_error,'ask_unavailable')
+  assert.equal(sent.at(-1).batch[0].properties.$ai_is_error,true);assert.equal(sent.at(-1).batch[0].properties.$ai_error,'ask_unavailable')
 })
 test('causal verbs before measured numbers become neutral, other uses are untouched',()=>{
   assert.equal(neutralCausalWording('YouTube is a referrer, driving 4,792 views [S12].'),'YouTube is a referrer, accounting for 4,792 views [S12].')

@@ -1,4 +1,5 @@
 import {readBody} from './request-body.mjs'
+import {scheduleWorkosAudit} from './workos-audit-log.mjs'
 const encoder = new TextEncoder()
 const reply = (value, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } })
 const random = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
@@ -38,6 +39,7 @@ export async function manageInvitations(request, env, user, fetcher = fetch) {
     if (Object.keys(input).some(key => key !== 'id') || typeof input.id !== 'string' || !/^[0-9a-f-]{36}$/.test(input.id)) return reply({ error: 'invalid_request' }, 400)
     const result = await env.DB.prepare('UPDATE invitations SET revoked_at=? WHERE id=? AND redeemed_at IS NULL AND revoked_at IS NULL').bind(Date.now(), input.id).run()
     if (result.meta?.changes !== 1) return reply({ error: 'not_active' }, 409)
+    scheduleWorkosAudit(env, { action: 'egm.invitation.revoked', actorId: user.id, actorName: user.name, targetId: input.id, targetType: 'invitation' }, request)
     return reply({ ok: true })
   }
   if (url.pathname !== '/api/invitations' || Object.keys(input).some(key => !['kind', 'email', 'expiresInDays'].includes(key)) || !['link', 'email'].includes(input.kind) || ![1, 7, 30].includes(input.expiresInDays)) return reply({ error: 'invalid_request' }, 400)
@@ -66,9 +68,11 @@ export async function manageInvitations(request, env, user, fetcher = fetch) {
       if (typeof item.id !== 'string' || !item.id || item.id.length > 200) throw Error('delivery_unknown')
       const saved = await env.DB.prepare("UPDATE invitations SET provider_id=?,delivery_state='sent' WHERE id=? AND delivery_state='sending' AND redeemed_at IS NULL AND revoked_at IS NULL").bind(item.id, id).run()
       if (saved.meta?.changes !== 1) throw Error('delivery_unknown')
+      scheduleWorkosAudit(env, { action: 'egm.invitation.created', actorId: user.id, actorName: user.name, targetId: id, targetType: 'invitation', metadata: { kind: 'email', email } }, request)
       return reply({ id, expiresAt: new Date(expiresAt).toISOString(), deliveryState: 'sent' }, 201)
     } catch {
       try { await env.DB.prepare("UPDATE invitations SET delivery_state='unknown' WHERE id=? AND delivery_state='sending'").bind(id).run() } catch {}
+      scheduleWorkosAudit(env, { action: 'egm.invitation.created', actorId: user.id, actorName: user.name, targetId: id, targetType: 'invitation', metadata: { kind: 'email', email, delivery: 'unknown' } }, request)
       return reply({ id, error: 'email_delivery_unknown' }, 202)
     }
   }
@@ -78,6 +82,7 @@ export async function manageInvitations(request, env, user, fetcher = fetch) {
   } catch { return reply({ error: 'invitation_save_failed' }, 503) }
   const result = { id, expiresAt: new Date(expiresAt).toISOString() }
   if (input.kind === 'link') result.url = `${env.APP_URL}/auth/invite?invitation_token=${encodeURIComponent(token)}`
+  scheduleWorkosAudit(env, { action: 'egm.invitation.created', actorId: user.id, actorName: user.name, targetId: id, targetType: 'invitation', metadata: { kind: input.kind } }, request)
   return reply(result, 201)
 }
 

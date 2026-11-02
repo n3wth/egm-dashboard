@@ -23,8 +23,9 @@ test('errors are flagged and carry no output',()=>{
 test('posts to the allowed PostHog host and swallows failures',async()=>{
   let seen
   assert.equal(await captureAiGeneration(env,data,async(url,init)=>{seen={url,init};return new Response('',{status:200})}),true)
-  assert.equal(seen.url,'https://us.i.posthog.com/i/v0/e/');assert.equal(seen.init.redirect,'manual')
-  assert.equal(JSON.parse(seen.init.body).event,'$ai_generation')
+  assert.equal(seen.url,'https://us.i.posthog.com/i/v0/ai/batch/');assert.equal(seen.init.redirect,'manual')
+  const body=JSON.parse(seen.init.body)
+  assert.equal(body.batch[0].event,'$ai_generation');assert.equal(body.batch[0].distinct_id,'user_1');assert.equal(body.api_key,'phc_test')
   assert.equal(await captureAiGeneration(env,data,async()=>{throw Error('down')}),false)
 })
 test('does nothing without a token or on an unapproved host',async()=>{
@@ -32,4 +33,5 @@ test('does nothing without a token or on an unapproved host',async()=>{
   assert.equal(await captureAiGeneration({},data,never),false)
   assert.equal(await captureAiGeneration({...env,POSTHOG_HOST:'https://evil.example'},data,never),false)
   assert.equal(await captureAiGeneration({...env,POSTHOG_HOST:'http://us.i.posthog.com'},data,never),false)
+  assert.equal(await captureAiGeneration({...env,POSTHOG_HOST:'https://us.posthog.com'},data,async url=>{assert.equal(url,'https://us.i.posthog.com/i/v0/ai/batch/');return new Response('',{status:200})}),true)
 })
