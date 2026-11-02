@@ -1,5 +1,5 @@
 import React from 'react'
-import {Icon} from '../../data-app-public.jsx'
+import {Hint,Icon} from '../../data-app-public.jsx'
 import {engagementSignals} from './engagement-signals.mjs'
 
 const compact=new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1})
@@ -9,6 +9,6 @@ export function EngagementSignals({row}) {
   if(!signals.length)return null
   return <span style={{display:'inline-flex',alignItems:'center',flexWrap:'wrap',gap:12,color:'var(--secondary)'}}>{signals.map(signal=>{
     const title=`${signal.value.toLocaleString('en-US')} ${signal.label.toLowerCase()}. Observed ${new Date(signal.observedAt).toLocaleString('en-US',{timeZone:'America/Los_Angeles',timeZoneName:'short'})}${signal.source?' · '+signal.source:''}`
-    return <span key={signal.kind} title={title} aria-label={title} style={{display:'inline-flex',alignItems:'center',gap:4,fontVariantNumeric:'tabular-nums'}}>{paths[signal.kind]?<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[signal.kind]}/></svg>:<Icon name={signal.kind==='views'?'eye':signal.kind==='points'?'arrowUp':'chatBubble'} size={13}/>}<span>{compact.format(signal.value)}</span></span>
+    return <Hint key={signal.kind} title={title} aria-label={title} style={{display:'inline-flex',alignItems:'center',gap:4,fontVariantNumeric:'tabular-nums'}}>{paths[signal.kind]?<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[signal.kind]}/></svg>:<Icon name={signal.kind==='views'?'eye':signal.kind==='points'?'arrowUp':'chatBubble'} size={13}/>}<span>{compact.format(signal.value)}</span></Hint>
   })}</span>
 }

@@ -1,3 +1,4 @@
+import { Hint } from "../components/NavTooltip.jsx";
 import React from "react";
 import { usePlotArea } from "recharts";
 import { useChartText } from "./ChartAnnotations.jsx";
@@ -36,11 +37,10 @@ export function CategoryAxisTick({
     }
     const right = side === "right";
     return (
-      <text ref={measureFont} x={x + (right ? 9 : -9)} y={y + 4} fill={axisTextColor}
+      <Hint as="text" title={value} tabIndex={0} ref={measureFont} x={x + (right ? 9 : -9)} y={y + 4} fill={axisTextColor}
         textAnchor={right ? "start" : "end"} fontSize={axisTickFontSize}>
-        <title>{value}</title>
         {visible}
-      </text>
+      </Hint>
     );
   }
   if (layout === "date-time") {
@@ -49,24 +49,22 @@ export function CategoryAxisTick({
     const anchor = x - halfWidth < (plot?.x ?? 0) ? "start"
       : x + halfWidth > (plot?.x ?? 0) + (plot?.width ?? Infinity) ? "end" : "middle";
     return (
-      <text ref={measureFont} x={x} y={y + 11} fill={axisTextColor} textAnchor={anchor}
+      <Hint as="text" title={value} tabIndex={0} ref={measureFont} x={x} y={y + 11} fill={axisTextColor} textAnchor={anchor}
         fontSize={axisTickFontSize} data-axis-layout="date-time">
-        <title>{value}</title>
         <tspan x={x}>{date}</tspan>
         {time && <tspan x={x} dy={13}>{time}</tspan>}
-      </text>
+      </Hint>
     );
   }
   if (angled) {
     const visible = compactAxisCategory(value, capacity);
     const labelY = y + 11;
     return (
-      <text x={x} y={labelY} fill={axisTextColor} textAnchor="end"
+      <Hint as="text" title={value} tabIndex={0} x={x} y={labelY} fill={axisTextColor} textAnchor="end"
         fontSize={axisTickFontSize}
         transform={`rotate(${angle} ${x} ${labelY})`} data-axis-layout="angled">
-        <title>{value}</title>
         {visible}
-      </text>
+      </Hint>
     );
   }
   const lines = [];
@@ -78,15 +76,14 @@ export function CategoryAxisTick({
   const visible = lines.slice(0, 2).map((line) => (line.length > capacity ? `${line.slice(0, capacity - 1)}…` : line));
   if (lines.length > 2) visible[1] = `${visible[1].slice(0, Math.max(1, capacity - 1))}…`;
   return (
-    <text x={x} y={y + 11} fill={axisTextColor} textAnchor="middle"
+    <Hint as="text" title={value} tabIndex={0} x={x} y={y + 11} fill={axisTextColor} textAnchor="middle"
       fontSize={axisTickFontSize}
       data-axis-layout={visible.length > 1 ? "wrapped" : "horizontal"}>
-      <title>{value}</title>
       {visible.map((line, index) => (
         <tspan key={`${line}-${index}`} x={x} dy={index ? 13 : 0}>
           {line}
         </tspan>
       ))}
-    </text>
+    </Hint>
   );
 }

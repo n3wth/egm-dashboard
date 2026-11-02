@@ -1,3 +1,4 @@
+import { Hint } from '../../data-app-public.jsx'
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
@@ -23,7 +24,7 @@ export function AskCompletion({status}) { return <span role="status" className="
 function ObservedAt({value,dateOnly=false,bare=false}) {
   if(typeof value!=='string'||!Number.isFinite(Date.parse(value)))return null
   const options={month:'short',day:'numeric',...(dateOnly?{timeZone:'America/Los_Angeles'}:{hour:'numeric',minute:'2-digit'})}
-  return <time dateTime={value} title={value}>{bare?'':' · '}{dateOnly?new Date(value).toLocaleDateString('en-US',options):new Date(value).toLocaleString('en-US',options)}</time>
+  return <Hint as="time" dateTime={value} title={value}>{bare?'':' · '}{dateOnly?new Date(value).toLocaleDateString('en-US',options):new Date(value).toLocaleString('en-US',options)}</Hint>
 }
 
 // Ask primitives: every answer type composes these instead of adding one-off markup.
@@ -86,7 +87,7 @@ export function CopyButton({text}) {
   const [copied,setCopied]=useState(false)
   const [failed,setFailed]=useState(false)
   useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),1500);return ()=>clearTimeout(timer)},[copied])
-  return <><button type="button" onClick={async()=>{setFailed(false);try{await navigator.clipboard.writeText(text);setCopied(true)}catch{setCopied(false);setFailed(true)}}} aria-label={copied?'Copied':'Copy answer'} title={copied?'Copied':'Copy answer'}><Icon name={copied?'check':'copy'} size={16}/></button><span className={failed?'egm-copy-error':'egm-ask-live'} role="status">{failed?'Could not copy. Select the answer to copy it manually.':copied?'Answer copied.':''}</span></>
+  return <><Hint as="button" type="button" onClick={async()=>{setFailed(false);try{await navigator.clipboard.writeText(text);setCopied(true)}catch{setCopied(false);setFailed(true)}}} aria-label={copied?'Copied':'Copy answer'} title={copied?'Copied':'Copy answer'}><Icon name={copied?'check':'copy'} size={16}/></Hint><span className={failed?'egm-copy-error':'egm-ask-live'} role="status">{failed?'Could not copy. Select the answer to copy it manually.':copied?'Answer copied.':''}</span></>
 }
 
 function SourceRow({source,index,messageId}) {
@@ -176,7 +177,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   if(!open||!hosts)return null
   const submit=event=>{event.preventDefault();send(question)}
   const keyDown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing&&!coarsePointer()){event.preventDefault();send(question)}}
-  const action=busy?<button type="button" onClick={stop} aria-label="Stop generating" title="Stop generating"><Icon name="stop" size={18}/></button>:<button type="submit" aria-label="Send question" disabled={!question.trim()}><Icon name="sendUp" size={18}/></button>
+  const action=busy?<Hint as="button" type="button" onClick={stop} aria-label="Stop generating" title="Stop generating"><Icon name="stop" size={18}/></Hint>:<button type="submit" aria-label="Send question" disabled={!question.trim()}><Icon name="sendUp" size={18}/></button>
   const inline=<form className="egm-ask-inline" onSubmit={submit}>
     <Icon name="gemini" size={16}/><input ref={input} aria-label="Ask Gemini" value={question} onChange={event=>setQuestion(event.target.value)} maxLength={1200} placeholder="Ask about EGM…" enterKeyHint="send" required/>
     {action}<button type="button" aria-label="Close Ask Gemini" onClick={close}><Icon name="cross" size={16}/></button>
@@ -188,7 +189,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   const lastAssistantId=latest?.role==='assistant'?latest.id:null
   const starters=!question.trim()&&<AskStarters tabId={tabIdFromLocation(location.pathname,location.search)} onPick={starter=>{trackAskStarter(starter.id);send(starter.question)}}/>
   return <>
-    {createPortal(messages.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask Gemini" title="Close Ask Gemini"><Icon name="gemini" size={18}/></button>:<>{inline}{starters}</>,hosts.headerHost)}
+    {createPortal(messages.length?<Hint as="button" className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask Gemini" title="Close Ask Gemini"><Icon name="gemini" size={18}/></Hint>:<>{inline}{starters}</>,hosts.headerHost)}
     {messages.length>0&&createPortal(<section className="egm-ask-conversation" aria-label="Ask Gemini conversation">
       <div className="egm-ask-toolbar"><button className="egm-ask-new" type="button" onClick={()=>{stop();setStopped(new Set());setMessages([])}}><Icon name="plus" size={16}/>New chat</button></div>
       <span className="egm-ask-live" aria-live="polite">{statusNote(status,latest&&stopped.has(latest.id))}{status==='ready'&&latestResult?' Answer complete.':''}</span>
@@ -206,7 +207,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
             {text&&<AnswerBody text={text} result={result} messageId={message.id} streaming={streaming}/>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
             {typeof result?.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
-            {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={result?.coverageNote?`${text}\n\n${result.coverageNote}`:text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
+            {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={result?.coverageNote?`${text}\n\n${result.coverageNote}`:text}/>{message.id===lastAssistantId&&!busy&&<Hint as="button" type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></Hint>}</div>}
             {result&&<SourceList sources={result.sources} messageId={message.id}/>}
           </div>
         })())}

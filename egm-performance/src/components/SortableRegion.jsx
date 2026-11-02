@@ -1,3 +1,4 @@
+import { Hint } from './NavTooltip.jsx'
 import React, {
   Children, createContext, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState,
 } from "react";
@@ -757,7 +758,7 @@ export function SortableItem({
       onKeyDown={(event) => region.handleKeyDown(event, id)}>
       Move {label}
     </button>}
-    {resizable && !locked && <button type="button" className="block-resize-boundary"
+    {resizable && !locked && <Hint as="button" type="button" className="block-resize-boundary"
       data-block-resize-handle="true" data-resize-neighbor={resizeNeighborId}
       aria-label={`Resize ${label}${resizeNeighborLabel ? ` and ${resizeNeighborLabel}` : ""}`} role="separator"
       title={`Drag to resize (${Math.round(resizeRange.minimum / resizeRange.columns * 100)}–${Math.round(resizeRange.maximum / resizeRange.columns * 100)}%)`}

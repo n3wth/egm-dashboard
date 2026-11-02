@@ -42,7 +42,7 @@
 .egm-page-footer-label { font-size: 12px; line-height: 1.4; }
 .egm-page-footer-title { color: var(--text); font-size: 15px; font-weight: 500; line-height: 1.4; }
 .egm-page-footer-summary { overflow: hidden; color: var(--secondary); font-size: 13px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
-.egm-site-footer { display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-top:var(--space-6);padding-top:var(--space-5);border-top:1px solid var(--border);color:var(--secondary);font-size:var(--text-xs-size);line-height:1.5; }
+.egm-site-footer { display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;margin-top:48px;padding-top:var(--space-4);border-top:1px solid var(--border);color:var(--secondary);font-size:var(--text-xs-size);line-height:1.5; }
 .egm-site-footer>div,.egm-site-footer nav { display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap; }
 .egm-site-footer-name { color:var(--text);font-weight:500; }
 .egm-site-footer a { display:inline-flex;align-items:center;gap:var(--space-1);min-height:32px;color:var(--secondary);text-decoration:none; }
@@ -54,8 +54,10 @@
   .egm-page-footer-link { gap: 8px; padding: 12px; }
   .egm-page-footer-summary { display: none; }
 }
-.egm-collection-status { margin: 28px 0 0; }
-.egm-collection-status summary { display: flex; align-items: baseline; gap: var(--space-3); width: fit-content; max-width: 100%; cursor: pointer; font-size: var(--egm-text-label); line-height: 1.4; }
+.egm-collection-status { margin: 0;flex-basis:100%; }
+.egm-collection-status summary { display: flex; align-items: baseline; flex-wrap:wrap; gap:4px var(--space-3); width: fit-content; max-width: 100%; min-height:32px;cursor: pointer; font-size: var(--text-xs-size); line-height: 1.4; }
+.egm-collection-status summary::after{content:'+';color:var(--secondary)}
+.egm-collection-status[open] summary::after{content:'−'}
 .egm-collection-status summary:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-collection-title { color: var(--text); font-weight: 500; }
 .egm-collection-summary { color: var(--secondary); }
@@ -73,7 +75,7 @@
 .egm-metric-sparkline { width: 70px; height: 30px; flex-shrink: 0; }
 .egm-metric-secondary { margin: 0; color: var(--secondary); font-size: var(--text-xs-size); line-height: 1.5; }
 .egm-metric-secondary strong { font-weight: 500; color: var(--text); }
-.egm-metric-weekly { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.egm-metric-weekly { display: flex; flex-wrap: nowrap; align-items: center; justify-content:space-between;gap:8px;white-space:nowrap; }
 .egm-delta { display: inline-flex; align-items: center; gap: 2px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .egm-delta--up { color: var(--movement-positive); }
 .egm-delta--down { color: var(--movement-negative); }
@@ -119,7 +121,15 @@
 .egm-dash-hero-note { color: var(--secondary); font-size: var(--text-xs-size); font-weight: 400; line-height: 16px; }
 .egm-dash-hero-headline { margin: 8px 0 0; max-width: 72ch; color: var(--text); font-size: var(--text-lg-size); font-weight: 400; line-height: 28px; }
 .egm-dash-hero-facts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 12px 0 0; padding: 0; list-style: none; }
-.egm-dash-hero-facts li { padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: var(--egm-text-label); font-weight: 400; line-height: 20px; font-variant-numeric: tabular-nums; }
+.egm-dash-hero-facts li { padding:0; color:var(--secondary);font-size:var(--text-sm-size);font-weight:400;line-height:1.6; }
+.egm-dash-hero-facts {display:grid;gap:4px}
+.egm-reporting-details{margin-top:12px;color:var(--secondary);font-size:var(--text-xs-size)}
+.egm-reporting-details summary{cursor:pointer;width:fit-content;min-height:24px}
+.egm-reporting-details summary:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.egm-summary-notes-link{display:inline-block;margin-top:8px;color:var(--secondary);font-size:var(--text-xs-size);text-underline-offset:3px}
+.egm-page-notes{margin-top:40px;color:var(--secondary);font-size:var(--text-xs-size);line-height:1.6;scroll-margin-top:80px}
+.egm-page-notes h2{margin:0 0 8px;color:var(--text);font-size:var(--text-sm-size);font-weight:500}
+.egm-page-notes ol{margin:0;padding-left:18px;display:grid;gap:6px;max-width:100ch}
 .egm-development-grid .egm-block--metric > .dashboard-component[data-component-kind="metric"] { min-height: 112px; gap: var(--space-2); }
 .egm-development-grid .egm-block--metric > .dashboard-component[data-component-kind="metric"] > .component-header { min-height: 24px; }
 .egm-development-grid .egm-metric-reading { min-height: 40px; }

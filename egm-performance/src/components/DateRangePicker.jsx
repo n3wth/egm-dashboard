@@ -1,3 +1,4 @@
+import { Hint } from './NavTooltip.jsx'
 import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
 import React, { useMemo, useState } from "react";
 
@@ -118,7 +119,7 @@ export function DateRangePicker({ label = "Date range", value, choices: availabl
     <span className="date-range-host">
     <DropdownPrimitive.Trigger className="filter-trigger date-range-trigger" aria-label={label} disabled={disabled} {...release}>
       <span className="filter-label">{label}</span>
-      <span title={formatChoice(value)}>{preset?.label ?? formatChoice(value)}</span><Icon name="chevronDown" className="chevron" />
+      <Hint as="span" title={formatChoice(value)}>{preset?.label ?? formatChoice(value)}</Hint><Icon name="chevronDown" className="chevron" />
     </DropdownPrimitive.Trigger>
     <select className="date-range-native-select" aria-label={label} disabled={disabled} defaultValue=""
       onChange={chooseNativeRange}

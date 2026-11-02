@@ -44,6 +44,8 @@ test('complete refresh reconciles traffic and writes once with fresh provenance'
   assert.equal(saved.queries.traffic.rows.reduce((s,r)=>s+r.views,0),saved.queries.reach.rows[0].views)
   assert.equal(saved.queries.star_history.rows.at(-1).stars,repo.stargazers_count)
   assert.equal(saved.queries.reach.source.executedAt,saved.generatedAt)
+  assert.deepEqual(saved.queries.maintenance_history.rows.map(({date,observedAt,...row})=>row),saved.queries.maintenance.rows)
+  assert.equal(saved.queries.maintenance_history.source.executedAt,saved.generatedAt)
   assert.equal(saved.id,'dashboard:92f69d5e-0c66-4fc5-be7d-2e5465004e2f')
   const staged=await refreshSnapshot(env,request,async()=>({}),{persist:false})
   assert.equal(writes,1)

@@ -1,7 +1,7 @@
 import {percentage} from './percentage.mjs'
 import {isSearchVideo} from './referrer-channels.mjs'
 import React,{useState} from 'react'
-import {Button,DataComponent,DataTable,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
+import {Button,DataComponent,DataTable,Hint,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
 import {researchProposal} from './research-insights.js'
 import {backlinkPages} from './backlink-pages.js'
 import {PageSummary} from './PageSummary.jsx'
@@ -31,12 +31,12 @@ const focusText=value=>{
   if(!value) return '—'
   const first=String(value).trim().match(/^.*?[.!?](?=\s|$)/)?.[0]??String(value).trim()
   const concise=first.length>140?first.slice(0,137).replace(/\s+\S*$/,'')+'…':first
-  return <span className="egm-research-description" title={value}>{concise}</span>
+  return <Hint className="egm-research-description" title={value}>{concise}</Hint>
 }
 const yesNo=value=>value?'Found':'Not matched'
 const hostnameOf=value=>{try{return new URL(value).hostname}catch{return String(value??'')}}
-const readmeMatch=value=><span className="egm-research-match" role="img" aria-label={value?'Matched in README':'Not matched in README'} title={value?'Matched in README':'Not matched in README'}>{value?<Icon name="check" size={16}/>:<span aria-hidden="true">−</span>}</span>
-const observedGrowth=(value,row)=>value==null?<span title={`Monitoring baseline${row.baselineAt?`: ${row.baselineAt}`:''}`} aria-label="Monitoring baseline">—</span>:`${value>=0?'+':''}${value.toLocaleString('en-US')}`
+const readmeMatch=value=><Hint className="egm-research-match" role="img" aria-label={value?'Matched in README':'Not matched in README'} title={value?'Matched in README':'Not matched in README'}>{value?<Icon name="check" size={16}/>:<span aria-hidden="true">−</span>}</Hint>
+const observedGrowth=(value,row)=>value==null?<Hint title={`Monitoring baseline${row.baselineAt?`: ${row.baselineAt}`:''}`} aria-label="Monitoring baseline">—</Hint>:`${value>=0?'+':''}${value.toLocaleString('en-US')}`
 const starCount=value=>typeof value==='number'?(Math.abs(value)>=1000?`${(value/1000).toFixed(1)}K`:value.toLocaleString('en-US')):'—'
 const seoLabels={domain:'Domain',keyword:'Keyword',position:'Position',search_volume:'Search volume',traffic:'Estimated traffic',organic_keywords:'Organic keywords',organic_traffic:'Estimated organic traffic',organic_cost:'Estimated organic traffic value',adwords_keywords:'Paid keywords',adwords_traffic:'Estimated paid traffic',backlinks:'Backlinks',total:'Total',referring_domains:'Referring domains',referring_ips:'Referring IPs',common_keywords:'Shared keywords',competition_level:'Competition level',url:'URL'}
 const seoColumn=field=>({field,label:seoLabels[field]??field.replaceAll('_',' ').replace(/^./,s=>s.toUpperCase()),...(['keyword','url','domain'].includes(field)?{renderCell:wrappedText}:{})})
@@ -143,16 +143,16 @@ export function Research() {
   const recommendationIcons={'First-run discovery':'arrowUpRight','Show the workflow':'monitor','Channel concentration':'link','Follow observed content interest':'textDocument'}
   return <>
     <PageSummary page="research" queries={queries}/>
-    <Section id="research-peers" spacing="none">
+    <Section title="Gaps and experiments" id="research-opportunities" spacing="none">
+      <DataComponent id="research-opportunity-list" queryId="peers" queryIds={opportunityQueryIds} title="Opportunities to test" kind="custom" variant="card" displayRows={suggestions} sourceRowsByQuery={opportunitySourceRows}>
+        <div className="egm-opportunities">{!suggestions.length&&<EmptyState title="No experiments to suggest yet">Suggestions appear once peer, referral, or page data is collected.</EmptyState>}{suggestions.map(item=><div key={item.title}><h3 className="egm-recommendation-title"><Icon name={recommendationIcons[item.title]} size={20}/>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} {safeExternalUrl(item.source)&&<Hint as="a" className="egm-evidence-link" href={safeExternalUrl(item.source)} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></Hint>}</p></div>)}</div>
+      </DataComponent>
+    </Section>
+    <Section id="research-peers">
       <DataComponent id="research-peer-table" queryId="peers" title="Reach and first-run discovery" kind="table" variant="card" displayRows={peers} sourceRows={peers}>
         <CollectedAt query={queries.peers}/>
         <DataTable rows={peers} searchable={false} label="Comparable repo signals" columns={[{field:'repo',label:'Repo',renderCell:repoLink},{field:'stars',label:'Stars',renderCell:starCount},{field:'observedDelta',label:'Since monitoring',renderCell:observedGrowth},{field:'quickStart',label:'Quick start',renderCell:readmeMatch},{field:'demo',label:'Demo',renderCell:readmeMatch}]} />
         <p className="egm-note">Growth since monitoring began.</p>
-      </DataComponent>
-    </Section>
-    <Section title="Gaps and experiments" id="research-opportunities">
-      <DataComponent id="research-opportunity-list" queryId="peers" queryIds={opportunityQueryIds} title="Opportunities to test" kind="custom" variant="card" displayRows={suggestions} sourceRowsByQuery={opportunitySourceRows}>
-        <div className="egm-opportunities">{!suggestions.length&&<EmptyState title="No experiments to suggest yet">Suggestions appear once peer, referral, or page data is collected.</EmptyState>}{suggestions.map(item=><div key={item.title}><h3 className="egm-recommendation-title"><Icon name={recommendationIcons[item.title]} size={20}/>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} {safeExternalUrl(item.source)&&<a className="egm-evidence-link" href={safeExternalUrl(item.source)} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></a>}</p></div>)}</div>
       </DataComponent>
     </Section>
     <DiscussionSignals queries={queries}/>

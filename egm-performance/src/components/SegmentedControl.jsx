@@ -29,13 +29,14 @@ export function SegmentedControl({
     data-full-width={fullWidth || undefined} data-disabled={disabled || undefined}>
     {options.map((source, index) => {
       const option = normalizeOption(source);
-      const tooltipId = option.tooltip ? `${tooltipBaseId}-${index}` : undefined;
+      const tooltip = option.tooltip ?? option.title;
+      const tooltipId = tooltip ? `${tooltipBaseId}-${index}` : undefined;
       const selected = multiple
         ? selectedValues.some((selectedValue) => Object.is(selectedValue, option.value))
         : Object.is(option.value, value);
       return <button key={option.value} type="button" className="data-segmented-control-button"
         aria-pressed={selected} aria-label={option.ariaLabel}
-        aria-describedby={tooltipId} title={option.tooltip ? undefined : option.title}
+        aria-describedby={tooltipId}
         disabled={disabled || option.disabled}
         onClick={() => onChange?.(multiple
           ? selected
@@ -44,8 +45,8 @@ export function SegmentedControl({
           : option.value)}>
         {typeof option.label === "string" || typeof option.label === "number"
           ? <TruncatedText className="data-segmented-control-label">{option.label}</TruncatedText> : option.label}
-        {option.tooltip && <Tooltip id={tooltipId}
-          className="data-segmented-control-tooltip">{option.tooltip}</Tooltip>}
+        {tooltip && <Tooltip id={tooltipId}
+          className="data-segmented-control-tooltip">{tooltip}</Tooltip>}
       </button>;
     })}
   </div>;

@@ -1,9 +1,11 @@
-.dialog.egm-manage-users{width:min(560px,100%)}
+.dialog.egm-manage-users{width:min(640px,100%)}
+.egm-manage-users .dialog-header{padding-bottom:20px}
+.egm-manage-users .egm-field{min-height:40px;padding:8px 12px}
 .egm-manage-users h3,.egm-manage-users p{margin:0}
 .egm-manage-users h3{font-size: var(--text-sm-size);font-weight:600;line-height:1.4}
 .egm-manage-users p,.egm-manage-users li span,.egm-manage-section-heading span{color:var(--secondary);font-size: var(--egm-text-label);line-height:1.55}
 .egm-invite-panel{display:grid;gap: var(--space-3);padding:0 0 20px;border-bottom:1px solid var(--border)}
-.egm-invite-panel h3+p{margin-top:5px}
+.egm-invite-panel h3+p{margin-top:4px;max-width:48ch}
 .egm-expiry-control{display:flex;align-items:center;gap: var(--space-2);color:var(--secondary);font-size: var(--egm-text-label)}
 .egm-expiry-trigger{min-width:104px;justify-content:space-between;gap:12px}
 .egm-expiry-trigger svg{color:var(--secondary)}
@@ -16,9 +18,11 @@
 .egm-invite-created button{align-self:end}
 .egm-invite-created p{grid-column:1 / -1}
 .egm-manage-users .egm-manage-message{padding:10px 12px;border:1px solid var(--border-strong);border-radius: var(--control-radius);color:var(--text)}
+.egm-manage-users .egm-manage-message[role="status"]{padding:6px 0;border:0;color:var(--secondary);font-size:var(--text-xs-size)}
 .egm-manage-section{padding-top:18px}
 .egm-manage-section+.egm-manage-section{margin-top:6px;border-top:1px solid var(--border)}
 .egm-manage-section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.egm-manage-section-heading h3 span{font-weight:400;margin-left:4px}
 .egm-manage-users ul{list-style:none;padding:0;margin:8px 0 0}
 .egm-manage-users li{display:flex;align-items:center;justify-content:space-between;gap: var(--space-3);padding:10px 12px;margin-inline:-12px;border-bottom:1px solid var(--border)}
 .egm-manage-users li:hover{background:var(--interaction-hover)}
@@ -32,8 +36,10 @@
 .egm-user-avatar img{width:100%;height:100%;object-fit:cover}
 .egm-manage-users li strong{font-size: var(--text-sm-size);font-weight:600}
 .egm-user-status{flex-shrink:0}
+.egm-manage-users .egm-invite-options .button{min-height:36px;padding:6px 10px}
 .egm-access-actions{display:flex;gap: var(--space-2);flex-shrink:0}
 @media(max-width:480px){.egm-invite-email,.egm-invite-created{grid-template-columns:minmax(0,1fr)}.egm-invite-created button{align-self:auto;justify-self:start}.egm-invite-created p{grid-column:auto}.egm-manage-users li:has(.egm-access-actions .button+.button){align-items:flex-start;flex-direction:column;gap:10px}.egm-manage-users .egm-access-actions .button{min-height:44px}}
 .egm-manage-users .egm-manage-message{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
 .egm-manage-users .egm-manage-message p{min-width:0;color:var(--text);overflow-wrap:anywhere}
 .egm-manage-users .egm-empty{padding:20px 8px}
+@media(max-width:480px){.egm-manage-users .egm-field{min-height:44px}.egm-manage-users .egm-invite-options .button{min-height:44px}}
