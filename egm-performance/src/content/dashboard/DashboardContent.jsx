@@ -168,17 +168,17 @@ function AcrossEgm({queries,reach,web}) {
 }
 export function DashboardContent() {
   const {snapshot} = useDataApp()
-  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/><SiteFooter generatedAt={snapshot?.generatedAt} refreshStatus={snapshot?.refreshStatus}/></>
+  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/></>
 }
 function DashboardTab() {
-  const {appTitle,setAppTitle,queries} = useDataApp()
+  const {appTitle,setAppTitle,queries,snapshot} = useDataApp()
   useEffect(() => {
     if (appTitle === 'EGM performance') setAppTitle('EGM Growth Dashboard')
   }, [appTitle,setAppTitle])
   const {activeTabId} = useDashboardTabs(tabs)
   useEffect(() => { trackDashboardSection(activeTabId) }, [activeTabId])
   const summary=analysisSummary(activeTabId==='reach'?overviewSummary(queries):pageSummary(activeTabId,queries),queries,activeTabId==='reach'?'overview':activeTabId)
-  return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol></section>}</>
+  return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol></section>}<SiteFooter generatedAt={snapshot?.generatedAt} refreshStatus={snapshot?.refreshStatus} summary={summary}/></>
 }
 function TabPage({activeTabId}) {
   const {queries} = useDataApp()

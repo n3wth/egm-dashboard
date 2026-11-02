@@ -78,7 +78,7 @@ test('observed star fallback and Adoption present the supported measurements',as
       assert.match(html,/The latest sampled week lost stars/)
       assert.match(html,/-35 net stars vs 70 across the prior seven sampling intervals/)
       assert.deepEqual(new Set(html.match(/data-query-ids="([^"]+)"/)?.[1].split(' ')),new Set(['reach','star_observations','traffic','referrers']))
-      assert.match(html,/Notes and reporting period/)
+      assert.doesNotMatch(html,/Notes and reporting period/,'reporting details live in the footer')
       assert.doesNotMatch(html,/weekly star momentum is unavailable|new stars Oct/)
     })
 
@@ -86,10 +86,14 @@ test('observed star fallback and Adoption present the supported measurements',as
       const snapshot=makeSnapshot()
       snapshot.queries.star_observations.rows=[observationRows[0],observationRows[2]]
       const html=render(snapshot,React.createElement(OverviewSummary,{queries:snapshot.queries}))
-      assert.match(html,/Star totals rose between observations/)
-      assert.match(html,/20 net stars · samples dated Oct 15–Oct 17/)
+      assert.match(html,/EGM added 20 stars over 2 days/)
+      assert.match(html,/10k total stars/)
       assert.deepEqual(new Set(html.match(/data-query-ids="([^"]+)"/)?.[1].split(' ')),new Set(['reach','star_observations','traffic','referrers']))
       assert.doesNotMatch(html,/latest seven daily-snapshot intervals|the prior week/)
+      snapshot.queries.star_observations.rows[1].stars=980
+      assert.match(render(snapshot,React.createElement(OverviewSummary,{queries:snapshot.queries})),/EGM lost 20 stars over 2 days/)
+      snapshot.queries.star_observations.rows[1].stars=1000
+      assert.match(render(snapshot,React.createElement(OverviewSummary,{queries:snapshot.queries})),/star count held steady over 2 days/)
     })
 
     await t.test('Adoption separates measurement gaps from package downloads without mutating reviewed assets',()=>{

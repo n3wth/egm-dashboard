@@ -110,8 +110,10 @@ export function overviewSummary(queries={}) {
     displayFacts.push(`${compact(observedWeekly.current)} net stars vs ${compact(observedWeekly.previous)} across the prior seven sampling intervals.`)
   } else if(stars&&observedRows.length>=2) {
     const first=observedRows[0],last=observedRows.at(-1),change=last.stars-first.stars
-    displayHeadline=`Star totals ${change>0?'rose':change<0?'fell':'held steady'} between observations.`
-    displayFacts.push(`${compact(change)} net stars · samples dated ${shortDate(first.date)}–${shortDate(last.date)}. Daily history is still building.`)
+    const days=(Date.parse(last.observedAt)-Date.parse(first.observedAt))/86400000
+    const period=Number.isFinite(days)&&days>0?days<1?'in under a day':days>=5&&days<7?'in under a week':`over ${Math.ceil(days)} days`:`from ${shortDate(first.date)} to ${shortDate(last.date)}`
+    displayHeadline=change===0?`EGM’s star count held steady ${period}.`:`EGM ${change>0?'added':'lost'} ${compact(Math.abs(change))} stars ${period}.`
+    displayFacts.push(`${compact(reach.stars)} total stars`)
   } else if(stars) {
     displayHeadline=staleHistory?'Weekly star momentum is not available yet.':`EGM has ${reach.stars>=1000?'about ':''}${compact(reach.stars)} recorded stars.`
     if(staleHistory)displayFacts.push(`${compact(reach.stars)} recorded stars`)
@@ -124,5 +126,5 @@ export function overviewSummary(queries={}) {
     else if(count(reach?.views))displayHeadline=`GitHub recorded ${compact(reach.views)} repo views.`
     else {const video=(queries.youtube_videos?.rows??[]).filter(row=>count(row.views)).sort((a,b)=>b.views-a.views)[0];if(video)displayHeadline=`The leading recorded video has ${compact(video.views)} views.`}
   }
-  return {sentences,queryIds:[...ids],headline:displayHeadline,facts:displayFacts.slice(0,1),notes:[...sentences,...displayFacts.slice(1)],range:reportingRange(queries)}
+  return {sentences,queryIds:[...ids],headline:displayHeadline,facts:stars&&observedRows.length>=2&&!observedWeekly?[displayFacts.join(' · ')]:displayFacts.slice(0,1),notes:[...sentences,...displayFacts.slice(1)],range:reportingRange(queries)}
 }
