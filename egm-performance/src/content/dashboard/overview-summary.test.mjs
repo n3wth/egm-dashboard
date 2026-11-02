@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {overviewSummary,reportingRangeLabel,pacificReportingRangeLabel} from './overview-summary.mjs'
+import {overviewSummary,reportingRangeLabel,pacificReportingRangeLabel,trafficCoverageNote} from './overview-summary.mjs'
 
 test('uses exact recorded traffic and distinct referral denominators',()=>{
   const summary=overviewSummary({reach:{rows:[{stars:3624,views:29252}]},traffic:{rows:[{date:'2026-10-23',views:3406},{date:'2026-10-24',views:6000},{date:'2026-10-25',views:8000},{date:'2026-10-26',views:11846}]},referrers:{rows:[{referrer:'Google',count:5481},{referrer:'youtube.com',count:3313},{referrer:'other',count:4970}]}})
@@ -39,6 +39,14 @@ test('incomplete traffic omits the burst percentage',()=>{
 
 const history=Array.from({length:16},(_,index)=>({date:new Date(Date.UTC(2026,9,12+index)).toISOString().slice(0,10),stars:index<=7?100+index*10:170+(index-7)*20}))
 const starQuery={rows:history,source:{executedAt:'2026-10-28T02:00:00Z',caveats:[]}}
+
+test('traffic coverage distinguishes reported UTC days from the actual Pacific collection time',()=>{
+  const queries={traffic:{rows:[{date:'2026-10-30'},{date:'2026-10-31'}],source:{executedAt:'2026-11-02T08:49:00Z'}}}
+  assert.equal(trafficCoverageNote(queries),'Traffic available through Oct 31 (UTC source day). Collected Nov 2, 2026, 12:49 AM PST; newer days were not included in GitHub’s response.')
+  assert.equal(trafficCoverageNote({...queries,traffic:{...queries.traffic,source:{executedAt:'2026-10-31T12:00:00Z'}}}),null)
+  for(const executedAt of [null,undefined,'invalid'])assert.equal(trafficCoverageNote({traffic:{...queries.traffic,source:{executedAt}}}),null)
+  assert.equal(trafficCoverageNote({traffic:{rows:[{date:'2026-02-30'}],source:queries.traffic.source}}),null)
+})
 
 test('leads with comparable complete Pacific weeks and arithmetic distance to the team target',()=>{
   const summary=overviewSummary({reach:{rows:[{stars:330}]},star_history:starQuery})

@@ -10,9 +10,20 @@ function fixture() {
   const db = new DatabaseSync(':memory:')
   db.exec('CREATE TABLE snapshots(id INTEGER PRIMARY KEY,body TEXT NOT NULL,generated_at TEXT NOT NULL)')
   db.exec(readFileSync(new URL('./refresh-runner-schema.sql', import.meta.url), 'utf8'))
+  db.exec(readFileSync(new URL('./github-history-schema.sql', import.meta.url), 'utf8'))
   const previous = { generatedAt: '2026-10-27T00:00:00Z', queries: { traffic: { rows: [{ date: '2026-10-26', views: 10 }] }, seo_keywords: { rows: [{ keyword: 'prior' }] }, semrush_status: { rows: [{ status: 'available' }] } } }
   db.prepare('INSERT INTO snapshots VALUES(1,?,?)').run(JSON.stringify(previous), previous.generatedAt)
-  const DB = { prepare(sql) { return { bind(...args) { return { async first() { return db.prepare(sql).get(...args) ?? null }, async run() { return db.prepare(sql).run(...args) } } }, async first() { return db.prepare(sql).get() ?? null } } } }
+  const DB = {
+    prepare(sql) { return { bind(...args) { return { sql,args,async first() { return db.prepare(sql).get(...args) ?? null }, async run() { return db.prepare(sql).run(...args) } } }, async first() { return db.prepare(sql).get() ?? null } } },
+    async batch(statements) {
+      db.exec('BEGIN')
+      try {
+        const results=statements.map(({sql,args})=>({results:db.prepare(sql).all(...args),success:true}))
+        db.exec('COMMIT')
+        return results
+      } catch(error) { db.exec('ROLLBACK');throw error }
+    }
+  }
   return { db, previous, env: { DB, REFRESH_UNTIL: '2026-11-04T06:33:00Z' } }
 }
 const noRequest = () => { throw Error('network not expected') }
@@ -88,8 +99,9 @@ test('transition preserves prior site data, honors both legacy attempts, and kee
   })
   const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
   assert.equal(result.youtubeComments, 'checked')
-  assert.equal(saved.githubHistory.daily.traffic.find(row=>row.date==='2026-10-26').views,10)
-  assert.ok(saved.githubHistory.daily.traffic.some(row=>row.date==='2026-10-13'),'recover reviewed seed history before the live window')
+  assert.equal(saved.githubHistory,undefined)
+  assert.equal(JSON.parse(f.db.prepare("SELECT body FROM github_daily_history WHERE query_id='traffic' AND date='2026-10-26'").get().body).views,11813,'newer reviewed seed observation supersedes this older fixture')
+  assert.ok(f.db.prepare("SELECT 1 FROM github_daily_history WHERE query_id='traffic' AND date='2026-10-13'").get(),'recover reviewed seed history before the live window')
   assert.deepEqual(saved.queries.site_performance, legacy)
   assert.equal(saved.queries.youtube_comments.rows[0].videoId, 'fixture')
   assert.equal(saved.queries.web_pagespeed_status.rows[0].nextAttemptAt, new Date(baseTime + 23 * 3600000).toISOString())
@@ -246,6 +258,42 @@ test('failed final publication leaves the entire prior snapshot and budget intac
   }), /storage unavailable/)
   assert.deepEqual(JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body), f.previous)
   assert.equal(f.db.prepare('SELECT lease_id FROM refresh_control').get().lease_id, null)
+})
+
+test('archive failure rolls back the runner snapshot and releases its lease',async()=>{
+  const f=fixture()
+  f.db.exec("CREATE TRIGGER reject_archive BEFORE INSERT ON github_window_history BEGIN SELECT RAISE(ABORT,'archive unavailable'); END")
+  await assert.rejects(runRefresh(f.env,noRequest,{now:()=>baseTime,github:async()=>({status:'refreshed',snapshot:f.previous})}),/archive unavailable/)
+  assert.deepEqual(JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body),f.previous)
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM github_daily_history').get().n,0)
+  assert.equal(f.db.prepare('SELECT lease_id FROM refresh_control').get().lease_id,null)
+})
+
+test('lost lease cannot publish a snapshot or archive its staged rows',async()=>{
+  const f=fixture()
+  const result=await runRefresh(f.env,noRequest,{now:()=>baseTime,github:async()=>{
+    f.db.prepare("UPDATE refresh_control SET lease_id='replacement' WHERE id=1").run()
+    return {status:'refreshed',snapshot:{...f.previous,queries:{traffic:{rows:[{date:'2026-10-27',views:999}]}}}}
+  }})
+  assert.equal(result.reason,'lease_lost_or_newer_snapshot')
+  assert.deepEqual(JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body),f.previous)
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM github_daily_history').get().n,0)
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM github_window_history').get().n,0)
+  assert.equal(f.db.prepare('SELECT lease_id FROM refresh_control').get().lease_id,'replacement')
+})
+
+test('a newer snapshot wins without accepting the older runner archive',async()=>{
+  const f=fixture()
+  const newer={...f.previous,generatedAt:new Date(baseTime+1).toISOString(),title:'newer committed result'}
+  const result=await runRefresh(f.env,noRequest,{now:()=>baseTime,github:async()=>{
+    f.db.prepare('UPDATE snapshots SET body=?,generated_at=? WHERE id=1').run(JSON.stringify(newer),newer.generatedAt)
+    return {status:'refreshed',snapshot:f.previous}
+  }})
+  assert.equal(result.reason,'lease_lost_or_newer_snapshot')
+  assert.deepEqual(JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body),newer)
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM github_daily_history').get().n,0)
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM github_window_history').get().n,0)
+  assert.equal(f.db.prepare('SELECT lease_id FROM refresh_control').get().lease_id,null)
 })
 
 test('failed bootstrap skips paid collectors without discarding unpersistable budgets', async () => {

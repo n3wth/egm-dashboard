@@ -71,4 +71,4 @@ Not done here because they need protected, Worker or product decisions:
 - **A real error screen** for a failed snapshot fetch, with a retry button and a link to the Feedback flow (protected bootstrap).
 - **Labelled tabs on wide screens, or a scroll cue on mobile** in the topbar (protected chrome).
 - **Fix the dev-only deep-link redirect** caused by StrictMode double registration in `registerDashboardTabs` (protected shell).
-- **Longer history.** GitHub's 14-day traffic window limits every trend; storing daily traffic in D1 would allow 30- and 90-day ranges and a real time-range filter.
+- **Longer chart ranges.** Daily traffic and overlapping query observations are now retained in normalized D1 archive tables without expiry. The dashboard still shows current-window queries; a bounded historical read and range control would expose older retained dates without sending the entire archive to each viewer.

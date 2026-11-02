@@ -25,3 +25,6 @@ test('health requires recent successful data and no exhausted budget',()=>{
   assert.equal(collectionSummary([{...source,reason:'monthly_cap'}],null,now).healthy,0)
   assert.match(formatObservedAt(source.lastSuccessAt),/PST/)
 })
+test('unknown observation timestamps do not become epoch dates',()=>{
+  for(const value of [null,undefined,'','   ',0,false,'not a timestamp'])assert.equal(formatObservedAt(value),null)
+})

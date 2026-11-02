@@ -276,6 +276,19 @@ test('prompt requires neutral verbs and measurable experiment criteria',async()=
   assert.match(system,/never drove, caused, led to or resulted in/)
   assert.match(system,/current cited value as the baseline, the observation window/)
   assert.match(system,/rolling 14-day window/)
+  assert.match(system,/observedAt is the collection time; coverage gives the period measured and may end earlier/)
+  assert.match(system,/state material coverage gaps, lag dates or stale source dates when they change the answer/)
+  assert.doesNotMatch(system,/do not print record dates because/)
+})
+test('Ask retains source coverage separately from collection freshness for undated referral rows',()=>{
+  const source={label:'GitHub referrers',executedAt:'2026-11-02T08:31:00Z',coverage:{startDate:'2026-10-18',endDate:'2026-10-31',apiToken:'not-for-context'}}
+  const context=askContext({queries:{referrers:{rows:[{referrer:'Google',count:123}],source}}},'Latest referrals?')
+  const coverage={startDate:'2026-10-18',endDate:'2026-10-31'}
+  assert.equal(context.records[0].observedAt,source.executedAt)
+  assert.deepEqual(context.records[0].coverage,coverage)
+  assert.deepEqual(context.sources[0].coverage,coverage)
+  assert.equal(source.coverage.apiToken,'not-for-context','source metadata is not mutated')
+  assert.equal(askContext({queries:{referrers:{rows:[]}}},'referrers').records[0].coverage,null)
 })
 test('summed unique counts are detected per sentence',()=>{
   assert.equal(summedUniques('LinkedIn sent 2,507 unique visitors (1,718 + 789) [S1].'),true)

@@ -1,5 +1,6 @@
 import { refreshSnapshot } from './refresh.mjs'
 import { retainGithubHistory } from './github-history.mjs'
+import { archiveStatements } from './github-history-storage.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 import { collectSemrush } from './semrush.mjs'
 import { collectMentions } from './mentions.mjs'
@@ -64,7 +65,8 @@ export async function runRefresh(env, request = fetch, services = {}) {
       return { ...state, reason: 'no_base_snapshot' }
     }
     const merged = { ...latest, queries: { ...previous.queries, ...latest.queries } }
-    merged.githubHistory=retainGithubHistory(previous.githubHistory?previous:{...previous,githubHistory:retainGithubHistory({},seed)},latest)
+    const archivePrevious=previous.githubHistory?previous:{...previous,githubHistory:retainGithubHistory({},seed)}
+    delete merged.githubHistory
     const oldQueries = previous.queries ?? {}
     const planned = name => {
       const decision = planCollection(name, merged.queries, budget, clock())
@@ -172,7 +174,9 @@ export async function runRefresh(env, request = fetch, services = {}) {
       sources: collectionSources({ queries: merged.queries, state, skips, checkedAt: commitAt, windowOpen: true }),
       budget
     }
-    const saved = await env.DB.prepare('INSERT INTO snapshots(id,body,generated_at) SELECT 1,?,? WHERE EXISTS(SELECT 1 FROM refresh_control WHERE id=1 AND lease_id=? AND lease_until>?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,generated_at=excluded.generated_at WHERE julianday(excluded.generated_at)>=julianday(snapshots.generated_at) RETURNING id').bind(JSON.stringify(merged), commitAt, id, finished).first()
+    const snapshotWrite = env.DB.prepare('INSERT INTO snapshots(id,body,generated_at) SELECT 1,?,? WHERE EXISTS(SELECT 1 FROM refresh_control WHERE id=1 AND lease_id=? AND lease_until>?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,generated_at=excluded.generated_at WHERE julianday(excluded.generated_at)>=julianday(snapshots.generated_at) RETURNING id').bind(JSON.stringify(merged), commitAt, id, finished)
+    const [result] = await env.DB.batch([snapshotWrite,...archiveStatements(env.DB,archivePrevious,merged,commitAt,id)])
+    const saved=result.results?.[0]
     if (!saved) { state.status = 'skipped'; return { ...state, reason: 'lease_lost_or_newer_snapshot' } }
     state.status = state.github === 'refreshed' ? 'refreshed' : 'partial'
     return { ...state, generatedAt: merged.generatedAt, committedAt: commitAt }

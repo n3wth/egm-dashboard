@@ -8,6 +8,7 @@ const reasonText = {
 }
 
 export function formatObservedAt(iso, timeZone='America/Los_Angeles') {
+  if(typeof iso!=='string'||!iso.trim())return null
   const date = new Date(iso)
   if (!Number.isFinite(date.getTime())) return null
   return new Intl.DateTimeFormat('en-US', {
