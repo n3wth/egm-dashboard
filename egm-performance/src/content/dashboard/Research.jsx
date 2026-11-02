@@ -1,7 +1,7 @@
 import {percentage} from './percentage.mjs'
 import {isSearchVideo} from './referrer-channels.mjs'
 import React,{useState} from 'react'
-import {DataComponent,DataTable,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
+import {Button,DataComponent,DataTable,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
 import {researchProposal} from './research-insights.js'
 import {backlinkPages} from './backlink-pages.js'
 import {PageSummary} from './PageSummary.jsx'
@@ -97,7 +97,7 @@ function ResearchCandidates({queries}) {
     return (text.toLowerCase().match(/\b(the|and|of|to|for|with|is|in|how|what|why|using|agent|workflow|review|model|code|design|software|skills|google|elephant|goldfish)\b/g)??[]).length>=2
   }
   const selected=rows.filter(row=>(language==='all'||isEnglish(row))&&`${row.title??''} ${row.evidence??''} ${row.domain??''} ${(row.queryAngles??[]).join(' ')}`.toLowerCase().includes(search.toLowerCase().trim()))
-  const controls=<div className="egm-research-controls">{searchOpen&&<input id="research-leads-search" autoFocus type="search" value={search} onChange={event=>setSearch(event.target.value)} aria-label="Search research leads" placeholder="Search leads"/>}<button type="button" aria-label={searchOpen?'Close research search':'Search research leads'} aria-expanded={searchOpen} aria-controls={searchOpen?'research-leads-search':undefined} onClick={()=>{setSearchOpen(!searchOpen);if(searchOpen)setSearch('')}}><Icon name={searchOpen?'close':'search'} size={16}/></button></div>
+  const controls=<div className="egm-research-controls">{searchOpen&&<input className="egm-field egm-field--compact" id="research-leads-search" autoFocus type="search" value={search} onChange={event=>setSearch(event.target.value)} aria-label="Search research leads" placeholder="Search leads"/>}<Button variant="ghost" className="egm-icon-button" aria-label={searchOpen?'Close research search':'Search research leads'} aria-expanded={searchOpen} aria-controls={searchOpen?'research-leads-search':undefined} onClick={()=>{setSearchOpen(!searchOpen);if(searchOpen)setSearch('')}}><Icon name={searchOpen?'close':'search'} size={16}/></Button></div>
   const languageActions=<><MenuItem role="menuitemradio" aria-checked={language==='english'} leading={<span className="egm-filter-check">{language==='english'&&<Icon name="check" size={16}/>}</span>} onSelect={()=>setLanguage('english')}>English only{estimated?' (estimated)':''}</MenuItem><MenuItem role="menuitemradio" aria-checked={language==='all'} leading={<span className="egm-filter-check">{language==='all'&&<Icon name="check" size={16}/>}</span>} onSelect={()=>setLanguage('all')}>All languages</MenuItem></>
   return <Section title="Research leads" id="research-candidates">
     <DataComponent id="research-candidate-table" queryId="exa_research" queryIds={queryIds} title="Discussion, tutorial, and workflow candidates" kind="custom" variant="card" className="egm-research-candidates" headerControls={controls} additionalActions={languageActions} displayRows={selected} sourceRowsByQuery={sourceRowsByQuery}>
