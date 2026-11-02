@@ -171,7 +171,8 @@ export async function runRefresh(env, request = fetch, services = {}) {
         const analysis=await (services.dailyAnalysis??collectDailyAnalysis)(env,analysisRequest,merged,{now:clock,leaseId:id})
         if(analysis.query){
           merged.queries.daily_analysis=analysis.query
-          merged.queries.daily_analysis_inputs={rows:analysis.query.source.inputRecords??[],source:{label:'Original inputs to saved daily analysis',executedAt:analysis.query.source.executedAt,metricDefinitions:[{label:'Original input records',definition:'Exact bounded source records supplied to the saved interpretation. Each record retains its original observedAt, coverage, definitions, caveats and reviewed rows; these are not the current dashboard observations.'}],caveats:['This input dataset was saved at analysis generation. Its per-record observation times may be older.'],inputFingerprint:analysis.query.source.inputFingerprint}}
+          for(const key of Object.keys(merged.queries))if(key.startsWith('daily_analysis_input_'))delete merged.queries[key]
+          for(const record of analysis.query.source.inputRecords??[])merged.queries['daily_analysis_input_'+record.queryId]={rows:record.rows,source:{label:'Original analysis input · '+record.label,executedAt:record.observedAt,coverage:record.coverage,metricDefinitions:record.definitions,caveats:['Original bounded input to the saved daily analysis, not the current dashboard observations.',...(record.caveats??[]),...(record.rowsTruncated?['Only this bounded row sample was supplied to the model.']:[])],inputFingerprint:analysis.query.source.inputFingerprint}}
         }
         merged.queries.daily_analysis_status={rows:[{status:analysis.status,reason:analysis.reason,checkedAt:analysis.checkedAt,inputFingerprint:analysis.inputFingerprint}],source:{label:'Daily analysis generation status',executedAt:analysis.checkedAt}}
         if(analysis.attempted)budget.calls.dailyAnalysis=(budget.calls.dailyAnalysis??0)+1

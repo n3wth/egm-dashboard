@@ -2,7 +2,8 @@ import {percentage} from './percentage.mjs'
 import {isSearchVideo} from './referrer-channels.mjs'
 import React,{useState} from 'react'
 import {Button,DataComponent,DataTable,Hint,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
-import {researchProposal} from './research-insights.js'
+import {SavedAnalysis} from './SavedAnalysis.jsx'
+import {savedAnalysis} from './saved-analysis.mjs'
 import {backlinkPages} from './backlink-pages.js'
 import {PageSummary} from './PageSummary.jsx'
 import {EmptyState} from './DataStates.jsx'
@@ -81,7 +82,7 @@ function DiscussionSignals({queries}) {
       <div className="egm-discussion-list" data-reviewed-rows>{verified.map(row=>{const signal=row.themes?.[0];const quote=signal?.quote?.trim().split(/\s+/).slice(0,24).join(' ');return <article key={row.url}>
         <h3>{link(row.url,row.title||hostnameOf(row.url))}</h3>
         <button type="button" className="egm-signal-status history-tooltip-trigger" aria-label="Verified reference. A reference to EGM was found in the retrieved page. This does not verify every claim."><Icon name="check" size={14}/> Verified reference<Tooltip>A reference to EGM was found in the retrieved page. This does not verify every claim.</Tooltip></button>
-        {quote&&<><p className="egm-signal-quote"><q>{quote}{signal.quote.trim().split(/\s+/).length>24?'…':''}</q></p><p>Suggested test: {researchProposal(signal.theme)}</p></>}
+        {quote&&<p className="egm-signal-quote"><q>{quote}{signal.quote.trim().split(/\s+/).length>24?'…':''}</q></p>}
       </article>})}</div>
       {unchecked.length>0&&<details className="egm-unverified-sources"><summary>{unchecked.length} unverified {unchecked.length===1?'source':'sources'}</summary>{unchecked.map(row=><p key={row.url}>{link(row.url,row.title||row.url)} · {row.status==='inaccessible'?'Could not retrieve':'Project reference not confirmed'}</p>)}</details>}
       {['stale','unavailable','failed','error'].includes(statusQuery?.rows?.[0]?.status)&&<p className="egm-note">Collection: {statusQuery.rows[0].status}.</p>}
@@ -121,7 +122,7 @@ function ResearchCandidates({queries}) {
 export function Research() {
   const {queries}=useDataApp()
   const peers=queries.peers?.rows??[],emerging=queries.emerging?.rows??[]
-  if(!peers.length) return <><PageSummary page="research" queries={queries}/><p className="egm-note">Repo research has not completed its first source collection.</p><DiscussionSignals queries={queries}/><ResearchCandidates queries={queries}/><SearchVisibility queries={queries}/></>
+  if(!peers.length) return <><PageSummary page="research" queries={queries}/><p className="egm-note">Repo research has not completed its first source collection.</p>{savedAnalysis(queries,'research_opportunities')&&<SavedAnalysis id="research_opportunities" queries={queries}/>}<DiscussionSignals queries={queries}/><ResearchCandidates queries={queries}/><SearchVisibility queries={queries}/></>
   const egm=peers.find(r=>r.repo==='google/elephant-goldfish-model')
   const alternatives=peers.filter(r=>r!==egm)
   const media=alternatives.filter(r=>r.demo).length
@@ -144,9 +145,9 @@ export function Research() {
   return <>
     <PageSummary page="research" queries={queries}/>
     <Section title="Gaps and experiments" id="research-opportunities" spacing="none">
-      <DataComponent id="research-opportunity-list" queryId="peers" queryIds={opportunityQueryIds} title="Opportunities to test" kind="custom" variant="card" displayRows={suggestions} sourceRowsByQuery={opportunitySourceRows}>
+      <SavedAnalysis id="research_opportunities" queries={queries} fallback={<DataComponent id="research-opportunity-list" queryId="peers" queryIds={opportunityQueryIds} title="Opportunities to test" kind="custom" variant="card" displayRows={suggestions} sourceRowsByQuery={opportunitySourceRows}>
         <div className="egm-opportunities">{!suggestions.length&&<EmptyState title="No experiments to suggest yet">Suggestions appear once peer, referral, or page data is collected.</EmptyState>}{suggestions.map(item=><div key={item.title}><h3 className="egm-recommendation-title"><Icon name={recommendationIcons[item.title]} size={20}/>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} {safeExternalUrl(item.source)&&<Hint as="a" className="egm-evidence-link" href={safeExternalUrl(item.source)} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></Hint>}</p></div>)}</div>
-      </DataComponent>
+      </DataComponent>}/>
     </Section>
     <Section id="research-peers">
       <DataComponent id="research-peer-table" queryId="peers" title="Reach and first-run discovery" kind="table" variant="card" displayRows={peers} sourceRows={peers}>

@@ -31,7 +31,7 @@ export function validateDailyAnalysis(value,records) {
 export function dailyAnalysisInput(snapshot) {
   const allowed=new Set(Object.values(analysisSections).flat())
   const queries=Object.fromEntries(Object.entries(snapshot.queries??{}).filter(([id])=>allowed.has(id)))
-  return askContext({queries},'Repository growth acquisition adoption website development research mentions experiments').records
+  return JSON.parse(JSON.stringify(askContext({queries},'Repository growth acquisition adoption website development research mentions experiments').records))
 }
 
 const instructions=`Return one JSON object with a sections array containing exactly these IDs: ${Object.keys(analysisSections).join(', ')}.
@@ -67,8 +67,12 @@ export async function collectDailyAnalysis(env,request,snapshot,{now=Date.now,le
   const infer=env.INFER??geminiRunner(env,request)
   if(!infer)return result('unconfigured','unconfigured')
   if(!records.length)return result('unavailable','no_source_records')
-  const reserved=await env.DB.prepare("INSERT INTO daily_analysis_runs(day,lease_id,attempted_at,input_fingerprint,status) SELECT ?,?,?,?,'started' WHERE EXISTS(SELECT 1 FROM refresh_control WHERE id=1 AND lease_id=? AND lease_until>?) ON CONFLICT(day) DO NOTHING RETURNING day").bind(day,leaseId,new Date(started).toISOString(),inputFingerprint,leaseId,started).first()
-  if(!reserved)return result(query?'cached':'unavailable',query?.source.inputFingerprint===inputFingerprint?'daily_cache':'daily_attempt_already_reserved')
+  const month=new Date(started).toISOString().slice(0,7)
+  const reserved=await env.DB.prepare("INSERT INTO daily_analysis_runs(day,lease_id,attempted_at,input_fingerprint,status) SELECT ?,?,?,?,'started' WHERE EXISTS(SELECT 1 FROM refresh_control WHERE id=1 AND lease_id=? AND lease_until>?) AND (SELECT count(*) FROM daily_analysis_runs WHERE substr(attempted_at,1,7)=?)<31 ON CONFLICT(day) DO NOTHING RETURNING day").bind(day,leaseId,new Date(started).toISOString(),inputFingerprint,leaseId,started,month).first()
+  if(!reserved){
+    const used=await env.DB.prepare('SELECT count(*) AS count FROM daily_analysis_runs WHERE substr(attempted_at,1,7)=?').bind(month).first()
+    return result(query?'cached':'unavailable',used.count>=31?'monthly_cap':query?.source.inputFingerprint===inputFingerprint?'daily_cache':'daily_attempt_already_reserved')
+  }
   try {
     let finishReason=null
     const output=await infer.run(GEMINI_MODEL,{messages:[{role:'system',content:instructions},{role:'user',content:JSON.stringify({asOf:new Date(started).toISOString(),allowedSources:analysisSections,records})}],max_tokens:4096,temperature:0.1,stream:false,json:true,onFinishReason:reason=>{finishReason=reason}})

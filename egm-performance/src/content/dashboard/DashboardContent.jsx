@@ -25,6 +25,8 @@ import {PageLink} from './PageLink.jsx'
 import {SiteFooter} from './PageFooter.jsx'
 import {starGrowth,observedStarGrowth} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
+import {analysisSummary,savedAnalysis} from './saved-analysis.mjs'
+import {AnalysisLabel,AnalysisText} from './SavedAnalysis.jsx'
 import {overviewSummary,trafficCoverageNote} from './overview-summary.mjs'
 import {pageSummary} from './page-summary.mjs'
 import {alignedTrendValues,sampledTrendValues,chartDates} from './metric-trend.mjs'
@@ -126,12 +128,13 @@ function useVideoGrid(available) {
   return videoGrid(available,width)
 }
 function AcrossEgm({queries,reach,web}) {
-  const ids=['website','reach','referrers','youtube_videos','research_evidence','issue_queue','mentions'].filter(id=>queries[id])
+  const analysis=savedAnalysis(queries,'overview_experiment')
+  const ids=[...['website','reach','referrers','youtube_videos','research_evidence','issue_queue','mentions'].filter(id=>queries[id]),...(analysis?['daily_analysis',...analysis.evidenceQueryIds]:[])]
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
   const rankedVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views)
   const grid=useVideoGrid(rankedVideos.length)
   const popularVideos=rankedVideos.slice(0,grid.count)
-  const experiment=suggestExperiment(queries)
+  const experiment=analysis?null:suggestExperiment(queries)
   const viewShare=ratio(web.referralViews,reach.views)
   const visitorShare=ratio(web.referralVisitors,reach.visitors)
   const displayRows=[{signal:'Website referrals',views:web?.referralViews??null,viewShare,visitorShare},...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(experiment?[{signal:'Suggested experiment',url:experiment.winner.url,category:experiment.category}]:[])]
@@ -156,7 +159,7 @@ function AcrossEgm({queries,reach,web}) {
       </article>
       <article className="egm-highlight egm-highlight-experiment">
         <h3>Suggested experiment</h3>
-        {experiment?<><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success">What to record: {experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><p>{experiment.rule}</p></details></>:<p className="egm-highlight-value">No specific first-use, documentation, or recorded-channel evidence supports an experiment yet.</p>}
+        {analysis?<AnalysisText analysis={analysis}/>:<><AnalysisLabel/>{experiment?<><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success">What to record: {experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><p>{experiment.rule}</p></details></>:<p className="egm-highlight-value">No specific first-use, documentation, or recorded-channel evidence supports an experiment yet.</p>}</>}
       </article>
     </div>
   </DataComponent>
@@ -172,7 +175,7 @@ function DashboardTab() {
   }, [appTitle,setAppTitle])
   const {activeTabId} = useDashboardTabs(tabs)
   useEffect(() => { trackDashboardSection(activeTabId) }, [activeTabId])
-  const summary=activeTabId==='reach'?overviewSummary(queries):pageSummary(activeTabId,queries)
+  const summary=analysisSummary(activeTabId==='reach'?overviewSummary(queries):pageSummary(activeTabId,queries),queries,activeTabId==='reach'?'overview':activeTabId)
   return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol></section>}</>
 }
 function TabPage({activeTabId}) {

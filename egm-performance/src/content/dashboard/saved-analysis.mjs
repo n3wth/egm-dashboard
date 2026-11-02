@@ -14,12 +14,14 @@ export function savedAnalysis(queries,id,now=Date.now()) {
   })
   const changedInputs=typeof status?.inputFingerprint==='string'&&status.inputFingerprint!==source.inputFingerprint
   const stale=pacificDate.format(new Date(generated))!==pacificDate.format(new Date(now))||newerSources||changedInputs||['stale','expired','failed','unavailable'].includes(status?.status)
-  return {...row,generatedAt:source.executedAt,generatedLabel:formatObservedAt(source.executedAt),model:source.model,stale,newerSources:newerSources||changedInputs}
+  const evidenceQueryIds=row.queryIds.map(id=>'daily_analysis_input_'+id)
+  if(evidenceQueryIds.some(id=>!queries[id]))return null
+  return {...row,evidenceQueryIds,generatedAt:source.executedAt,generatedLabel:formatObservedAt(source.executedAt),model:source.model,stale,newerSources:newerSources||changedInputs}
 }
 
 export function analysisSummary(summary,queries,id,now) {
   const analysis=savedAnalysis(queries,id,now)
   if(!analysis)return summary?{...summary,analysis:null}:null
   const notes=[...(summary?.notes??summary?.sentences??[]),`Proposed next step: ${analysis.nextStep}`,...analysis.unknowns.map(text=>`Unknown: ${text}`),`Saved Gemini interpretation generated ${analysis.generatedLabel}. Confidence: ${analysis.confidence}; this is not a calibrated probability.`,...(analysis.newerSources?['The cited source observations have changed since this analysis was generated.']:[])]
-  return {...summary,headline:analysis.headline,facts:[analysis.summary],notes,queryIds:[...new Set(['daily_analysis',...analysis.queryIds,...(summary?.queryIds??[])])],analysis}
+  return {...summary,headline:analysis.headline,facts:[analysis.summary],notes,queryIds:['daily_analysis',...analysis.evidenceQueryIds],analysis}
 }
