@@ -23,7 +23,7 @@ import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
 import {SiteFooter} from './PageFooter.jsx'
-import {starGrowth,observedStarGrowth} from './star-growth.mjs'
+import {starGrowth,observedStarGrowth,hasObservedDailyChange} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
 import {analysisSummary,savedAnalysis} from './saved-analysis.mjs'
 import {AnalysisLabel,AnalysisText} from './SavedAnalysis.jsx'
@@ -64,7 +64,7 @@ export function StarGrowth({rows,observedAt,stale,observations,reportDates}) {
   const [range,setRange]=useState('recent')
   const [basis,setBasis]=useState('auto')
   const hasObserved=Boolean(observations?.rows?.length)
-  const observed=hasObserved&&(basis==='observed'||(basis==='auto'&&stale&&(!rows.length||observedStarChange(observations.rows,observations.source?.executedAt))))
+  const observed=hasObserved&&(basis==='observed'||(basis==='auto'&&stale&&(!rows.length||hasObservedDailyChange(observations.rows,observations.source?.executedAt))))
   const growth=observed?observedStarGrowth(observations.rows,observations.source?.executedAt):starGrowth(rows,observedAt)
   const byDate=new Map(growth.daily.map(row=>[row.date,row]))
   const selected=range==='recent'?(reportDates?.length?reportDates.map(date=>byDate.get(date)??{date,stars:null,coverage:'Not available'}):growth.recent):growth.daily
@@ -196,7 +196,7 @@ function TabPage({activeTabId}) {
     const websiteMetric=id.startsWith('website-')
     const queueMetric=['open-issues','open-prs'].includes(id)
     const historyStale=(queries.star_history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
-    const observedHistory=id==='stars'&&historyStale&&rows('star_observations').length>0&&(!rows('star_history').length||Boolean(observedStarChange(rows('star_observations'),queries.star_observations?.source?.executedAt)))
+    const observedHistory=id==='stars'&&historyStale&&rows('star_observations').length>0&&(!rows('star_history').length||hasObservedDailyChange(rows('star_observations'),queries.star_observations?.source?.executedAt))
     const historyQuery=queueMetric?'maintenance_history':websiteMetric?'website_referral_history':id==='stars'?(observedHistory?'star_observations':'star_history'):id==='merged-prs'?'activity':'traffic'
     const history=rows(historyQuery)
     const trendValues=!field?[]:queueMetric?sampledTrendValues(history,field):websiteMetric?history.map(row=>row[field]):alignedTrendValues(history,field,reportDates)

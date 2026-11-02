@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {starGrowth,observedStarGrowth} from './star-growth.mjs'
+import {starGrowth,observedStarGrowth,hasObservedDailyChange} from './star-growth.mjs'
 
 test('excludes the partial day from complete growth',()=>{
   const rows=[0,0,0,3,8,12].map((stars,index)=>({date:`2026-10-${20+index}`,stars}))
@@ -72,4 +72,12 @@ test('observed recent view uses calendar bounds and keeps a measured zero distin
   assert.equal(result.recent[0].netStars,0)
   assert.equal(result.daily[0].netStars,null)
   assert.equal(result.daily.at(-1).partialNetStars,0)
+})
+
+test('daily observations become usable before a full weekly comparison exists',()=>{
+  const rows=[{date:'2026-11-01',stars:100,observedAt:'2026-11-02T07:30:00Z'},{date:'2026-11-02',stars:100,observedAt:'2026-11-02T19:00:00Z'}]
+  assert.equal(hasObservedDailyChange(rows,rows[1].observedAt),true)
+  assert.equal(hasObservedDailyChange(rows.slice(1),rows[1].observedAt),false)
+  assert.equal(hasObservedDailyChange([{...rows[0],date:'2026-10-31',observedAt:'2026-11-01T06:30:00Z'},rows[1]],rows[1].observedAt),false)
+  assert.equal(hasObservedDailyChange([...rows,{date:'2026-11-04',stars:120,observedAt:'2026-11-04T19:00:00Z'}],'2026-11-04T19:00:00Z'),false)
 })
