@@ -1,6 +1,7 @@
 import { refreshSnapshot } from './refresh.mjs'
 import { retainGithubHistory } from './github-history.mjs'
 import { archiveStatements } from './github-history-storage.mjs'
+import { collectDailyAnalysis } from './daily-analysis.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 import { collectSemrush } from './semrush.mjs'
 import { collectMentions } from './mentions.mjs'
@@ -26,7 +27,8 @@ export async function runRefresh(env, request = fetch, services = {}) {
   const window = collectionWindow(env, start)
   const cutoff = window.until
   const githubEnabled = githubCollectionEnabled(env, start)
-  if (!window.open && !githubEnabled) return { status: 'expired', collectionEndsAt: window.endsAt }
+  const analysisEnabled=env.DAILY_ANALYSIS_ENABLED==='true'
+  if (!window.open && !githubEnabled && !analysisEnabled) return { status: 'expired', collectionEndsAt: window.endsAt }
   const id = crypto.randomUUID()
   const acquired = await env.DB.prepare('UPDATE refresh_control SET lease_id=?,lease_until=? WHERE id=1 AND lease_until<=? AND (finished_at=0 OR finished_at<=?) RETURNING id').bind(id, start + leaseDuration, start, start - cooldown).first()
   if (!acquired) return { status: 'skipped', reason: 'running_or_cooldown' }
@@ -46,12 +48,13 @@ export async function runRefresh(env, request = fetch, services = {}) {
   }
   const boundedRequest = requestUntil(deadline)
   const githubRequest = requestUntil(githubDeadline)
+  const analysisRequest = requestUntil(start+10*60000)
   try {
     const original = await env.DB.prepare('SELECT body FROM snapshots WHERE id=1').first()
     const previous = original ? JSON.parse(original.body) : { queries: {} }
     const budget = monthBudget(previous.refreshStatus?.budget, start)
     const skips = {}
-    const githubDecision = planCollection('github', previous.queries ?? {}, budget, clock())
+    const githubDecision = githubEnabled?planCollection('github', previous.queries ?? {}, budget, clock()):'collection_window_ended'
     if (githubDecision !== 'run') { skips.github = githubDecision; state.github = 'cached' }
     let latest = previous
     try {
@@ -163,11 +166,24 @@ export async function runRefresh(env, request = fetch, services = {}) {
       Object.assign(merged.queries, queries)
       state.webPerformance = 'checked'
     } catch { state.webPerformance = 'failed' }
+    if(analysisEnabled&&(env.GEMINI_API_KEY||env.INFER||services.dailyAnalysis)) {
+      try {
+        const analysis=await (services.dailyAnalysis??collectDailyAnalysis)(env,analysisRequest,merged,{now:clock,leaseId:id})
+        if(analysis.query){
+          merged.queries.daily_analysis=analysis.query
+          for(const key of Object.keys(merged.queries))if(key.startsWith('daily_analysis_input_'))delete merged.queries[key]
+          for(const record of analysis.query.source.inputRecords??[])merged.queries['daily_analysis_input_'+record.queryId]={rows:record.rows,source:{label:'Original analysis input · '+record.label,executedAt:record.observedAt,coverage:record.coverage,metricDefinitions:record.definitions,caveats:['Original bounded input to the saved daily analysis, not the current dashboard observations.',...(record.caveats??[]),...(record.rowsTruncated?['Only this bounded row sample was supplied to the model.']:[])],inputFingerprint:analysis.query.source.inputFingerprint}}
+        }
+        merged.queries.daily_analysis_status={rows:[{status:analysis.status,reason:analysis.reason,checkedAt:analysis.checkedAt,inputFingerprint:analysis.inputFingerprint}],source:{label:'Daily analysis generation status',executedAt:analysis.checkedAt}}
+        if(analysis.attempted)budget.calls.dailyAnalysis=(budget.calls.dailyAnalysis??0)+1
+        state.dailyAnalysis=analysis.status
+      } catch {state.dailyAnalysis='failed'}
+    }
     // GitHub collection is 30 minutes; search discovery uses provider caches.
     // GitHub may continue beyond the paid cutoff; its own deadline and the
     // fencing token still bound publication. Paid requests use their cutoff.
     const finished = clock()
-    if (finished >= githubDeadline) { state.status = 'expired'; return { ...state } }
+    if (finished >= (analysisEnabled?start+10*60000:githubDeadline)) { state.status = 'expired'; return { ...state } }
     const commitAt = new Date(finished).toISOString()
     // Keep runner outcomes separate from provider status rows, whose cache and
     // budget fields must survive failures unchanged. Never persist error text.

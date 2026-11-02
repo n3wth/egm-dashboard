@@ -47,6 +47,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ac23513945eb49f73a89faf1be12384e
         run: node ../scripts/migrate-github-history.mjs
+      - name: Prepare saved daily analysis storage
+        working-directory: egm-cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ac23513945eb49f73a89faf1be12384e
+        run: npx --yes wrangler@4.151.3 d1 execute egm-growth-access --remote --file=daily-analysis-schema.sql
       - name: Deploy existing Worker and bindings
         working-directory: egm-cloudflare
         env:

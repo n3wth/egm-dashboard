@@ -17,10 +17,12 @@
     "OWNER_EMAIL": "oliver@newth.ai",
     "APPROVAL_WEBHOOK_HOSTS": "connectors.api.openai.com",
     "GROK_WEBHOOK_HOSTS": "api2.cursor.sh",
-    // Paid collection stops at this instant. This is the only end date. Change this line to extend it.
+    // Source-provider collection stops here; ongoing daily analysis has its own explicit switch.
     "REFRESH_UNTIL": "2026-11-04T06:33:01Z",
     // GitHub only: retain the existing 30-minute interval and monthly cap.
     "GITHUB_COLLECTION_ENABLED": "true",
+    // One bounded Gemini attempt per Pacific date; independent of source-provider collection.
+    "DAILY_ANALYSIS_ENABLED": "true",
     "WORKOS_CLIENT_ID": "client_01M60K01HRESAKEPD135F3KAMM",
     "WORKOS_AUTHKIT_DOMAIN": "https://striking-ripple-85.authkit.app",
     "INVITATION_EMAIL_ENABLED": "true",

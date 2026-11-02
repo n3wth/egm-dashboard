@@ -35,7 +35,7 @@ export function askContext(snapshot,question) {
     const trendIndex=trendQueries.indexOf(id)
     return (id==='live_github'?100:0)+(trending.test(question)&&trendIndex>=0?80-trendIndex*5:0)+[...words,...aliases].filter(word=>fields.toLowerCase().includes(word)).length
   }
-  const entries=Object.entries(snapshot.queries??{}).sort((a,b)=>relevance(b)-relevance(a))
+  const entries=Object.entries(snapshot.queries??{}).filter(([id])=>!id.startsWith('daily_analysis')).sort((a,b)=>relevance(b)-relevance(a))
   for(const [queryId,query] of entries.slice(0,35)) {
     if(remaining<300)break
     const id='S'+(sources.length+1)
