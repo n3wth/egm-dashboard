@@ -2,7 +2,7 @@
 .egm-manage-users h3,.egm-manage-users p{margin:0}
 .egm-manage-users h3{font-size: var(--text-sm-size);font-weight:600;line-height:1.4}
 .egm-manage-users p,.egm-manage-users li span,.egm-manage-section-heading span{color:var(--secondary);font-size: var(--egm-text-label);line-height:1.55}
-.egm-invite-panel{display:grid;gap: var(--space-4);padding:8px 0 24px;border-bottom:1px solid var(--border)}
+.egm-invite-panel{display:grid;gap: var(--space-3);padding:0 0 20px;border-bottom:1px solid var(--border)}
 .egm-invite-panel h3+p{margin-top:5px}
 .egm-expiry-control{display:flex;align-items:center;gap: var(--space-2);color:var(--secondary);font-size: var(--egm-text-label)}
 .egm-expiry-trigger{min-width:104px;justify-content:space-between;gap:12px}
@@ -20,7 +20,10 @@
 .egm-manage-section+.egm-manage-section{margin-top:6px;border-top:1px solid var(--border)}
 .egm-manage-section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .egm-manage-users ul{list-style:none;padding:0;margin:8px 0 0}
-.egm-manage-users li{display:flex;align-items:center;justify-content:space-between;gap: var(--space-3);padding:11px 0;border-bottom:1px solid var(--border)}
+.egm-manage-users li{display:flex;align-items:center;justify-content:space-between;gap: var(--space-3);padding:10px 12px;margin-inline:-12px;border-bottom:1px solid var(--border)}
+.egm-manage-users li:hover{background:var(--interaction-hover)}
+.egm-manage-users .egm-access-actions .button{min-height:32px;padding:6px 10px}
+.egm-manage-users .egm-user-details>span{font-size:var(--text-xs-size);line-height:1.4}
 .egm-manage-users li:last-child{border-bottom:0}
 .egm-manage-users li>div:first-child{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}
 .egm-manage-users li>.egm-user-identity:first-child{display:flex;align-items:center;gap:10px}
@@ -30,7 +33,7 @@
 .egm-manage-users li strong{font-size: var(--text-sm-size);font-weight:600}
 .egm-user-status{flex-shrink:0}
 .egm-access-actions{display:flex;gap: var(--space-2);flex-shrink:0}
-@media(max-width:360px){.egm-invite-created{grid-template-columns:minmax(0,1fr)}.egm-invite-created button{align-self:auto;justify-self:start}.egm-invite-created p{grid-column:auto}.egm-manage-users li:has(.egm-access-actions){align-items:flex-start;flex-direction:column;gap:10px}}
+@media(max-width:480px){.egm-invite-email,.egm-invite-created{grid-template-columns:minmax(0,1fr)}.egm-invite-created button{align-self:auto;justify-self:start}.egm-invite-created p{grid-column:auto}.egm-manage-users li:has(.egm-access-actions .button+.button){align-items:flex-start;flex-direction:column;gap:10px}.egm-manage-users .egm-access-actions .button{min-height:44px}}
 .egm-manage-users .egm-manage-message{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
 .egm-manage-users .egm-manage-message p{min-width:0;color:var(--text);overflow-wrap:anywhere}
 .egm-manage-users .egm-empty{padding:20px 8px}

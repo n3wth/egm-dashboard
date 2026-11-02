@@ -2,7 +2,7 @@ import {percentage} from './percentage.mjs'
 import {dateSpan, ratio} from './metric-safety.mjs'
 import {safeExternalUrl} from './research-mentions.mjs'
 import React, { useEffect, useRef, useState } from 'react'
-import { ChartTooltip, DataComponent, DataTable, EvidenceChart, Icon, Section, SortableItem, SortableRegion, useDataApp, useDashboardTabs } from '../../data-app-public.jsx'
+import { ChartTooltip, DataComponent, DataTable, EvidenceChart, Icon, Section, SegmentedControl, SortableItem, SortableRegion, useDataApp, useDashboardTabs } from '../../data-app-public.jsx'
 import './egm.css'
 import {Research} from './Research.jsx'
 import {TrendSparkline} from './TrendSparkline.jsx'
@@ -23,6 +23,7 @@ import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
 import {PageFooter} from './PageFooter.jsx'
+import {starGrowth} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
@@ -45,10 +46,30 @@ const downloadColumns = [{field:'release',label:'Release'},{field:'asset',label:
 const webVitals = {largest_contentful_paint:'Largest Contentful Paint',interaction_to_next_paint:'Interaction to Next Paint',cumulative_layout_shift:'Cumulative Layout Shift'}
 function StarTooltip({active,payload=[],label}) {
   const row=payload[0]?.payload
-  const starFields=payload.length>0&&payload.every(item=>['stars','completedStars','partialStars'].includes(item.dataKey))
-  const details=starFields&&Number.isFinite(row?.stars)?[{label:'Stars',value:n(row.stars)}]:payload.filter(item=>item.value!=null).map(item=>({label:String(item.name??item.dataKey).replace(/([A-Z])/g,' $1').replace(/^./,letter=>letter.toUpperCase()),value:n(item.value)}))
+  const starFields=payload.length>0&&payload.every(item=>['stars','completedStars','partialTotal'].includes(item.dataKey))
+  const details=starFields&&Number.isFinite(row?.stars)?[{label:'Stars',value:n(row.stars)}]:payload.filter(item=>item.value!=null).map(item=>({label:['newStars','partialStars'].includes(item.dataKey)?'New stars':String(item.name??item.dataKey).replace(/([A-Z])/g,' $1').replace(/^./,letter=>letter.toUpperCase()),value:n(item.value)}))
   if(row?.coverage)details.push({label:'Coverage',value:row.coverage})
   return <ChartTooltip active={active} label={row?.date?shortDate(row.date):label} details={details}/>
+}
+function StarGrowth({rows,observedAt}) {
+  const [measure,setMeasure]=useState('daily')
+  const [range,setRange]=useState('recent')
+  const growth=starGrowth(rows,observedAt)
+  const selected=range==='recent'?growth.recent:growth.daily
+  const displayRows=selected.map((row,index)=>({...row,
+    completedStars:row.coverage==='Complete day'?row.stars:null,
+    partialTotal:row.coverage==='Partial day'||selected[index+1]?.coverage==='Partial day'?row.stars:null
+  }))
+  const daily=measure==='daily'
+  const weekly=starWeeklyChange(rows,observedAt)
+  const fields=daily?['newStars','partialStars']:['completedStars','partialTotal']
+  const spec={...line(fields[0],fields),type:daily?'bar':'line',showLegend:false,colors:{[fields[0]]:'var(--chart-1)',[fields[1]]:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
+  const controls=<><SegmentedControl ariaLabel="Star measure" value={measure} onChange={setMeasure} options={[{value:'daily',label:'Daily gains'},{value:'total',label:'Cumulative'}]}/><SegmentedControl ariaLabel="Star history range" value={range} onChange={setRange} options={[{value:'recent',label:'Latest 14 days'},{value:'all',label:'Full history'}]}/></>
+  return <EvidenceChart id="star-history" queryId="star_history" title={daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
+    {weekly&&<p className="egm-note"><strong>{weekly.current>weekly.previous?'More':weekly.current<weekly.previous?'Fewer':'The same number of'} new stars in the latest complete week.</strong> {n(weekly.current)} during {shortDate(weekly.mid)} – {shortDate(weekly.end)}, versus {n(weekly.previous)} in the preceding seven days. {weekly.previous<100?'The earlier baseline is small; a percentage would overstate the comparison.':''}</p>}
+    <p className="egm-note">{range==='recent'&&growth.hiddenDays>0?`${growth.hiddenDays} earlier dates are outside this view; full history remains available. `:''}Pacific dates; faded marks show the incomplete day. Daily gains are reconstructed from current stargazers, excluding stars removed before collection. Gaps are unknown, not zero.</p>
+    <p className="egm-note">Stars measure attention. Sustained adoption needs repeat usage or retention evidence; clones and downloads alone cannot establish it.</p>
+  </EvidenceChart>
 }
 function Changed({value,children,as:Tag='div'}) {
   const previous=useRef(value)
@@ -273,10 +294,6 @@ function TabPage({activeTabId}) {
   </>
   const starHistory=rows('star_history')
   const historyObservedAt=queries.star_history?.source?.executedAt
-  const observedPacificDate=historyObservedAt&&Number.isFinite(Date.parse(historyObservedAt))?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(historyObservedAt)):null
-  const partialStarDay=starHistory.at(-1)?.date===observedPacificDate
-  const starDisplayRows=starHistory.map((row,index)=>({...row,completedStars:partialStarDay&&index===starHistory.length-1?null:row.stars,partialStars:partialStarDay&&index>=starHistory.length-2?row.stars:null,coverage:partialStarDay&&row.date===observedPacificDate?'Partial day':'Complete day'}))
-  const starSpec={...line('completedStars',['completedStars','partialStars']),showLegend:false,colors:{completedStars:'var(--chart-1)',partialStars:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   return <>
     <OverviewSummary queries={queries}/>
     <Welcome/>
@@ -294,7 +311,7 @@ function TabPage({activeTabId}) {
       {item('overview-across-egm',12,<AcrossEgm {...{queries,reach,web}}/>,'custom')}
       {item('visitor-trend',6,<Plot id="visitor-trend" queryId="traffic" title="Daily views and unique visitors" rows={daily} spec={{...line('views',['views','visitors']),legend:{labels:{views:'Views',visitors:'Unique visitors per day'}}}} description={`${window}. GitHub reports each day separately; daily unique visitors cannot be summed.`} />)}
       {item('clone-trend',6,chartHome({id:'clone-trend',queryId:'traffic',title:'Daily clone activity',summary:`${n(reach.clones)} clone operations from ${n(reach.cloners)} unique cloners in ${window}.`,page:'adoption',linkLabel:'Adoption',displayRows:daily,sourceRows:daily}))}
-      {item('star-history',12,<Plot id="star-history" queryId="star_history" title="Star accumulation" rows={starDisplayRows} sourceRows={starHistory} spec={starSpec} chartOptions={{tooltipContent:<StarTooltip/>}}><p className="egm-note">Cumulative stars by Pacific date, reconstructed from current stargazers; stars removed before collection are unavailable.{partialStarDay?' The faded final segment is the partial current day.':''}</p></Plot>)}
+      {item('star-history',12,<StarGrowth rows={starHistory} observedAt={historyObservedAt}/>)}
       {item('referral-chart',6,chartHome({id:'referral-chart',queryId:'referrers',queryIds:['referrers','reach'],title:'Top referring sources by repo views',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRowsByQuery:{referrers:rows('referrers'),reach:rows('reach')}}))}
       {item('popular-paths',6,chartHome({id:'popular-paths',queryId:'paths',title:'Popular repo pages',summary:popularPageRows(rows('paths'))[0]?`${pathLabel(popularPageRows(rows('paths'))[0].path)} has ${n(popularPageRows(rows('paths'))[0].count)} views.`:'No popular pages are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:popularPageRows(rows('paths')),sourceRows:rows('paths')}))}
     </SortableRegion>
