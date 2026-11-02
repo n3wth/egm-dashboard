@@ -83,6 +83,28 @@
 .egm-highlight-rule summary { width: fit-content; color: var(--text); font-size: var(--egm-text-label); line-height: 1.4; cursor: pointer; }
 .egm-highlight-rule p { margin: 8px 0 0; max-width: 70ch; color: var(--secondary); font-size: var(--egm-text-label); line-height: 1.5; }
 .egm-experiment-evidence { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.egm-highlight-experiment{padding-top:24px;border-top:1px solid var(--border)}
+.egm-highlight-experiment>h3{color:var(--secondary);font-size:var(--text-xs-size)}
+.egm-experiment-plan{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:32px}
+.egm-experiment-plan h4{margin:0 0 12px;font-size:var(--text-lg-size);font-weight:500;line-height:1.3;letter-spacing:-.015em}
+.egm-experiment-plan .egm-highlight-value{max-width:65ch;line-height:1.6}
+.egm-experiment-plan .egm-highlight-success{margin-top:16px;max-width:65ch}
+.egm-experiment-plan .egm-highlight-success strong{display:block;margin-bottom:4px;color:var(--text);font-weight:500}
+.egm-experiment-basis{border-left:1px solid var(--border);padding-left:24px;min-width:0}
+.egm-experiment-basis h4{font-size:var(--text-xs-size);color:var(--secondary);letter-spacing:0}
+.egm-experiment-basis a{overflow-wrap:anywhere;line-height:1.6}
+.egm-experiment-basis .egm-highlight-rule{margin-top:16px}
+.egm-ranking-heading,.egm-ranking li>div{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.egm-ranking-heading{color:var(--secondary);font-size:var(--text-xs-size);margin-bottom:8px}
+.egm-ranking{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+.egm-ranking li{min-width:0;font-size:var(--text-sm-size);line-height:1.5}
+.egm-ranking li>div>span{min-width:0;overflow-wrap:anywhere}
+.egm-ranking a{color:var(--text);text-decoration:none}
+.egm-ranking a:hover{text-decoration:underline}
+.egm-ranking strong{font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.egm-ranking-track{display:block;height:3px;margin-top:6px;background:var(--border);border-radius:2px;overflow:hidden}
+.egm-ranking-track>span{display:block;height:100%;background:var(--chart-1)}
+@media(max-width:700px){.egm-experiment-plan{grid-template-columns:minmax(0,1fr);gap:20px}.egm-experiment-basis{border-left:0;border-top:1px solid var(--border);padding:16px 0 0}}
 .egm-experiment-evidence a { color: var(--text); font-size: var(--egm-text-label); line-height: 1.4; }
 .egm-experiment-evidence a:focus-visible,
 .egm-unverified-sources a:focus-visible,
@@ -96,10 +118,7 @@
 .egm-overview-video-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; height: 2.8em; font-size: var(--egm-text-label); line-height: 1.4; }
 .egm-overview-video-views { color: var(--secondary); font-size: var(--text-xs-size); line-height: 1.4; font-variant-numeric: tabular-nums; }
 @media (min-width: 1280px) {
-  .egm-highlights { grid-template-columns: 1fr 1fr; align-items: start; }
-  .egm-highlight-referrals { grid-column: 1; grid-row: 1; }
-  .egm-highlight-experiment { grid-column: 2; grid-row: 1; }
-  .egm-highlight-videos { grid-column: 1 / -1; grid-row: 2; }
+  .egm-highlights { align-items: start; }
 }
 .egm-overview-heading { margin-bottom: 16px; }
 .egm-overview-heading .component-title { font-size: var(--text-xl-size); font-weight: 600; line-height: 28px; letter-spacing: -.5px; }

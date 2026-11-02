@@ -82,6 +82,22 @@ test('observed star fallback and Adoption present the supported measurements',as
       assert.doesNotMatch(html,/weekly star momentum is unavailable|new stars Oct/)
     })
 
+    await t.test('Overview presents ranked evidence and keeps the experiment grounded in its sources',()=>{
+      const snapshot=makeSnapshot()
+      snapshot.queries.issue_queue={rows:[{title:'Plugin installation fails during setup',url:'https://github.com/google/elephant-goldfish-model/issues/274'}]}
+      const before=structuredClone(snapshot)
+      const html=render(snapshot,React.createElement(DashboardContent))
+      assert.match(html,/Where repo traffic comes from/)
+      assert.match(html,/What visitors read/)
+      assert.match(html,/class="egm-ranking"/)
+      assert.match(html,/Traffic outside the reported top ten is unattributed/)
+      assert.match(html,/Why this test/)
+      assert.match(html,/Find the first-use blocker/)
+      assert.doesNotMatch(html,/egm-highlight-referrals/)
+      assert.doesNotMatch(html,/Website details|egm-ranking-footnote/)
+      assert.deepEqual(snapshot,before)
+    })
+
     await t.test('short observed history names sample-to-sample bounds instead of inventing a week',()=>{
       const snapshot=makeSnapshot()
       snapshot.queries.star_observations.rows=[observationRows[0],observationRows[2]]
