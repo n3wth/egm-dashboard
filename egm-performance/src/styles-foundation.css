@@ -242,7 +242,7 @@ textarea:focus-visible,
 }
 .history-tooltip-trigger { position: relative; display: inline-flex; }
 .history-tooltip-trigger:hover .topbar-mode-tooltip,
-.history-tooltip-trigger:has(button:focus-visible) .topbar-mode-tooltip,
+.history-tooltip-trigger:has(:focus-visible) .topbar-mode-tooltip,
 .topbar-mode-switcher button:hover .topbar-mode-tooltip,
 .topbar-mode-switcher button:focus-visible .topbar-mode-tooltip {
   opacity: 1;
@@ -252,7 +252,7 @@ textarea:focus-visible,
   visibility: hidden;
   transition: visibility 0s, opacity var(--motion-duration-fast) ease, transform var(--motion-duration-fast) ease;
 }
-.history-tooltip-trigger[data-delayed-tooltip]:is(:hover, :has(button:focus-visible)) .topbar-mode-tooltip {
+.history-tooltip-trigger[data-delayed-tooltip]:is(:hover, :has(:focus-visible)) .topbar-mode-tooltip {
   visibility: visible;
   transition-delay: var(--tooltip-delay);
 }
@@ -351,7 +351,7 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
 .dashboard-relative-freshness { display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--nav-control, 36px); padding-inline: var(--space-2); border-radius: var(--radius-md); }
 .dashboard-relative-freshness:hover { background: var(--interaction-hover); }
 .dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-ask-button { width: 36px; height: 36px; min-width: 36px; min-height: 36px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; }
-.dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-ask-button:hover { background: var(--interaction-hover); }
+.dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-ask-button:is(:hover, [data-state="open"]) { background: var(--interaction-hover); }
 .egm-single-row:has(.egm-ask-inline-host) .dashboard-reporting-period { display: none !important; }
 .dashboard-mobile-report-date { display: none; }
 .dashboard-mobile-menu-group { display: none; }

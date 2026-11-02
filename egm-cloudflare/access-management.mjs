@@ -1,4 +1,5 @@
 import {notifyAccessDecision} from './decision-email.mjs'
+import {scheduleWorkosAudit} from './workos-audit-log.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
 import {readBody} from './request-body.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
@@ -71,6 +72,8 @@ export async function manageAccess(request,env,user,fetcher=fetch,ctx) {
     env.DB.prepare('INSERT INTO audit(id,user_id,action,actor,created_at) SELECT ?,id,?,?,? FROM users WHERE changes()=1 AND id=? AND decided_at=? AND decided_by=? AND status=?').bind(crypto.randomUUID(),auditAction,user.id,at,input.id,at,user.id,input.decision)
   ])
   if(results[0].meta?.changes!==1)return reply({error:'unchanged'},409)
+  const auditName={approved:'egm.access.approved',denied:'egm.access.denied',revoked:'egm.access.revoked',reinstated:'egm.access.reinstated'}[auditAction]
+  if(auditName) scheduleWorkosAudit(env,{action:auditName,actorId:user.id,actorName:user.name,targetId:input.id,targetType:'user',metadata:{from_status:current.status,to_status:input.decision}},request,promise=>ctx?.waitUntil?.(promise))
   // Only a pending decision is new information for the requester. Revoke and reinstate stay quiet.
   if(current.status==='pending')ctx?.waitUntil?.(notifyAccessDecision(env,{userId:input.id,decision:input.decision,fromStatus:'pending'},ctx.decisionEmailFetcher).catch(error=>console.error('Decision email failed',error?.message)))
   return reply({ok:true,action:auditAction})

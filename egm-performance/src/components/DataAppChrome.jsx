@@ -1,5 +1,6 @@
 import { dataAppExportOptions } from "../export-catalog.js";
 import { Feedback } from "../content/dashboard/Feedback.jsx";
+import { resetUsageIdentity } from "../content/dashboard/usage-analytics.js";
 import { NavTooltip } from "./NavTooltip.jsx";
 import { navbarAccountIcon, navbarAskIcon, navbarIconSize, navbarRefreshIcon, navbarSparkleSize } from "../content/dashboard/navbar-icons.mjs";
 import { pacificReportingRangeLabel as reportingRangeLabel } from "../content/dashboard/overview-summary.mjs";
@@ -612,6 +613,7 @@ function DataAppOverflowMenu({
   const photo=(()=>{try{const url=new URL(viewer?.profilePictureUrl);return url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.username&&!url.password&&!url.port?url.href:null}catch{return null}})();
   const avatar=<span className="egm-account-avatar-wrap" aria-hidden="true"><span className="egm-account-avatar">{photo&&failedPhoto!==photo?<img src={photo} alt="" width="28" height="28" referrerPolicy="no-referrer" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={()=>setFailedPhoto(photo)}/>:initial||<Icon name={navbarAccountIcon} size={navbarIconSize}/>}</span>{pendingAccess&&<span className="egm-account-pending"/>}</span>;
   const logOut = () => {
+    resetUsageIdentity();
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/auth/logout';

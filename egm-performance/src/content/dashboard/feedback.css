@@ -1,6 +1,6 @@
 .egm-feedback-trigger { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--nav-gap, 4px); height: var(--nav-control, 36px); min-height: var(--nav-control, 36px); padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: transparent; box-shadow: none; color: var(--text); font-size: var(--egm-text-label); font-weight: 500; line-height: 1; }
 .egm-feedback-trigger { width: var(--nav-control, 36px); min-width: var(--nav-control, 36px); padding: 0; }
-.egm-feedback-trigger:hover { background: var(--border); }
+.egm-feedback-trigger:hover { background: var(--interaction-hover); }
 .egm-feedback-trigger:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-feedback-dialog form { display: grid; gap: var(--space-4); }
 .egm-feedback-dialog form p { margin: 0; color: var(--secondary); line-height: 1.5; }

@@ -147,7 +147,7 @@ export async function handleAsk(request,env,user,options={}) {
   if(!infer?.run)return reply({error:'ask_unavailable'},503)
   const now=options.now??Date.now()
   const at=new Date(now).toISOString()
-  let track=()=>{}
+  let track=()=>{},streaming=false,release=()=>{}
   try {
     const stored=await env.DB.prepare('SELECT body,generated_at FROM snapshots WHERE id=1').first()
     if(!stored)return reply({error:'snapshot_unavailable'},503)
@@ -189,19 +189,26 @@ export async function handleAsk(request,env,user,options={}) {
     // PostHog LLM analytics: question turns and the answer only, never the snapshot context.
     const started=Date.now(),traceId=crypto.randomUUID(),stream=payload.stream===true
     let usage,firstTokenMs,finishReason
+    const jobs=[],finished=new Promise(resolve=>{release=resolve})
+    if(options.waitUntil) {
+      const releaseTimer=setTimeout(()=>release(),35000)
+      releaseTimer.unref?.()
+      // Register before the response returns. Streaming records the event only after tokens finish.
+      options.waitUntil(finished.then(()=>{clearTimeout(releaseTimer);return Promise.all(jobs)}))
+    }
     const input=[...history.flatMap(turn=>[{role:'user',content:turn.question},{role:'assistant',content:turn.answer}]),{role:'user',content:question}]
     track=extra=>{
-      const pending=captureAiGeneration(env,{traceId,userId:user.id,model,input,stream,temperature:0.1,maxTokens:answerTokens,usage,firstTokenMs,latencyMs:Date.now()-started,contextSources:context.records.length,liveGithub:toolStatus.status,...extra},options.fetcher)
-      options.waitUntil?.(pending)
+      jobs.push(captureAiGeneration(env,{traceId,userId:user.id,model,input,stream,temperature:0.1,maxTokens:answerTokens,usage,firstTokenMs,latencyMs:Date.now()-started,contextSources:context.records.length,liveGithub:toolStatus.status,...extra},options.fetcher))
     }
     const hooks={onUsage:value=>{usage=value},onFirstText:()=>{firstTokenMs=Date.now()-started},onFinishReason:value=>{finishReason=value}}
     const tracked=answer=>{const result=finalize(answer);track({output:answer});return result}
     const errorCode=error=>error?.message==='timeout'?'ask_timeout':'ask_unavailable'
-    if(stream)return streamAsk(async step=>infer.run(model,{messages:await prepare(step),max_tokens:answerTokens,temperature:0.1,stream:true,...hooks}),tracked,request.signal,timeoutMs,{onError:error=>track({error:errorCode(error)})})
+    if(stream){streaming=true;return streamAsk(async step=>infer.run(model,{messages:await prepare(step),max_tokens:answerTokens,temperature:0.1,stream:true,...hooks}),tracked,request.signal,timeoutMs,{onError:error=>track({error:errorCode(error)}),onFinally:release})}
     const messages=await prepare()
     let timer,result
     try {result=await Promise.race([infer.run(model,{messages,max_tokens:answerTokens,temperature:0.1,stream:false,...hooks}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),timeoutMs)})])}finally{clearTimeout(timer)}
     if(typeof result?.response!=='string'||!result.response.trim()){track({error:'ask_unavailable'});return reply({error:'ask_unavailable'},503)}
     return reply(tracked(result.response.trim().slice(0,ASK_ANSWER_CHARS)))
   }catch(error){track({error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'});return reply({error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'},error?.message==='timeout'?504:503)}
+  finally{if(!streaming)release()}
 }
