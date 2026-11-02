@@ -64,7 +64,7 @@ export function StarGrowth({rows,observedAt,stale}) {
   const daily=measure==='daily'
   const weekly=starWeeklyChange(rows,observedAt)
   const fields=daily?['newStars','partialStars']:['completedStars','partialTotal']
-  const spec={...line(fields[0],fields),type:daily?'bar':'line',showLegend:false,colors:{[fields[0]]:'var(--chart-1)',[fields[1]]:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
+  const spec={...line(fields[0],fields),type:daily?'bar':'line',rightAxisFields:[],showLegend:false,colors:{[fields[0]]:'var(--chart-1)',[fields[1]]:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   const controls=<><SegmentedControl ariaLabel="Star measure" value={measure} onChange={setMeasure} options={[{value:'daily',label:'Daily gains'},{value:'total',label:'Cumulative'}]}/><SegmentedControl ariaLabel="Star history range" value={range} onChange={setRange} options={[{value:'recent',label:'Latest 14 days'},{value:'all',label:'Full history'}]}/></>
   return <EvidenceChart id="star-history" queryId="star_history" title={daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
     {stale&&<p className="egm-note" role="status"><strong>Star history is out of date.</strong> History was collected {formatObservedAt(observedAt)??'at an unknown time'}. The total stars metric may be newer.</p>}
