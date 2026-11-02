@@ -9,6 +9,7 @@ export function PageLink({page,className,children,...props}) {
     if(!exploreDashboard||!isPlainClick(event))return
     event.preventDefault()
     exploreDashboard(page)
+    requestAnimationFrame(()=>document.getElementById('data-app-main')?.focus({preventScroll:true}))
   }
   return <a {...props} className={className} href={pagePath(page)} onClick={onClick}>{children}</a>
 }

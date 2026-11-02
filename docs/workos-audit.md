@@ -43,7 +43,7 @@ Status: fixed means changed in this PR with tests in `workos-hardening.test.mjs`
 2. WorkOS dashboard, Redirects: keep `https://egm.n3wth.com/auth/callback` as the only redirect URI. Optionally add a default Sign-out URI. Server-side revoke already ends the WorkOS session, so a browser redirect to the logout URL is only needed if you start using hosted AuthKit cookies.
 3. Rotating `SESSION_SECRET`: `wrangler secret put SESSION_SECRET_PREVIOUS` with the old value, `wrangler secret put SESSION_SECRET` with a new 48+ char value, deploy. After at least one hour (session lifetime) delete the previous secret. Approval and feedback event subscribers must resubscribe after rotation (finding 5).
 4. Finding 11: use separate WorkOS API keys per environment, store only in Cloudflare secrets, rotate on a schedule.
-5. Finding 10: in the WorkOS dashboard, create a webhook endpoint aimed at `https://egm.n3wth.com/webhooks/workos` for `user.deleted`, `organization_membership.deleted`, `organization_membership.updated` and `session.revoked`. Put the signing secret in the Worker with `wrangler secret put WORKOS_WEBHOOK_SECRET`. Apply `egm-cloudflare/workos-webhook-schema.sql` once (ignore the error if `provider_session_id` already exists). The handler also creates that table and column when it can. Sessions stored before the column exists are still dropped on the next live session check, not by `session.revoked`. Register the Audit Log schemas below before expecting events to be accepted. Audit delivery is fail-open.
+5. Finding 10: in the WorkOS dashboard, create a webhook endpoint aimed at `https://egm.n3wth.com/webhooks/workos` for `user.deleted`, `organization_membership.deleted`, `organization_membership.updated` and `session.revoked`. Put the signing secret in the Worker with `wrangler secret put WORKOS_WEBHOOK_SECRET`. Deployments run the schema guard described below; run it before manual Worker deployments too. Sessions stored before the column exists are still dropped on the next live session check, not by `session.revoked`. Register the Audit Log schemas below before expecting events to be accepted. Audit delivery is fail-open.
 
    | Action | Actor type | Target type | Metadata keys |
    | --- | --- | --- | --- |
@@ -57,3 +57,9 @@ Status: fixed means changed in this PR with tests in `workos-hardening.test.mjs`
    | `egm.access.role_changed` | user | user | `role`, `status`, `source` |
    | `egm.user.signed_out` | user | user | none |
 6. Findings 8, 9, 12: decide on a 30 to 60 s cache for session state and email, inline GET retry with backoff, and sending `ip_address` and `user_agent`.
+
+## Deployment schema guard
+
+`CREATE TABLE IF NOT EXISTS` does not add columns to an existing table. Before deploying the Worker, `.github/workflows/deploy.yml` runs `node scripts/migrate-workos.mjs` (from the repository root; the workflow uses the equivalent relative path). The guard uses pinned Wrangler `4.151.3` against the existing `egm-growth-access` D1 database, inspects `PRAGMA table_info(workos_sessions)`, and adds `provider_session_id TEXT` only when absent. It also ensures the webhook receipt table exists and verifies both required schemas before allowing deployment. Existing session and receipt rows remain unchanged.
+
+The guard is safe to rerun. A missing base session table, failed command, invalid response, or failed verification stops deployment instead of treating every SQL error as an already-applied migration. Fresh databases still require the base application and WorkOS session schemas; this guard does not bootstrap the full application or change authorization policy.

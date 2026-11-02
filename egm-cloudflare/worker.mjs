@@ -330,7 +330,7 @@ export async function handle(request,env,ctx) {
     return json({version:current?.generated_at??seed.generatedAt})
   }
   if(url.pathname==='/api/snapshot' && request.method==='GET') {
-    const current=await env.DB.prepare('SELECT body,generated_at FROM snapshots WHERE id=1').first()
+    const current=await env.DB.prepare("SELECT json_remove(body,'$.githubHistory') AS body,generated_at FROM snapshots WHERE id=1").first()
     if(current) return new Response(current.body,{headers:{'content-type':'application/json','cache-control':'private, no-store','x-egm-snapshot-version':current.generated_at}})
     return json(seed)
   }

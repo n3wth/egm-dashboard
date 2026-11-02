@@ -7,8 +7,12 @@
 .egm-chart-home { margin: 0 0 8px; color: var(--text); font-size: var(--egm-text-label); line-height: 1.5; }
 .egm-overview-next { display: inline-flex; align-items: center; gap: 5px; color: var(--secondary); font-size: var(--egm-text-label); line-height: 1.4; text-decoration: none; }
 .egm-overview-next:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-.egm-overview-next:hover { color:var(--text);text-decoration:underline;text-underline-offset:4px; }
-.egm-welcome { display: grid; gap: 12px; margin: 0 0 20px; padding: 16px; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); }
+.egm-overview-next:hover,.egm-highlight-link:hover { color:var(--text);text-decoration:underline;text-underline-offset:4px; }
+.egm-welcome { margin: 0 0 20px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); }
+.egm-welcome>summary { width:fit-content;cursor:pointer;color:var(--secondary);font-size:var(--text-sm-size);font-weight:500;line-height:1.5; }
+.egm-welcome>summary:hover { color:var(--text); }
+.egm-welcome>summary:focus-visible { outline:2px solid var(--text);outline-offset:4px; }
+.egm-welcome[open]>:not(summary) { margin-top:12px; }
 .egm-welcome-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .egm-welcome h2 { margin: 0; color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.4; }
 .egm-welcome-close { flex: none; width: 32px; height: 32px; min-height: 32px; margin: -6px -6px 0 0; padding: 0; color: var(--secondary); }
@@ -248,7 +252,7 @@
 .egm-account-menu { display: flex; align-items: center; order: 99; }
 .egm-account-avatar { display: inline-flex; align-items: center; justify-content: center; width: var(--nav-avatar, 28px); height: var(--nav-avatar, 28px); border: 1px solid var(--border); border-radius: var(--radius-full); overflow: hidden; color: var(--text); font-size: var(--egm-text-label); font-weight: 500; }
 .egm-account-avatar-wrap { position: relative; display: inline-flex; }
-.egm-account-pending { position: absolute; top: 0; right: 0; width: 9px; height: 9px; border: 2px solid var(--background); border-radius: var(--radius-full); background: var(--blue); }
+.egm-account-pending { position: absolute; top: 0; right: 0; width: 9px; height: 9px; border: 2px solid var(--background); border-radius: var(--radius-full); background: var(--accent); }
 @media (prefers-reduced-motion: no-preference) {
   .egm-live-changed { animation: egm-live-update 700ms ease-out; }
   @keyframes egm-live-update { 0% { opacity: .55; } 100% { opacity: 1; } }

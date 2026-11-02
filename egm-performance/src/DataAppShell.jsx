@@ -1211,6 +1211,8 @@ export function DataAppShell({
             {chartExport && <ChartExportDialog {...chartExport} resolveColor={resolveColor} onClose={() => setChartExport(null)} />}
 
             <main
+              id="data-app-main"
+              tabIndex={-1}
               inert={editSession?.saving || undefined}
               ref={editingRoot}
               className={`page${snapshot.surface === "report" ? " report-page" : ""}`}

@@ -32,10 +32,10 @@ export function NavTooltip({label, children, className = '', ...props}) {
     if (event.pointerType === 'touch' || anchor.current.querySelector('[data-state="open"]')) return
     clearTimeout(timer.current)
     timer.current = setTimeout(() => setVisible(true), 500)
-  }} onPointerLeave={hide} onFocus={event => {
+  }} onPointerLeave={()=>{clearTimeout(timer.current);timer.current=setTimeout(hide,200)}} onFocus={event => {
     if (event.target.matches(':focus-visible')) { clearTimeout(timer.current); setVisible(true) }
   }} onBlur={hide} onPointerDown={hide} onClick={hide}>
     {cloneElement(children, {'aria-describedby': visible ? id : children.props['aria-describedby']})}
-    {visible && createPortal(<span ref={tip} id={id} role="tooltip" className="egm-nav-tooltip">{label}</span>, document.body)}
+    {visible && createPortal(<span ref={tip} id={id} role="tooltip" className="egm-nav-tooltip" onPointerEnter={()=>clearTimeout(timer.current)} onPointerLeave={hide}>{label}</span>, document.body)}
   </span>
 }

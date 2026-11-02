@@ -38,8 +38,11 @@ a.egm-ask-cite:hover { background: var(--border-strong); }
 .egm-trace-trigger > .dashboard-icon { transition: transform 120ms; }
 .egm-trace[data-open="true"] .egm-trace-trigger > .dashboard-icon { transform: rotate(90deg); }
 .egm-trace-steps { display: grid; gap: var(--space-4); margin: 12px 0 0 3px; padding: 0; list-style: none; color: var(--text); }
-.egm-trace-steps li { position: relative; display: flex; align-items: center; gap: 10px; min-height: 14px; line-height: 14px; }
-.egm-trace-steps li:not(:last-child)::after { content: ''; position: absolute; left: 6.5px; top: 18px; width: 1px; height: 10px; background: var(--border-strong); }
+.egm-trace-steps li { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 20px; line-height: 20px; }
+.egm-trace-steps li:not(:last-child)::after { content: ''; position: absolute; left: 6.5px; top: 20px; bottom:calc(-1 * var(--space-4)); width: 1px; background: var(--border-strong); }
+.egm-trace-text { display:grid;gap:2px;min-width:0;overflow-wrap:anywhere; }
+.egm-trace-icon { margin-top:3px; }
+.egm-copy-error { color:var(--secondary);font-size:var(--text-xs-size); }
 .egm-trace-steps li[data-status="skipped"] { color: var(--secondary); }
 .egm-trace-icon { display: inline-flex; flex: 0 0 14px; width: 14px; height: 14px; }
 .egm-trace-detail { color: var(--secondary); }
@@ -62,7 +65,7 @@ a.egm-ask-cite:hover { background: var(--border-strong); }
 .egm-ask-followups button:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
 .egm-ask-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .egm-ask-new { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; color: var(--text); font: inherit; font-size: var(--text-xs-size); }
-.egm-ask-new:hover { background: var(--border); }
+.egm-ask-new:hover { background: var(--interaction-hover); }
 .egm-ask-new:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
 .egm-ask-disclaimer { margin: 0; color: var(--secondary); font-size: var(--egm-text-caption); text-align: center; }
 .egm-ask-active-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: var(--radius-md); background: var(--border); color: var(--text); }
@@ -80,7 +83,7 @@ a.egm-ask-cite:hover { background: var(--border-strong); }
 .egm-ask-actions { display: flex; align-items: center; gap: var(--ask-space-1); margin-top: var(--ask-space-3); }
 .egm-ask-actions .egm-ask-options { margin-right: auto; }
 .egm-ask-actions button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--secondary); }
-.egm-ask-actions button:hover { background: var(--border); color: var(--text); }
+.egm-ask-actions button:hover { background: var(--interaction-hover); color: var(--text); }
 .egm-ask-actions button:focus-visible { outline: 1px solid var(--text); }
 .egm-ask-error p { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .egm-ask-error button {  border: 1px solid var(--border); border-radius: var(--control-radius); padding: 5px 9px; color: var(--text); background: transparent; font: inherit; }
@@ -110,3 +113,5 @@ a.egm-ask-cite:hover { background: var(--border-strong); }
 .egm-ask-attribution { display: flex; align-items: center; gap: var(--ask-space-2); margin: var(--ask-space-3) 0 0; min-height: 18px; }
 .egm-cell-clip { display: block; max-width: min(48ch,100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .egm-cell-clip a { color: inherit; }
+@media(max-width:600px) { .egm-cell-clip { white-space:normal;overflow-wrap:anywhere; }.egm-ask-actions { flex-wrap:wrap; } }
+.egm-ask-followups button:focus-visible,.egm-ask-actions button:focus-visible,.egm-ask-new:focus-visible,.egm-trace-trigger:focus-visible { outline:2px solid var(--text);outline-offset:2px; }

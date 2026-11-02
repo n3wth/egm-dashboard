@@ -48,5 +48,5 @@ export function pageSummary(page,queries={}) {
   }
   if(!sentences.length)return null
   const kept=sentences.slice(0,2)
-  return {sentences:kept,queryIds:[...ids],headline:kept[0],facts:kept.slice(1),range:reportingRange(queries)}
+  return {sentences:kept,queryIds:[...ids],headline:kept[0],facts:kept.slice(1),range:['research','mentions'].includes(page)?null:reportingRange(queries)}
 }

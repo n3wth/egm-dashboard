@@ -16,9 +16,9 @@ test('a source error retains the previous snapshot',async()=>{
 })
 test('complete refresh reconciles traffic and writes once with fresh provenance',async()=>{
   const names={ '':'repo','/traffic/views':'views','/traffic/clones':'clones','/traffic/popular/referrers':'referrers','/traffic/popular/paths':'paths','/issues':'issues','/pulls':'pulls','/releases':'releases','/pages':'pages','/commits':'commits'}
-  let writes=0,saved
+  let writes=0,saved,readFailure=false
   const repo=await load('repo')
-  const env={REFRESH_UNTIL:'2099-01-01',GITHUB_TOKEN:'test',DB:{prepare(){return {bind(body){saved=JSON.parse(body);return {async run(){writes++}}}}}}}
+  const env={REFRESH_UNTIL:'2099-01-01',GITHUB_TOKEN:'test',DB:{prepare(){return {async first(){if(readFailure)throw Error('history unavailable');return {body:JSON.stringify({githubHistory:{daily:{traffic:[{date:'2026-09-01',views:7}]},windows:[]}})}},bind(body){saved=JSON.parse(body);return {async run(){writes++}}}}}}}
   let emptyReferrers=false
   const request=async url=>{
     const u=new URL(url),path=u.pathname.replace('/repos/google/elephant-goldfish-model','')
@@ -31,6 +31,7 @@ test('complete refresh reconciles traffic and writes once with fresh provenance'
   }
   const result=await refreshSnapshot(env,request,async()=>({}))
   assert.equal(writes,1)
+  assert.equal(saved.githubHistory.daily.traffic[0].date,'2026-09-01','standalone writes retain the existing archive too')
   assert.equal(result.status,'refreshed')
   assert.equal(saved.queries.traffic.rows.reduce((s,r)=>s+r.views,0),saved.queries.reach.rows[0].views)
   assert.equal(saved.queries.star_history.rows.at(-1).stars,repo.stargazers_count)
@@ -48,6 +49,9 @@ test('complete refresh reconciles traffic and writes once with fresh provenance'
   const empty=await refreshSnapshot(env,request,async()=>({}),{persist:false})
   assert.deepEqual(empty.snapshot.queries.referrers.rows,[])
   assert.equal(empty.snapshot.queries.website.rows[0].referralViews,null)
+  readFailure=true
+  await assert.rejects(refreshSnapshot(env,request,async()=>({})),/history unavailable/)
+  assert.equal(writes,1,'do not overwrite stored history when the historical read fails')
 })
 
 test('bounded or failed stargazer collection preserves dated history while traffic and total stars refresh',async()=>{

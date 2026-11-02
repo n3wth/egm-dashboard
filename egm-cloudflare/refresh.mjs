@@ -1,13 +1,14 @@
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 import {activityRows,alignTraffic,downloadRows,issueQueue,referralHistory,staleStarCaveat,stampCollectedQueries,starHistory,usableStargazers} from './github-snapshot.mjs'
 import {collectResearch} from './research.mjs'
+import {retainGithubHistory} from './github-history.mjs'
 
 export function refreshEnabled(env,time=Date.now()) {
   const until=Date.parse(env.REFRESH_UNTIL)
   return Number.isFinite(until) && time<until
 }
 
-export async function refreshSnapshot(env,request=fetch,research=collectResearch,{persist=true}={}) {
+export async function refreshSnapshot(env,request=fetch,research=collectResearch,{persist=true,previousSnapshot}={}) {
   if(!refreshEnabled(env)) return {status:'expired'}
   if(!env.GITHUB_TOKEN) throw Error('GitHub credential unavailable')
   const started=new Date().toISOString()
@@ -45,11 +46,11 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   const web=referrers.find(row=>row.referrer.toLowerCase()==='egm.dev')
   const attributed=referrers.reduce((sum,row)=>sum+row.count,0)
   const data=structuredClone(seed)
-  let previousQueries={}
-  try {
+  if(previousSnapshot===undefined) {
     const saved=await env.DB.prepare('SELECT body FROM snapshots WHERE id=1').first()
-    previousQueries=saved?JSON.parse(saved.body).queries??{}:{}
-  } catch { /* Last known build remains a valid dated star-history fallback. */ }
+    previousSnapshot=saved?JSON.parse(saved.body):{}
+  }
+  const previousQueries=previousSnapshot?.queries??{}
   const set=(id,rows)=>{data.queries[id].rows=rows}
   set('traffic',traffic)
   set('reach',[{views:views.count,visitors:views.uniques,clones:clones.count,cloners:clones.uniques,stars:repo.stargazers_count,forks:repo.forks_count,watchers:repo.subscribers_count}])
@@ -75,6 +76,9 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   data.buildStatus='complete'
   Object.assign(data.queries,await research(env,request))
   // The multi-source runner stages this result and owns its single final commit.
-  if(persist) await env.DB.prepare('INSERT INTO snapshots(id,body,generated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,generated_at=excluded.generated_at WHERE excluded.generated_at>snapshots.generated_at').bind(JSON.stringify(data),started).run()
+  if(persist) {
+    data.githubHistory=retainGithubHistory(previousSnapshot.githubHistory?previousSnapshot:{...previousSnapshot,githubHistory:retainGithubHistory({},seed)},data)
+    await env.DB.prepare('INSERT INTO snapshots(id,body,generated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,generated_at=excluded.generated_at WHERE excluded.generated_at>snapshots.generated_at').bind(JSON.stringify(data),started).run()
+  }
   return {status:'refreshed',generatedAt:started,trafficEnd:traffic.at(-1).date,stars:repo.stargazers_count,starHistoryStatus:stars?'available':'stale',...(!persist?{snapshot:data}:{})}
 }

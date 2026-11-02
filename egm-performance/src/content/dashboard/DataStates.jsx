@@ -8,5 +8,5 @@ export function EmptyState({title='No data yet',children='The latest snapshot ha
 export function StaleNotice({generatedAt}) {
   const stale=staleness(generatedAt)
   if(!stale)return null
-  return <p className="egm-stale" role="status">Data last refreshed {stale.label}. Figures may be out of date. Use Refresh data in the top bar to check for newer data.</p>
+  return <p className="egm-stale" role="status">Data last refreshed {stale.label}. Figures may be out of date. Check Collection status below for source details.</p>
 }
