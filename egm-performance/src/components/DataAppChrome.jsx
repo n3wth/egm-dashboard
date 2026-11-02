@@ -2,7 +2,7 @@ import { dataAppExportOptions } from "../export-catalog.js";
 import { Feedback } from "../content/dashboard/Feedback.jsx";
 import { NavTooltip } from "./NavTooltip.jsx";
 import { navbarAccountIcon, navbarAskIcon, navbarIconSize, navbarRefreshIcon, navbarSparkleSize } from "../content/dashboard/navbar-icons.mjs";
-import { reportingRangeLabel } from "../content/dashboard/overview-summary.mjs";
+import { pacificReportingRangeLabel as reportingRangeLabel } from "../content/dashboard/overview-summary.mjs";
 import { useOptionalDataAppShell } from "../DataAppContext.jsx";
 import { dataAppBuildState } from "../build-state.js";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
@@ -96,7 +96,7 @@ function RelativeFreshness({ generatedAt, rangeLabel }) {
     : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago`
       : `${Math.floor(minutes / 1440)}d ago`;
   const exact = new Date(timestamp).toLocaleString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" });
-  const label = rangeLabel ? `Updated ${exact}. Reporting period ${rangeLabel}, UTC.` : `Updated ${exact}`;
+  const label = rangeLabel ? `Updated ${exact}. Reporting period ${rangeLabel}.` : `Updated ${exact}`;
   return <NavTooltip label={label}><time dateTime={generatedAt} tabIndex={0} aria-label={label} className="dashboard-relative-freshness"><Icon name={navbarRefreshIcon} size={navbarIconSize}/>{age}</time></NavTooltip>;
 }
 

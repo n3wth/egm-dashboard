@@ -4,6 +4,8 @@ Private source for [egm.n3wth.com](https://egm.n3wth.com/overview).
 
 The React dashboard uses a Cloudflare Worker and D1. WorkOS verifies sign-in; server-side approval controls access. A session ends after 7 days without a visit, and always 30 days after sign-in. Owner presentation edits are stored separately from source snapshots. The public hostname does not make the data public.
 
+The refresh runner retains `githubHistory` in the same atomic D1 snapshot write: daily traffic/activity are merged by UTC date without expiry; rolling reach, referrer, path, download and website observations retain the latest capture per UTC collection day with original source metadata. Initial history includes the checked-in reviewed data and the last stored window. Missing older traffic cannot be recovered from GitHub after its 14-day limit. Unique visitors and overlapping rolling totals must not be added across periods. The dashboard's current-window queries remain unchanged. Collection still stops at `REFRESH_UNTIL`; retained history remains stored afterward.
+
 ## Build and test
 
 Use Node.js 22.22 or newer and npm.

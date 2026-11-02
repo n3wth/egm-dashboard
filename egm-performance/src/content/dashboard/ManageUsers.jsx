@@ -132,7 +132,7 @@ export function ManageUsers({open,onClose,accessVersion}) {
       setNotice('Invitation revoked.')
     }catch(failure){if(!signal.aborted)setInviteError(failureMessage(failure,'Could not revoke the invitation. Refresh and try again.'))}finally{working.current=false;if(!signal.aborted)setBusy(false)}
   }
-  const date=value=>{const parsed=new Date(value);return value&&Number.isFinite(parsed.getTime())?parsed.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'Unknown'}
+  const date=value=>{const parsed=new Date(value);return value&&Number.isFinite(parsed.getTime())?parsed.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}):'Unknown'}
   const pending=record?.users.filter(user=>user.status==='pending')??[]
   return <Dialog open={open} onClose={onClose} title="Manage users" className="egm-form-dialog egm-manage-users" initialFocusSelector=".dialog-header" contentRef={setDialogElement}>
     {error&&<div className="egm-manage-message" role="alert"><p>{error}</p>{!record&&canRetry&&<Button type="button" onClick={retryLoad}>Try again</Button>}</div>}
