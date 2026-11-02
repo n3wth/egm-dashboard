@@ -115,14 +115,31 @@ export function staleStarCaveat(stargazerCount) {
 }
 
 export function stampCollectedQueries(data, collectedQueries, started, requests, traffic, starRange) {
+  const repo = 'https://github.com/google/elephant-goldfish-model'
+  const links = {
+    downloads: [{ label: 'GitHub releases', url: repo + '/releases' }],
+    maintenance: [{ label: 'GitHub issues', url: repo + '/issues' }, { label: 'GitHub pull requests', url: repo + '/pulls' }],
+    issue_queue: [{ label: 'GitHub issues', url: repo + '/issues' }],
+    star_history: [{ label: 'GitHub stargazers', url: repo + '/stargazers' }],
+    reach: [{ label: 'GitHub repository', url: repo }, { label: 'GitHub traffic', url: repo + '/graphs/traffic' }]
+  }
   for (const [id, query] of Object.entries(data.queries)) {
     // Seeded independent-provider records are dated evidence, not GitHub results.
     if (!collectedQueries.has(id)) continue
     query.source.executedAt = started
-    query.source.coverage = id === 'star_history'
-      ? { startDate: starRange.start, endDate: starRange.today }
-      : { startDate: traffic[0].date, endDate: traffic.at(-1).date }
+    query.source.coverage = id === 'downloads'
+      ? { type: 'lifetime', asOf: started }
+      : ['maintenance', 'issue_queue'].includes(id)
+        ? { type: 'point-in-time', asOf: started }
+        : id === 'star_history'
+          ? { startDate: starRange.start, endDate: starRange.today }
+          : { startDate: traffic[0].date, endDate: traffic.at(-1).date, ...(id === 'reach' ? { type: 'mixed', asOf: started } : {}) }
+    if (links[id]) query.source.links = links[id]
+    if (['downloads', 'maintenance', 'issue_queue', 'star_history'].includes(id)) {
+      query.source.filters = (query.source.filters ?? []).filter(filter => filter !== 'Daily traffic buckets use UTC')
+    }
     query.source.caveats = (query.source.caveats ?? []).filter(caveat => !caveat.includes('Oct 13') && !caveat.includes('Oct 27'))
+    if (id === 'reach') query.source.caveats = [...new Set([...query.source.caveats, 'Views, visitors, clones and cloners cover the displayed traffic window. Stars, forks and watchers are current repository totals as of collection, not gains during that window.'])]
     query.source.caveats.push('Automated GitHub refresh. Sources were collected in one run; current counts can change during collection.')
     query.source.evidenceFlow = [{ title: 'Automated GitHub REST collection', detail: requests.join('\n') }]
   }
