@@ -10,11 +10,5 @@ export const pages = [
 
 export const pagePath = id => pages.find(page=>page.id===id)?.path ?? null
 
-export function adjacentPages(id) {
-  const index=pages.findIndex(page=>page.id===id)
-  if(index<0)return {previous:null,next:null}
-  return {previous:pages[index-1]??null,next:pages[index+1]??null}
-}
-
 /** Plain left clicks switch tabs in place; modified and middle clicks keep the browser's own link behaviour. */
 export const isPlainClick = event => !event.defaultPrevented&&event.button===0&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey
