@@ -344,6 +344,7 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
 .dashboard-topbar.egm-single-row[data-mode] .egm-feedback-trigger { height: var(--nav-control, 36px); min-height: var(--nav-control, 36px); }
 .dashboard-topbar.egm-single-row .dashboard-header-action-button { border-radius: var(--radius-md); }
 .dashboard-topbar.egm-single-row .egm-feedback-trigger { border-color: transparent; }
+.dashboard-topbar.egm-single-row :is(.egm-feedback-trigger,.dashboard-ask-button) { color: var(--secondary); }
 .dashboard-topbar.egm-single-row .egm-account-button { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; box-shadow: none; background: transparent; }
 .dashboard-topbar.egm-single-row :is(.dashboard-ask-button,.egm-account-button,.egm-feedback-trigger):is(:hover,[data-state="open"]) { background: var(--interaction-hover); }
 .dashboard-topbar.egm-single-row :is(.dashboard-header-action-button,.dashboard-relative-freshness):focus-visible { outline: 2px solid var(--text); outline-offset: 2px; box-shadow: none; }

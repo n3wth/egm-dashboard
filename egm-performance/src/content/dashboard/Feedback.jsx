@@ -67,7 +67,7 @@ export function Feedback() {
 
   if (!import.meta.env.DEV && globalThis.location?.hostname !== 'egm.n3wth.com') return null
   return <>
-    <NavTooltip label="Give feedback"><button type="button" className="dashboard-header-action-button egm-feedback-trigger" aria-label="Feedback" onClick={() => { setAttempt(0); setOpen(true) }}><Icon name="feedback" size={navbarIconSize}/></button></NavTooltip>
+    <NavTooltip label="Give feedback"><button type="button" className="dashboard-header-action-button egm-feedback-trigger" aria-label="Feedback" onClick={() => { setAttempt(0); setOpen(true) }}><Icon name="chatBubble" size={navbarIconSize}/></button></NavTooltip>
     <Dialog open={open} onClose={close} showClose={!busy} title="Give feedback" className="egm-form-dialog egm-feedback-dialog">
       {sent ? <div role="status"><p>Thanks for your feedback.</p><Button onClick={close}>Done</Button></div> : unavailable ? <div role="alert"><p>{unavailable.message}</p><div className="egm-feedback-actions"><Button onClick={close}>Close</Button>{unavailable.retry && <Button variant="primary" onClick={() => setAttempt(value => value + 1)}>Try again</Button>}</div></div> : !survey ? <p role="status">Loading feedback…</p> : <form onSubmit={submit}>
         <p>Tell us about a bug or suggest an improvement. Your feedback is sent to PostHog and connected review tools.</p>
