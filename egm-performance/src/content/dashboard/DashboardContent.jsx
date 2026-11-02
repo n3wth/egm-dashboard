@@ -161,7 +161,7 @@ function AcrossEgm({queries,reach,web}) {
       </article>
       <article className="egm-highlight egm-highlight-experiment">
         <h3>Suggested experiment</h3>
-        {analysis?<AnalysisText analysis={analysis}/>:<><AnalysisLabel/>{experiment?<><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success">What to record: {experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><p>{experiment.rule}</p></details></>:<p className="egm-highlight-value">No specific first-use, documentation, or recorded-channel evidence supports an experiment yet.</p>}</>}
+        {analysis?<AnalysisText analysis={analysis}/>:<>{experiment?<><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success">What to record: {experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><AnalysisLabel/><p>{experiment.rule}</p></details></>:<p className="egm-highlight-value">No specific first-use, documentation, or recorded-channel evidence supports an experiment yet.</p>}</>}
       </article>
     </div>
   </DataComponent>
@@ -178,7 +178,7 @@ function DashboardTab() {
   const {activeTabId} = useDashboardTabs(tabs)
   useEffect(() => { trackDashboardSection(activeTabId) }, [activeTabId])
   const summary=analysisSummary(activeTabId==='reach'?overviewSummary(queries):pageSummary(activeTabId,queries),queries,activeTabId==='reach'?'overview':activeTabId)
-  return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol></section>}<SiteFooter generatedAt={snapshot?.generatedAt} refreshStatus={snapshot?.refreshStatus} summary={summary}/></>
+  return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol><details className="egm-analysis-method"><summary>Analysis method</summary><AnalysisLabel analysis={summary.analysis}/>{summary.analysis?.unknowns.length>0&&<p>Unknown: {summary.analysis.unknowns.join(' ')}</p>}</details></section>}<SiteFooter generatedAt={snapshot?.generatedAt} refreshStatus={snapshot?.refreshStatus} summary={summary}/></>
 }
 function TabPage({activeTabId}) {
   const {queries} = useDataApp()
