@@ -36,6 +36,7 @@ export function CopyInvitationLink({copied,onCopy}) {
 export function ManageUsers({open,onClose,accessVersion}) {
   const [record,setRecord]=useState(null)
   const [error,setError]=useState('')
+  const [accessNotice,setAccessNotice]=useState('')
   const [busy,setBusy]=useState(false)
   const [copied,setCopied]=useState(false)
   const [email,setEmail]=useState('')
@@ -50,12 +51,16 @@ export function ManageUsers({open,onClose,accessVersion}) {
   const [canRetry,setCanRetry]=useState(false)
   const working=useRef(false)
   const active=useRef(null)
+  const accessLoad=useRef(0)
   async function load(signal) {
-    const response=await request('/api/access',signal)
-    if(!response.ok)throw response.status===403?Object.assign(Error('Only the dashboard owner can manage access.'),{status:403}):httpError(response,'Could not load users.')
-    const data=await response.json()
-    if(!Array.isArray(data?.users))throw Error('Could not load users.')
-    if(!signal.aborted){setRecord(data);setError('');setCanRetry(false)}
+    const sequence=++accessLoad.current
+    try {
+      const response=await request('/api/access',signal)
+      if(!response.ok)throw response.status===403?Object.assign(Error('Only the dashboard owner can manage access.'),{status:403}):httpError(response,'Could not load users.')
+      const data=await response.json()
+      if(!Array.isArray(data?.users))throw Error('Could not load users.')
+      if(!signal.aborted&&sequence===accessLoad.current){setRecord(data);setError('');setCanRetry(false)}
+    }catch(failure){if(!signal.aborted&&sequence===accessLoad.current)throw failure}
   }
   async function loadInvitations(signal) {
     const response=await request('/api/invitations',signal)
@@ -68,13 +73,13 @@ export function ManageUsers({open,onClose,accessVersion}) {
     if(!open)return
     const controller=new AbortController();active.current=controller
     working.current=false
-    setRecord(null);setError('');setCanRetry(false);setBusy(false);setCopied(false);setCreatedLink(null);setNotice('');setInvitations(null);setEmailAvailable(null);setInviteError('');setInviteCanRetry(false);setEmail('');setExpiresInDays(7)
+    setRecord(null);setError('');setAccessNotice('');setCanRetry(false);setBusy(false);setCopied(false);setCreatedLink(null);setNotice('');setInvitations(null);setEmailAvailable(null);setInviteError('');setInviteCanRetry(false);setEmail('');setExpiresInDays(7)
     load(controller.signal).catch(failure=>{if(!controller.signal.aborted){setError(failureMessage(failure,'Could not load users.'));setCanRetry(retryableStatus(failure.status))}})
     loadInvitations(controller.signal).catch(failure=>{if(!controller.signal.aborted){setInviteError(failureMessage(failure,'Invitations are unavailable. Please try again later.'));setInviteCanRetry(retryableStatus(failure.status))}})
     return ()=>controller.abort()
   },[open])
   useEffect(()=>{
-    if(open&&active.current)load(active.current.signal).catch(()=>{})
+    if(open&&active.current){const signal=active.current.signal;load(signal).catch(failure=>{if(!signal.aborted){setError(failureMessage(failure,'Could not reload users.'));setCanRetry(retryableStatus(failure.status))}})}
   },[accessVersion])
   function retryInvitations() {
     const signal=active.current.signal
@@ -92,12 +97,18 @@ export function ManageUsers({open,onClose,accessVersion}) {
     if(busy||working.current)return
     working.current=true
     const signal=active.current.signal
-    setBusy(true);setError('')
+    const previousStatus=record?.users.find(user=>user.id===id)?.status
+    setBusy(true);setError('');setAccessNotice('');setCanRetry(false)
     try {
       const response=await request('/api/access',signal,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,decision})})
-      if(!response.ok)throw response.status===409?Error('This request was already decided. Refresh the list.'):httpError(response,'Could not update access.')
-      await load(signal)
-    }catch(failure){if(!signal.aborted)setError(failureMessage(failure,'Could not update access.'))}finally{working.current=false;if(!signal.aborted)setBusy(false)}
+      if(!response.ok)throw httpError(response,response.status===409?'Access changed elsewhere. Reload users before trying again.':'Could not update access.')
+      if(signal.aborted)return
+      // Invalidate reads started before the confirmed mutation so they cannot restore its old status.
+      accessLoad.current++
+      setRecord(current=>current?{...current,users:current.users.map(user=>user.id===id?{...user,status:decision}:user)}:current)
+      setAccessNotice(decision==='approved'?'Access approved.':previousStatus==='approved'?'Access revoked.':'Access denied.')
+      await load(signal).catch(failure=>{if(!signal.aborted){setError(`Access updated, but the user list could not be refreshed. ${statusMessage(failure.status,'Reload users to check the latest status.')}`);setCanRetry(retryableStatus(failure.status))}})
+    }catch(failure){if(!signal.aborted){setError(failureMessage(failure,'Could not update access.'));setCanRetry(retryableStatus(failure.status))}}finally{working.current=false;if(!signal.aborted)setBusy(false)}
   }
   async function createInvitation(kind) {
     if(busy||working.current)return
@@ -142,7 +153,7 @@ export function ManageUsers({open,onClose,accessVersion}) {
   const date=value=>{const parsed=new Date(value);return value&&Number.isFinite(parsed.getTime())?parsed.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}):'Unknown'}
   const pending=record?.users.filter(user=>user.status==='pending')??[]
   return <Dialog open={open} onClose={onClose} title="Manage users" className="egm-form-dialog egm-manage-users" initialFocusSelector=".dialog-header" contentRef={setDialogElement}>
-    {error&&<div className="egm-manage-message" role="alert"><p>{error}</p>{!record&&canRetry&&<Button type="button" onClick={retryLoad}>Try again</Button>}</div>}
+    {error&&<div className="egm-manage-message" role="alert"><p>{error}</p>{canRetry&&<Button type="button" disabled={busy} onClick={retryLoad}>{record?'Reload users':'Try again'}</Button>}</div>}
     {!record&&!error&&<p role="status">Loading users…</p>}
     {record&&<><section className="egm-invite-panel" aria-labelledby="egm-invite-heading"><div><h3 id="egm-invite-heading">Invite someone</h3><p>Invitations grant access after sign-in and can be used once.</p></div>
       <form className="egm-invite-email" onSubmit={event=>{event.preventDefault();if(emailAvailable)createInvitation('email')}}><input className="egm-field" aria-label="Email address" type="email" value={email} onChange={event=>setEmail(event.target.value)} placeholder="Email address" autoComplete="email" required /><Button type="submit" variant="primary" disabled={busy||emailAvailable!==true||!email.trim()}>Send invite</Button></form>
@@ -152,7 +163,7 @@ export function ManageUsers({open,onClose,accessVersion}) {
       {createdLink&&<div className="egm-invite-created"><label>Invitation link<input className="egm-field" readOnly value={createdLink.url} onFocus={event=>event.target.select()} /></label><CopyInvitationLink copied={copied} onCopy={async()=>{try{await navigator.clipboard.writeText(createdLink.url);setInviteError('');setCopied(true)}catch{setCopied(false);setInviteError('Could not copy the link. Select it to copy manually.')}}}/><p>Expires {date(createdLink.expiresAt)}. Copy it now; it cannot be shown again.</p></div>}
     </section>
     <section className="egm-manage-section" aria-labelledby="egm-users-heading"><div className="egm-manage-section-heading"><h3 id="egm-users-heading">Users <span>({record.users.length})</span></h3>{pending.length>0&&<span>{pending.length} pending</span>}</div>
-    {!record.users.length&&<EmptyState title="No users yet">People appear here after they request access or accept an invitation.</EmptyState>}<ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}</div></div>{user.id!==record.ownerId&&['pending','approved','denied'].includes(user.status)?<UserAccessActions user={user} busy={busy} onDecide={decide}/>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
+    {accessNotice&&<p className="egm-manage-message" role="status">{accessNotice}</p>}{!record.users.length&&<EmptyState title="No users yet">People appear here after they request access or accept an invitation.</EmptyState>}<ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}</div></div>{user.id!==record.ownerId&&['pending','approved','denied'].includes(user.status)?<UserAccessActions user={user} busy={busy} onDecide={decide}/>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
     {invitations?.length>0&&<section className="egm-manage-section" aria-labelledby="egm-invitations-heading"><h3 id="egm-invitations-heading">Invitations</h3><ul aria-label="Invitations">{invitations.map(invitation=>{const expired=new Date(invitation.expiresAt).getTime()<=Date.now(),active=!invitation.redeemedAt&&!invitation.revokedAt&&!expired;const state=invitation.redeemedAt?'Used':invitation.revokedAt?'Revoked':expired?'Expired':invitation.deliveryState==='unknown'||invitation.deliveryState==='sending'?'Email delivery unconfirmed':invitation.deliveryState==='failed'?'Email delivery failed':'Active';return <li key={invitation.id}><div><strong>{invitation.email||'Shareable link'}</strong><span>{state}{active?` · Expires ${date(invitation.expiresAt)}`:''}</span></div>{active&&<InvitationRevokeAction invitation={invitation} busy={busy} onRevoke={revokeInvitation}/>}</li>})}</ul></section>}</>}
   </Dialog>
 }
