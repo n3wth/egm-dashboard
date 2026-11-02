@@ -56,15 +56,20 @@ test('slow source collection leaves a separate bounded slot for the daily interp
 })
 
 test('insufficient analysis time skips without consuming the durable daily reservation',async()=>{
-  const f=fixture()
-  let time=baseTime
-  const services={now:()=>time,github:async()=>({status:'refreshed',snapshot:{...f.previous,generatedAt:new Date(baseTime).toISOString()}}),...Object.fromEntries(independentNames.map(name=>[name,async()=>({})])),webPerformance:async()=>{time=baseTime+11*60000+50000;return {}},dailyAnalysis:()=>assert.fail('must leave the daily attempt for a later refresh')}
-  const result=await runRefresh({...f.env,GITHUB_COLLECTION_ENABLED:'true',DAILY_ANALYSIS_ENABLED:'true'},noRequest,services)
-  assert.equal(result.status,'refreshed')
-  assert.equal(result.dailyAnalysis,'skipped_deadline')
-  assert.equal(f.db.prepare('SELECT count(*) AS count FROM daily_analysis_runs').get().count,0)
-  const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
-  assert.equal(saved.refreshStatus.budget.calls.dailyAnalysis,undefined)
+  for(const prior of [null,{rows:[{id:'overview',headline:'Saved interpretation'}],source:{executedAt:new Date(baseTime).toISOString()}}]) {
+    const f=fixture()
+    if(prior){f.previous.queries.daily_analysis=prior;f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(f.previous))}
+    let time=baseTime
+    const services={now:()=>time,github:async()=>({status:'refreshed',snapshot:{...f.previous,generatedAt:new Date(baseTime).toISOString()}}),...Object.fromEntries(independentNames.map(name=>[name,async()=>({})])),webPerformance:async()=>{time=baseTime+11*60000+50000;return {}},dailyAnalysis:()=>assert.fail('must leave the daily attempt for a later refresh')}
+    const result=await runRefresh({...f.env,GITHUB_COLLECTION_ENABLED:'true',DAILY_ANALYSIS_ENABLED:'true'},noRequest,services)
+    assert.equal(result.status,'refreshed')
+    assert.equal(result.dailyAnalysis,'skipped_deadline')
+    assert.equal(f.db.prepare('SELECT count(*) AS count FROM daily_analysis_runs').get().count,0)
+    const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+    assert.equal(saved.refreshStatus.budget.calls.dailyAnalysis,undefined)
+    assert.deepEqual(saved.queries.daily_analysis_status.rows,[{status:prior?'stale':'unavailable',reason:'insufficient_time_budget',checkedAt:new Date(time).toISOString()}])
+    if(prior)assert.deepEqual(saved.queries.daily_analysis,prior,'the status update retains the last valid interpretation')
+  }
 })
 
 test('ongoing daily analysis does not reopen expired source collection or spend its budgets',async()=>{

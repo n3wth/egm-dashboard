@@ -170,7 +170,11 @@ export async function runRefresh(env, request = fetch, services = {}) {
     } catch { state.webPerformance = 'failed' }
     if(analysisEnabled&&(env.GEMINI_API_KEY||env.INFER||services.dailyAnalysis)) {
       // Leave the existing model request timeout intact before reserving a paid daily attempt.
-      if(clock()+20000>=analysisDeadline)state.dailyAnalysis='skipped_deadline'
+      if(clock()+20000>=analysisDeadline){
+        state.dailyAnalysis='skipped_deadline'
+        const checkedAt=new Date(clock()).toISOString()
+        merged.queries.daily_analysis_status={rows:[{status:merged.queries.daily_analysis?'stale':'unavailable',reason:'insufficient_time_budget',checkedAt}],source:{label:'Daily analysis generation status',executedAt:checkedAt}}
+      }
       else try {
         const analysis=await (services.dailyAnalysis??collectDailyAnalysis)(env,analysisRequest,merged,{now:clock,leaseId:id})
         if(analysis.query){
