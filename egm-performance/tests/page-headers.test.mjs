@@ -26,9 +26,8 @@ test('every page pairs its evidence with a next step and retains source provenan
       assert.match(html,/data-query-id=/,page)
       const summary=page==='overview'?overviewSummary(snapshot.queries):pageSummary(page,snapshot.queries)
       const footer=renderToStaticMarkup(React.createElement(SiteFooter,{summary,generatedAt:snapshot.generatedAt}))
-      assert.match(footer,/Calculated from source data/,page)
-      assert.match(footer,/Daily analysis unavailable/,page)
-      assert.match(footer,/href="#page-notes"/,page)
+      assert.doesNotMatch(footer,/Calculated from source data|Daily analysis unavailable/,page)
+      assert.doesNotMatch(footer,/href="#page-notes"|Back to top/,page)
     }
     assert.deepEqual(snapshot,before)
   } finally {await server.close()}
