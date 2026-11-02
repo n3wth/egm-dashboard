@@ -59,6 +59,8 @@ const inviteCookie = async (token,env) => cookie('__Host-egm_invite',await seal(
 const cookieValue = (request,name) => request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1)
 const navigation = (request,url) => request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
 const unavailable = request => navigation(request,new URL(request.url)) ? renderAccessPage('unavailable',new URL(request.url).pathname==='/auth/callback'?{href:cookieValue(request,'__Host-egm_invite')?'/auth/invite':'/auth/login'}:{}) : new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})
+const hashedAsset = /^\/assets\/[\w.-]+-[\w-]{8}\.(js|css|woff2|svg|png|wasm)$/
+const assetTypes={js:['text/javascript','application/javascript'],css:['text/css'],woff2:['font/woff2','application/font-woff2'],svg:['image/svg+xml'],png:['image/png'],wasm:['application/wasm']}
 const json = (value,status=200,headers={}) => new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json','cache-control':'private, no-store',...headers}})
 export function profilePhoto(value) {
   try {const url=new URL(value);return typeof value==='string'&&value.length<=2048&&url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.port&&!url.username&&!url.password?url.href:null}catch{return null}
@@ -341,7 +343,9 @@ export async function handle(request,env,ctx) {
   if(!/\.[a-z0-9]+$/i.test(url.pathname)) assetUrl.pathname='/index.html'
   const asset=await env.ASSETS.fetch(new Request(assetUrl,{method:request.method}))
   const headers=new Headers(asset.headers)
-  headers.set('cache-control','private, no-store')
+  const extension=hashedAsset.exec(url.pathname)?.[1]
+  const cacheable=asset.ok&&extension&&assetTypes[extension].includes(headers.get('content-type')?.split(';')[0].trim())
+  headers.set('cache-control',cacheable?'private, max-age=31536000, immutable':'private, no-store')
   headers.set('x-content-type-options','nosniff')
   headers.set('x-frame-options','DENY')
   headers.set('referrer-policy','same-origin')

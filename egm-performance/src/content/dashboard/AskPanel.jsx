@@ -75,7 +75,7 @@ export function AnswerCard({card,index,turnId}) {
 }
 
 const statusNote=(status,stopped)=>stopped?'Stopped.':status==='submitted'?'Reading dashboard data…':status==='streaming'?'Generating…':status==='error'?'':''
-const resultLabel=result=>result.toolStatus?.status==='live'?'GitHub checked live':result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'
+const resultLabel=result=>result.toolStatus?.status==='live'?'Repository totals checked live':result.toolStatus?.status==='unavailable'?'Live repository check unavailable. Saved data shown.':'Saved dashboard data'
 export function AskError({message,onRetry}) {
   const text=message||'Could not reach Ask. Try again.'
   return <div className="egm-ask-error" role="alert"><p>{text}</p>{askNeedsSignIn(text)?<button type="button" onClick={()=>location.reload()}>Sign in again</button>:askRetryable(text)&&<button type="button" onClick={onRetry}>Retry</button>}</div>

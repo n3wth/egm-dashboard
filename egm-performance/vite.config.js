@@ -4,7 +4,6 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { defineConfig } from "vite";
-import { viteSingleFile } from "vite-plugin-singlefile";
 
 const localThreadId = [process.env.CODEX_SESSION_ID, process.env.CODEX_THREAD_ID].find((value) =>
   /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu.test(value ?? ""),
@@ -61,7 +60,6 @@ export default defineConfig(({ command, isSsrBuild }) => {
   plugins: isSsrBuild
     ? []
     : [
-        viteSingleFile(),
         snapshotIntegrityPlugin(snapshotPath),
         {
           name: "data-app-local-task",
@@ -96,6 +94,13 @@ export default defineConfig(({ command, isSsrBuild }) => {
   define: {
     __DATA_APP_PROJECT_ROOT__: JSON.stringify(command === "serve" ? process.cwd() : ""),
   },
-  build: isSsrBuild ? { rollupOptions: { output: { entryFileNames: "index.js" } } } : {},
+  build: isSsrBuild ? { rolldownOptions: { output: { entryFileNames: "index.js" } } } : {
+    // Static imports load all chunks at startup; stable libraries survive authored-data updates in browser cache.
+    rolldownOptions: { output: { codeSplitting: { groups: [
+      { name: "react", test: /[\\/]node_modules[\\/](?:react|react-dom|scheduler)[\\/]/u },
+      { name: "vendor", test: /[\\/]node_modules[\\/]/u },
+      { name: "snapshot", test: /[\\/]src[\\/]data\.json$/u },
+    ] } } },
+  },
   };
 });
