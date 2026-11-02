@@ -3,10 +3,10 @@ import {activityRows,alignTraffic,downloadRows,issueQueue,referralHistory,staleS
 import {collectResearch} from './research.mjs'
 import {retainGithubHistory} from './github-history.mjs'
 import {starObservations} from './star-observations.mjs'
+import {githubCollectionEnabled} from './collection-schedule.mjs'
 
 export function refreshEnabled(env,time=Date.now()) {
-  const until=Date.parse(env.REFRESH_UNTIL)
-  return Number.isFinite(until) && time<until
+  return githubCollectionEnabled(env,time)
 }
 
 export async function refreshSnapshot(env,request=fetch,research=collectResearch,{persist=true,previousSnapshot}={}) {

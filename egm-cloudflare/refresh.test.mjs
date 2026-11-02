@@ -1,6 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {refreshEnabled,refreshSnapshot} from './refresh.mjs'
+
+test('standalone GitHub refresh requires an explicit continuation flag after paid expiry',async()=>{
+  for(const REFRESH_UNTIL of [undefined,'invalid','2020-01-01']) {
+    assert.equal(refreshEnabled({REFRESH_UNTIL,GITHUB_COLLECTION_ENABLED:'true'}),true)
+    assert.equal(refreshEnabled({REFRESH_UNTIL,GITHUB_COLLECTION_ENABLED:true}),false)
+    await assert.rejects(refreshSnapshot({REFRESH_UNTIL,GITHUB_COLLECTION_ENABLED:'true'},()=>assert.fail('no credential')),/GitHub credential unavailable/)
+  }
+})
 import {readFile} from 'node:fs/promises'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 const root=new URL('./test-fixtures/',import.meta.url)

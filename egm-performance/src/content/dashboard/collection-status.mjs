@@ -23,7 +23,8 @@ export function formatObservedAt(iso, timeZone='America/Los_Angeles') {
 }
 
 export function collectionStatusLines(source, endsAt, now = Date.now(), timeZone) {
-  const ended = (endsAt && Date.parse(endsAt) <= now) || source.reason === 'collection_window_ended'
+  const sourceEndsAt=Object.hasOwn(source,'collectionEndsAt')?source.collectionEndsAt:endsAt
+  const ended = (sourceEndsAt && Date.parse(sourceEndsAt) <= now) || source.reason === 'collection_window_ended'
   const observed = source.lastSuccessAt && formatObservedAt(source.lastSuccessAt, timeZone)
   const success = observed ? `Last success ${observed}` : 'No successful collection yet'
   const stale=Number.isFinite(Date.parse(source.lastSuccessAt))&&now-Date.parse(source.lastSuccessAt)>=36*3600000

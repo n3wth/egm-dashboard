@@ -8,7 +8,7 @@ The refresh runner retains daily traffic/activity in D1 `github_daily_history`, 
 
 Before deployment, `scripts/migrate-github-history.mjs` creates these tables, copies and verifies the legacy embedded `githubHistory`, and leaves that legacy data intact while the old Worker may still run. The new runner imports any remaining legacy tail and removes the growing archive from the current snapshot in one transaction. Rollback leaves both additive tables and their rows in place; a later forward deployment imports any new legacy tail again. This avoids the D1 per-row size limit without loading the full archive into the dashboard or client API.
 
-Initial history includes the checked-in reviewed data and stored windows. Missing older traffic cannot be recovered from GitHub after its 14-day limit. Unique visitors and overlapping rolling totals must not be added across periods. The dashboard still displays the current-window queries; archival retention does not imply a longer chart range. Collection stops at `REFRESH_UNTIL`; retained history remains stored afterward. Observed repository star totals also retain actual timestamps per Pacific date, separately from reconstructed stargazer history; missing sampling days remain unknown.
+Initial history includes the checked-in reviewed data and stored windows. Missing older traffic cannot be recovered from GitHub after its 14-day limit. Unique visitors and overlapping rolling totals must not be added across periods. The dashboard still displays the current-window queries; archival retention does not imply a longer chart range. Independent-provider collection stops at `REFRESH_UNTIL`; GitHub-only collection can continue with `GITHUB_COLLECTION_ENABLED=true`, retaining its 30-minute interval and 1,488-run monthly cap. Observed repository star totals retain actual timestamps per Pacific date, separately from reconstructed stargazer history; missing sampling days remain unknown.
 
 ## Build and test
 
@@ -79,7 +79,7 @@ npx wrangler@4.151.3 deploy
 
 Record the recovery deployment's version ID and reconcile the source through a feature branch so subsequent `main` deployments retain the fix. Set runtime secrets with Wrangler's secret commands, never in Git. Required runtime secrets are `SESSION_SECRET` and `GITHUB_TOKEN`; optional data collectors use `SEMRUSH_API_KEY`, `FIRECRAWL_API_KEY`, `EXA_API_KEY`, `TAVILY_API_KEY`, `PARALLEL_API_KEY`, or `YOUTUBE_API_KEY`. WorkOS public client identifiers are configuration, not secrets. Read the Worker before changing the authentication setup. Preserve owner approval and authenticated asset routing.
 
-Cron runs every 30 minutes. Provider-specific caches control independent collection, and `REFRESH_UNTIL` stops collection after the configured seven-day window. Changing that setting extends collection and may incur source-provider charges. Viewing a page reads stored snapshots and does not trigger paid ingestion.
+Cron runs every 30 minutes. Provider-specific caches control independent collection, and `REFRESH_UNTIL` stops those collectors after the configured seven-day window. Changing that setting may incur source-provider charges. The explicit `GITHUB_COLLECTION_ENABLED` switch permits only GitHub REST collection beyond that cutoff; it does not extend any independent collector's budget or request deadline. Worker/D1 execution and storage continue under the existing account, and GitHub rate limits still apply. Viewing a page reads stored snapshots and does not trigger paid ingestion.
 
 ## Source layout
 

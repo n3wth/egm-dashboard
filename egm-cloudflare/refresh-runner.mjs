@@ -13,7 +13,7 @@ import { collectTavily } from './tavily.mjs'
 import { collectParallel } from './parallel.mjs'
 import { collectEngagement } from './engagement.mjs'
 import { collectWebPerformance } from './web-performance.mjs'
-import { collectionSources, collectionWindow, monthBudget, planCollection } from './collection-schedule.mjs'
+import { collectionSources, collectionWindow, githubCollectionEnabled, monthBudget, planCollection } from './collection-schedule.mjs'
 
 // Cron Workers have a 15-minute wall-time limit. The longer lease cannot expire
 // while a scheduled invocation is still running and spending provider units.
@@ -25,14 +25,16 @@ export async function runRefresh(env, request = fetch, services = {}) {
   const start = clock()
   const window = collectionWindow(env, start)
   const cutoff = window.until
-  if (!window.open) return { status: 'expired', collectionEndsAt: window.endsAt }
+  const githubEnabled = githubCollectionEnabled(env, start)
+  if (!window.open && !githubEnabled) return { status: 'expired', collectionEndsAt: window.endsAt }
   const id = crypto.randomUUID()
   const acquired = await env.DB.prepare('UPDATE refresh_control SET lease_id=?,lease_until=? WHERE id=1 AND lease_until<=? AND (finished_at=0 OR finished_at<=?) RETURNING id').bind(id, start + leaseDuration, start, start - cooldown).first()
   if (!acquired) return { status: 'skipped', reason: 'running_or_cooldown' }
   const state = { status: 'failed', github: 'failed', semrush: 'failed', mentions: 'failed', exa: 'failed' }
-  const deadline = Math.min(cutoff, start + 10 * 60000)
-  const boundedRequest = async (url, init = {}, timeoutMs = 20000) => {
-    const remaining = deadline - clock()
+  const githubDeadline = env.GITHUB_COLLECTION_ENABLED === 'true' ? start + 10 * 60000 : Math.min(cutoff, start + 10 * 60000)
+  const deadline = Number.isFinite(cutoff) ? Math.min(cutoff, start + 10 * 60000) : start
+  const requestUntil = limit => async (url, init = {}, timeoutMs = 20000) => {
+    const remaining = limit - clock()
     if (remaining <= 0) throw Error('refresh_deadline')
     const timeout = AbortSignal.timeout(Math.min(Number.isFinite(timeoutMs) ? Math.max(1, Math.min(timeoutMs, 60000)) : 20000, remaining))
     // Workers supports manual/follow, not Fetch's redirect:error. Inspect the
@@ -42,6 +44,8 @@ export async function runRefresh(env, request = fetch, services = {}) {
     if (rejectRedirect && response.status >= 300 && response.status < 400) throw Error('unexpected_redirect')
     return response
   }
+  const boundedRequest = requestUntil(deadline)
+  const githubRequest = requestUntil(githubDeadline)
   try {
     const original = await env.DB.prepare('SELECT body FROM snapshots WHERE id=1').first()
     const previous = original ? JSON.parse(original.body) : { queries: {} }
@@ -52,7 +56,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
     let latest = previous
     try {
       if (githubDecision !== 'run') throw Error('collection_skipped')
-      const result = await (services.github ?? refreshSnapshot)(env, boundedRequest, undefined, { persist: false, previousSnapshot: previous })
+      const result = await (services.github ?? refreshSnapshot)(env, githubRequest, undefined, { persist: false, previousSnapshot: previous })
       if (result.status === 'refreshed' && !result.snapshot?.queries) throw Error('missing_staged_snapshot')
       state.github = result.status
       latest = result.snapshot ?? previous
@@ -160,9 +164,10 @@ export async function runRefresh(env, request = fetch, services = {}) {
       state.webPerformance = 'checked'
     } catch { state.webPerformance = 'failed' }
     // GitHub collection is 30 minutes; search discovery uses provider caches.
-    // Recheck the cutoff and fencing token before publishing any merged result.
+    // GitHub may continue beyond the paid cutoff; its own deadline and the
+    // fencing token still bound publication. Paid requests use their cutoff.
     const finished = clock()
-    if (finished >= cutoff) { state.status = 'expired'; return { ...state } }
+    if (finished >= githubDeadline) { state.status = 'expired'; return { ...state } }
     const commitAt = new Date(finished).toISOString()
     // Keep runner outcomes separate from provider status rows, whose cache and
     // budget fields must survive failures unchanged. Never persist error text.
@@ -171,7 +176,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
       checkedAt: commitAt,
       collectionEndsAt: window.endsAt,
       collectors: Object.fromEntries(Object.entries(state).filter(([name]) => name !== 'status').map(([name, status]) => [name, allowedStatuses.has(status) ? status : 'unknown'])),
-      sources: collectionSources({ queries: merged.queries, state, skips, checkedAt: commitAt, windowOpen: true }),
+      sources: collectionSources({ queries: merged.queries, state, skips, checkedAt: commitAt, windowOpen: collectionWindow(env, finished).open, githubEnabled: githubCollectionEnabled(env, finished), endsAt: window.endsAt, githubEndsAt: env.GITHUB_COLLECTION_ENABLED === 'true' ? null : window.endsAt }),
       budget
     }
     const snapshotWrite = env.DB.prepare('INSERT INTO snapshots(id,body,generated_at) SELECT 1,?,? WHERE EXISTS(SELECT 1 FROM refresh_control WHERE id=1 AND lease_id=? AND lease_until>?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,generated_at=excluded.generated_at WHERE julianday(excluded.generated_at)>=julianday(snapshots.generated_at) RETURNING id').bind(JSON.stringify(merged), commitAt, id, finished)
