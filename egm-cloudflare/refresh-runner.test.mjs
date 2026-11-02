@@ -28,6 +28,69 @@ function fixture() {
 }
 const noRequest = () => { throw Error('network not expected') }
 
+const independentNames = ['semrush','mentions','exa','exaResearch','contentResearch','youtube','youtubeComments','tavily','parallel','engagement','webPerformance']
+
+test('explicit GitHub continuation preserves paid cutoff and existing manual-run limits', async () => {
+  for (const until of [undefined, 'bad', '2026-10-27T00:00:00Z', new Date(baseTime).toISOString()]) {
+    const f=fixture()
+    let githubCalls=0
+    const services={now:()=>baseTime,...Object.fromEntries(independentNames.map(name=>[name,()=>assert.fail(`${name} must remain stopped`)])),github:async(env,request)=>{
+      githubCalls++
+      await request('https://api.github.com/repos/google/elephant-goldfish-model')
+      return {status:'refreshed',snapshot:{...f.previous,generatedAt:new Date(baseTime).toISOString()}}
+    }}
+    const env={...f.env,REFRESH_UNTIL:until,GITHUB_COLLECTION_ENABLED:'true'}
+    assert.equal((await runRefresh(env,async()=>({ok:true}),services)).status,'refreshed')
+    const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+    assert.equal(saved.refreshStatus.budget.calls.github,1)
+    assert.equal(saved.refreshStatus.sources.find(s=>s.id==='github').collectionEndsAt,null)
+    for(const name of independentNames) {
+      assert.equal(saved.refreshStatus.budget.calls[name],undefined)
+      assert.equal(saved.refreshStatus.sources.find(s=>s.id===name).reason,'collection_window_ended')
+    }
+    assert.deepEqual(saved.queries.seo_keywords,f.previous.queries.seo_keywords)
+    assert.equal((await runRefresh(env,noRequest,services)).reason,'running_or_cooldown')
+    assert.equal(githubCalls,1)
+    // A later manual refresh must still obey the same monthly cap.
+    saved.refreshStatus.budget.calls.github=1488
+    f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(saved))
+    assert.equal((await runRefresh(env,noRequest,{...services,now:()=>baseTime+180000})).github,'cached')
+    assert.equal(githubCalls,1)
+  }
+})
+
+test('crossing the paid cutoff retains GitHub writes but fences subsequent paid requests',async()=>{
+  const f=fixture()
+  let time=baseTime
+  let network=0
+  const env={...f.env,GITHUB_COLLECTION_ENABLED:'true',REFRESH_UNTIL:new Date(baseTime+1000).toISOString()}
+  const services={now:()=>time,...Object.fromEntries(independentNames.map(name=>[name,()=>assert.fail(`${name} must not start after cutoff`)])),github:async(env,request)=>{
+    await request('https://api.github.com/first')
+    return {status:'refreshed',snapshot:{...f.previous,generatedAt:new Date(baseTime).toISOString()}}
+  },semrush:async(env,request)=>{
+    time=baseTime+1000
+    await assert.rejects(request('https://paid.example'),/refresh_deadline/)
+    return {}
+  }}
+  assert.equal((await runRefresh(env,async()=>{network++;return {ok:true}},services)).status,'refreshed')
+  assert.equal(network,1)
+  assert.equal(JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body).refreshStatus.sources.find(s=>s.id==='semrush').reason,'collection_window_ended')
+})
+
+test('GitHub requests may cross the paid cutoff without starting independent providers',async()=>{
+  const f=fixture()
+  let time=baseTime
+  let requests=0
+  const result=await runRefresh({...f.env,GITHUB_COLLECTION_ENABLED:'true',REFRESH_UNTIL:new Date(baseTime+1).toISOString()},async()=>{requests++;return {ok:true}},{now:()=>time,...Object.fromEntries(independentNames.map(name=>[name,()=>assert.fail(name)])),github:async(env,request)=>{
+    time+=2
+    await request('https://api.github.com/repos/google/elephant-goldfish-model')
+    return {status:'refreshed',snapshot:{...f.previous,generatedAt:new Date(time).toISOString()}}
+  }})
+  assert.equal(result.status,'refreshed')
+  assert.equal(requests,1)
+  assert.equal(f.db.prepare('SELECT generated_at FROM snapshots').get().generated_at,new Date(time).toISOString())
+})
+
 test('cached research revalidation updates coverage counts without new collection timestamps',async()=>{
   const f=fixture()
   const at='2026-10-27T00:00:00Z'
