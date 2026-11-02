@@ -103,13 +103,11 @@
 .egm-dash-hero > .component-header > .component-title { flex: 0 1 auto; font-size: var(--text-xl-size); font-weight: 600; line-height: 28px; letter-spacing: -.5px; }
 .egm-dash-hero > .component-header > .component-header-controls { flex: 1 1 auto; }
 .egm-dash-hero > .component-header > .menu-trigger { position: relative; grid-column: auto; grid-row: auto; margin-left: auto; flex: 0 0 32px; }
-.egm-dash-hero-range { display: inline-flex; align-items: baseline; gap: var(--space-2); margin: 0; color: var(--secondary); font-size: var(--egm-text-label); font-weight: 400; line-height: 20px; font-variant-numeric: tabular-nums; }
+.egm-dash-hero-range { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); margin: 12px 0 0; color: var(--secondary); font-size: var(--text-xs-size); font-weight: 400; line-height: 16px; font-variant-numeric: tabular-nums; }
 .egm-dash-hero-note { color: var(--secondary); font-size: var(--text-xs-size); font-weight: 400; line-height: 16px; }
 .egm-dash-hero-headline { margin: 8px 0 0; max-width: 72ch; color: var(--text); font-size: var(--text-lg-size); font-weight: 400; line-height: 28px; }
 .egm-dash-hero-facts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 12px 0 0; padding: 0; list-style: none; }
 .egm-dash-hero-facts li { padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: var(--egm-text-label); font-weight: 400; line-height: 20px; font-variant-numeric: tabular-nums; }
-.egm-single-row .dashboard-ask-button { box-shadow: none !important; line-height: 1; color: var(--secondary); }
-.egm-single-row .dashboard-ask-button:not(:hover):not(:focus-visible) { border-color: transparent !important; background: transparent !important; }
 .egm-development-grid .egm-block--metric > .dashboard-component[data-component-kind="metric"] { min-height: 112px; gap: var(--space-2); }
 .egm-development-grid .egm-block--metric > .dashboard-component[data-component-kind="metric"] > .component-header { min-height: 24px; }
 .egm-development-grid .egm-metric-reading { min-height: 40px; }
@@ -247,8 +245,6 @@
   .egm-live-changed { animation: egm-live-update 700ms ease-out; }
   @keyframes egm-live-update { 0% { opacity: .55; } 100% { opacity: 1; } }
 }
-.egm-account-button { display: inline-flex; align-items: center; justify-content: flex-end; padding: 0; border: 0 !important; border-radius: var(--radius-md) !important; background: transparent !important; box-shadow: none !important; }
-.egm-account-button:is(:hover,[data-state="open"]) { background: var(--border) !important; }
 .egm-account-button:is(:hover,[data-state="open"]) .egm-account-avatar { border-color: var(--border-strong); }
 .egm-account-button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .egm-account-menu .dashboard-native-overflow { position: relative; width: 36px; height: 36px; }
