@@ -1,3 +1,5 @@
+import {observedStarGrowth} from './star-growth.mjs'
+
 const n=value=>Math.round(value).toLocaleString('en-US')
 const comparison=(previous,current,dates)=>({change:previous>0?(current/previous-1)*100:null,previous,current,...dates})
 
@@ -19,6 +21,14 @@ export function starWeeklyChange(rows,observedAt) {
   const previous=days[7].stars-days[0].stars
   const current=days[14].stars-days[7].stars
   return {...comparison(previous,current,{start:days[1].date,mid:days[8].date,end:days[14].date}),reconstructed:true}
+}
+
+export function observedStarChange(rows,observedAt) {
+  const days=observedStarGrowth(rows,observedAt).daily.filter(row=>row.coverage==='Closed sampling day').slice(-15)
+  if(days.length!==15||days.some((row,index)=>index>0&&(!Number.isFinite(row.netStars)||row.fromObservedAt!==days[index-1].observedAt)))return null
+  const previous=days[7].stars-days[0].stars
+  const current=days[14].stars-days[7].stars
+  return {...comparison(previous,current,{start:days[0].date,mid:days[7].date,end:days[14].date,startObservedAt:days[0].observedAt,midObservedAt:days[7].observedAt,endObservedAt:days[14].observedAt}),observed:true,reconstructed:false}
 }
 
 /**

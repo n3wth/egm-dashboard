@@ -5,7 +5,7 @@ import { collectSemrush } from './semrush.mjs'
 import { collectMentions } from './mentions.mjs'
 import { collectExa } from './exa.mjs'
 import { collectExaResearch } from './exa-research.mjs'
-import { collectContentResearch } from './content-research.mjs'
+import { collectContentResearch,revalidateResearchQueries } from './content-research.mjs'
 import { collectYouTube } from './youtube.mjs'
 import { collectYouTubeComments } from './youtube-comments.mjs'
 import { collectTavily } from './tavily.mjs'
@@ -78,6 +78,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
     for (const [key, value] of Object.entries(oldQueries)) {
       if (/^(seo_|semrush_|mentions(?:_|$)|mention_engagement|exa_|research_|youtube_|tavily_|parallel_|web_pagespeed|web_crux|site_performance)/.test(key)) merged.queries[key] = value
     }
+    merged.queries=revalidateResearchQueries(merged.queries)
     if (clock() >= deadline) state.semrush = 'skipped_deadline'
     else if (planned('semrush')) try {
       const queries = await (services.semrush ?? collectSemrush)(env, boundedRequest, oldQueries, clock())

@@ -9,7 +9,7 @@ import {TrendSparkline} from './TrendSparkline.jsx'
 import {Mentions} from './Mentions.jsx'
 import {pathLabel, popularPageRows, repoPathHref} from './repo-paths.mjs'
 import {sourceIcon} from './source-icon.mjs'
-import {weeklyChange,starWeeklyChange,weeklyChangeLabel,weeklyDelta} from './weekly-change.mjs'
+import {weeklyChange,starWeeklyChange,observedStarChange,weeklyChangeLabel,weeklyDelta} from './weekly-change.mjs'
 import {channelViews,isSearchVideo} from './referrer-channels.mjs'
 import {InsightCallout} from './InsightCallout.jsx'
 import {OverviewSummary} from './OverviewSummary.jsx'
@@ -24,7 +24,7 @@ import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
 import {PageFooter,SiteFooter} from './PageFooter.jsx'
-import {starGrowth} from './star-growth.mjs'
+import {starGrowth,observedStarGrowth} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
@@ -50,26 +50,33 @@ function StarTooltip({active,payload=[],label}) {
   const starFields=payload.length>0&&payload.every(item=>['stars','completedStars','partialTotal'].includes(item.dataKey))
   const details=starFields&&Number.isFinite(row?.stars)?[{label:'Stars',value:n(row.stars)}]:payload.filter(item=>item.value!=null).map(item=>({label:['newStars','partialStars'].includes(item.dataKey)?'New stars':String(item.name??item.dataKey).replace(/([A-Z])/g,' $1').replace(/^./,letter=>letter.toUpperCase()),value:n(item.value)}))
   if(row?.coverage)details.push({label:'Coverage',value:row.coverage})
+  if(row?.observedAt)details.push({label:'Observed at',value:formatObservedAt(row.observedAt)})
+  if(row?.fromObservedAt)details.push({label:'Since',value:formatObservedAt(row.fromObservedAt)})
   return <ChartTooltip active={active} label={row?.date?shortDate(row.date):label} details={details}/>
 }
-export function StarGrowth({rows,observedAt,stale}) {
+export function StarGrowth({rows,observedAt,stale,observations}) {
   const [measure,setMeasure]=useState('daily')
   const [range,setRange]=useState('recent')
-  const growth=starGrowth(rows,observedAt)
+  const [basis,setBasis]=useState('auto')
+  const hasObserved=Boolean(observations?.rows?.length)
+  const observed=hasObserved&&(basis==='observed'||(basis==='auto'&&stale))
+  const growth=observed?observedStarGrowth(observations.rows,observations.source?.executedAt):starGrowth(rows,observedAt)
   const selected=range==='recent'?growth.recent:growth.daily
-  const displayRows=selected.map((row,index)=>({...row,
+  const displayRows=observed?selected:selected.map((row,index)=>({...row,
     completedStars:row.coverage==='Complete day'?row.stars:null,
     partialTotal:row.coverage==='Partial day'||selected[index+1]?.coverage==='Partial day'?row.stars:null
   }))
-  const daily=measure==='daily'
-  const weekly=starWeeklyChange(rows,observedAt)
-  const fields=daily?['newStars','partialStars']:['completedStars','partialTotal']
-  const spec={...line(fields[0],fields),type:daily?'bar':'line',rightAxisFields:[],showLegend:false,colors:{[fields[0]]:'var(--chart-1)',[fields[1]]:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
-  const controls=<><SegmentedControl ariaLabel="Star measure" value={measure} onChange={setMeasure} options={[{value:'daily',label:'Daily gains'},{value:'total',label:'Cumulative'}]}/><SegmentedControl ariaLabel="Star history range" value={range} onChange={setRange} options={[{value:'recent',label:'Latest 14 days'},{value:'all',label:'Full history'}]}/></>
-  return <EvidenceChart id="star-history" queryId="star_history" title={daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
-    {stale&&<p className="egm-note" role="status"><strong>Star history is out of date.</strong> History was collected {formatObservedAt(observedAt)??'at an unknown time'}. The total stars metric may be newer.</p>}
-    {weekly&&<p className="egm-note"><strong>{weekly.current>weekly.previous?'More':weekly.current<weekly.previous?'Fewer':'The same number of'} new stars in the most recent complete week{stale?' in this history':''}.</strong> {n(weekly.current)} during {shortDate(weekly.mid)} – {shortDate(weekly.end)}, versus {n(weekly.previous)} in the preceding seven days. {weekly.previous<100?'The earlier baseline is small; a percentage would overstate the comparison.':''}</p>}
-    <p className="egm-note">{range==='recent'&&growth.hiddenDays>0?`${growth.hiddenDays} earlier dates are outside this view; full history remains available. `:''}Pacific dates; faded marks show the incomplete day. Daily gains are reconstructed from current stargazers, excluding stars removed before collection. Gaps are unknown, not zero.</p>
+  const hasNet=selected.some(row=>Number.isFinite(row.netStars)||Number.isFinite(row.partialNetStars))
+  const daily=measure==='daily'&&(!observed||hasNet)
+  const weekly=observed?observedStarChange(observations.rows,observations.source?.executedAt):starWeeklyChange(rows,observedAt)
+  const fields=observed?(daily?['netStars','partialNetStars']:['stars']):daily?['newStars','partialStars']:['completedStars','partialTotal']
+  const spec={...line(fields[0],fields),type:daily?'bar':'line',rightAxisFields:[],showLegend:false,colors:Object.fromEntries(fields.map((field,index)=>[field,index?'color-mix(in srgb, var(--chart-1) 40%, transparent)':'var(--chart-1)']))}
+  const controls=<>{hasObserved&&<SegmentedControl ariaLabel="Star measurement" value={observed?'observed':'reconstructed'} onChange={setBasis} options={[{value:'reconstructed',label:'Reconstructed history'},{value:'observed',label:'Observed totals'}]}/>}<SegmentedControl ariaLabel="Star measure" value={daily?'daily':'total'} onChange={setMeasure} options={[{value:'daily',label:observed?'Net change':'Daily gains',disabled:observed&&!hasNet},{value:'total',label:observed?'Total':'Cumulative'}]}/><SegmentedControl ariaLabel="Star history range" value={range} onChange={setRange} options={[{value:'recent',label:'Latest 14 days'},{value:'all',label:'Full history'}]}/></>
+  return <EvidenceChart id="star-history" queryId={observed?'star_observations':'star_history'} title={observed?(daily?'Observed net star change':'Observed star totals'):daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={observed?observations.rows:rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
+    {!observed&&stale&&<p className="egm-note" role="status"><strong>Star history is out of date.</strong> History was collected {formatObservedAt(observedAt)??'at an unknown time'}. The total stars metric may be newer.</p>}
+    {weekly&&<p className="egm-note">{observed?`${n(weekly.current)} net stars across the latest seven daily-snapshot intervals, versus ${n(weekly.previous)} in the preceding seven. Actual bounds: ${formatObservedAt(weekly.startObservedAt)} → ${formatObservedAt(weekly.midObservedAt)} → ${formatObservedAt(weekly.endObservedAt)}.`:<><strong>{weekly.current>weekly.previous?'More':weekly.current<weekly.previous?'Fewer':'The same number of'} new stars in the most recent complete week{stale?' in this history':''}.</strong> {n(weekly.current)} during {shortDate(weekly.mid)} – {shortDate(weekly.end)}, versus {n(weekly.previous)} in the preceding seven days. {weekly.previous<100?'The earlier baseline is small; a percentage would overstate the comparison.':''}</>}</p>}
+    <p className="egm-note">{range==='recent'&&growth.hiddenDays>0?`${growth.hiddenDays} earlier dates are outside this view; full history remains available. `:''}{observed?'Latest observed repository totals per Pacific date, not exact midnight totals. Net change can be negative; faded marks show the partial sampling date. Missing sampling dates are unknown, not zero.':'Pacific dates; faded marks show the incomplete day. Daily gains are reconstructed from current stargazers, excluding stars removed before collection. Gaps are unknown, not zero.'}</p>
+    {observed&&!weekly&&<p className="egm-note">Comparison needs 15 consecutive closed sampling dates. Reconstructed history remains available separately.</p>}
     <p className="egm-note">Stars measure attention. Sustained adoption needs repeat usage or retention evidence; clones and downloads alone cannot establish it.</p>
   </EvidenceChart>
 }
@@ -114,7 +121,7 @@ function useVideoGrid(available) {
   return videoGrid(available,width)
 }
 function AcrossEgm({queries,reach,web}) {
-  const ids=['website','reach','youtube_videos','research_evidence','issue_queue','mentions'].filter(id=>queries[id])
+  const ids=['website','reach','referrers','youtube_videos','research_evidence','issue_queue','mentions'].filter(id=>queries[id])
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
   const rankedVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views)
   const grid=useVideoGrid(rankedVideos.length)
@@ -122,7 +129,7 @@ function AcrossEgm({queries,reach,web}) {
   const experiment=suggestExperiment(queries)
   const viewShare=ratio(web.referralViews,reach.views)
   const visitorShare=ratio(web.referralVisitors,reach.visitors)
-  const displayRows=[{signal:'Website referrals',views:web?.referralViews??null,viewShare,visitorShare},...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(experiment?[{signal:'Suggested experiment',url:experiment.winner.url,score:experiment.winner.score}]:[])]
+  const displayRows=[{signal:'Website referrals',views:web?.referralViews??null,viewShare,visitorShare},...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(experiment?[{signal:'Suggested experiment',url:experiment.winner.url,category:experiment.category}]:[])]
   return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
     <div className="egm-highlights" data-reviewed-rows>
       <article className="egm-highlight egm-highlight-referrals">
@@ -144,7 +151,7 @@ function AcrossEgm({queries,reach,web}) {
       </article>
       <article className="egm-highlight egm-highlight-experiment">
         <h3>Suggested experiment</h3>
-        {experiment?<><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success">Success: {experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><p>{experiment.rule}</p></details></>:<p className="egm-highlight-value">No issue, verified quote, or mention is available yet.</p>}
+        {experiment?<><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success">What to record: {experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><p>{experiment.rule}</p></details></>:<p className="egm-highlight-value">No specific first-use, documentation, or recorded-channel evidence supports an experiment yet.</p>}
       </article>
     </div>
   </DataComponent>
@@ -169,28 +176,28 @@ function TabPage({activeTabId}) {
   const rows = id => queries[id]?.rows??[]
   const reach = rows('reach')[0]??{}, daily = rows('traffic'), web = rows('website')[0]??{}, queue = rows('maintenance')[0]??{}
   const span = dateSpan(daily), window = span === 'Unavailable' ? 'GitHub’s two-week window' : `${span} UTC`
-  const recentDays=daily.slice(-3),recentViews=sum(recentDays,'views'),windowViews=sum(daily,'views')
   const item = (id,span,content,kind='chart') => <SortableItem key={id} id={id} label={id} kind={kind} className={`egm-block egm-block--${kind}`} style={{'--egm-span':span}}>{content}</SortableItem>
   const metric = (id,queryId,title,value,description,secondary) => {
     const field = {'unique-visitors':'visitors','total-views':'views','total-clones':'clones','adoption-clones':'clones','adoption-cloners':'cloners','merged-prs':'mergedPRs',stars:'stars','website-visitors':'referralVisitors','website-views':'referralViews'}[id]
     const fieldNoun = {cloners:'unique cloners',mergedPRs:'merged PRs'}[field]??field
     const websiteMetric=id.startsWith('website-')
-    const historyQuery=websiteMetric?'website_referral_history':id==='stars'?'star_history':id==='merged-prs'?'activity':'traffic'
+    const historyStale=(queries.star_history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
+    const observedHistory=id==='stars'&&historyStale&&rows('star_observations').length>0
+    const historyQuery=websiteMetric?'website_referral_history':id==='stars'?(observedHistory?'star_observations':'star_history'):id==='merged-prs'?'activity':'traffic'
     const history=rows(historyQuery)
     const trendValues=field?history.map(row=>row[field]).filter(Number.isFinite):[]
-    const historyStale=(queries.star_history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
     const additiveWeekly=['total-views','total-clones','adoption-clones','merged-prs'].includes(id)
-    const weekly=additiveWeekly?weeklyChange(history,field):id==='stars'&&!historyStale?starWeeklyChange(history,queries.star_history?.source?.executedAt):null
-    const weeklyText=weeklyChangeLabel(weekly,id==='stars'?'new':'')
+    const weekly=additiveWeekly?weeklyChange(history,field):observedHistory?observedStarChange(history,queries.star_observations?.source?.executedAt):id==='stars'&&!historyStale?starWeeklyChange(history,queries.star_history?.source?.executedAt):null
+    const weeklyText=weekly?.observed?`${n(weekly.current)} net · ${n(weekly.previous)} prior seven snapshot intervals`:weeklyChangeLabel(weekly,id==='stars'?'new':'')
     const delta=weeklyDelta(weekly)
     const weeklyMissing=(additiveWeekly||id==='stars')&&!weeklyText&&Number.isFinite(value)
     const queryIds=[...new Set([queryId,...(field&&queries[historyQuery]?[historyQuery]:[]),...(websiteMetric?['reach']:[])])]
-    const trend = {trendValues,trendLabel:websiteMetric?'Each point is the trailing 14-day referral total at that observation; points overlap':id === 'stars' ? 'Cumulative stargazers by Pacific date' : `Daily ${fieldNoun}, ${historyQuery==='traffic'?window:`${dateSpan(history)} UTC`}`,queryIds,sourceRowsByQuery:Object.fromEntries(queryIds.map(key=>[key,rows(key)]))}
+    const trend = {trendValues,trendLabel:websiteMetric?'Each point is the trailing 14-day referral total at that observation; points overlap':observedHistory?'Observed repository totals at Pacific-date sampling times':id === 'stars' ? 'Cumulative stargazers by Pacific date' : `Daily ${fieldNoun}, ${historyQuery==='traffic'?window:`${dateSpan(history)} UTC`}`,queryIds,sourceRowsByQuery:Object.fromEntries(queryIds.map(key=>[key,rows(key)]))}
     return <DataComponent {...{id,queryId,title,description}} kind="metric" variant="card" queryIds={trend.queryIds} displayRows={rows(queryId)} sourceRows={rows(queryId)} sourceRowsByQuery={trend.sourceRowsByQuery}>
       <div className="egm-metric-reading" data-reviewed-rows><span className="egm-metric-value"><Changed as="span" value={value}>{n(value)}</Changed></span>{field&&trendValues.length>=2&&(!websiteMetric||new Set(trendValues).size>=2)&&<TrendSparkline values={trend.trendValues} label={trend.trendLabel} />}</div>
       {secondary&&<p className="egm-metric-secondary" data-reviewed-rows>{secondary}</p>}
-      {weeklyMissing&&<p className="egm-metric-secondary" data-reviewed-rows>{id==='stars'&&historyStale?'Weekly change unavailable · stale history':'Weekly change unavailable'}</p>}
-      {weeklyText&&<p className="egm-metric-secondary egm-metric-weekly" data-reviewed-rows title={`Latest seven complete reported days (${weekly.mid}–${weekly.end}) compared with the preceding seven.${weekly.reconstructed?' New stars are reconstructed from current stargazers by Pacific date; removed stars are unavailable and the partial current day is excluded.':` Additive daily ${fieldNoun} counts, UTC days.`}`}>{delta&&<span className={`egm-delta egm-delta--${delta.direction}`}>{delta.direction!=='flat'&&<Icon name={delta.direction==='up'?'arrowUp':'arrowDown'} size={12}/>}{delta.text}<span className="visually-hidden"> week over week</span></span>}<span>{weeklyText}</span></p>}
+      {weeklyMissing&&<p className="egm-metric-secondary" data-reviewed-rows>{observedHistory?'Comparison pending · daily observations':id==='stars'&&historyStale?'Weekly change unavailable · stale history':'Weekly change unavailable'}</p>}
+      {weeklyText&&<p className="egm-metric-secondary egm-metric-weekly" data-reviewed-rows title={weekly.observed?`Seven daily-snapshot intervals compared with the preceding seven. Actual bounds: ${formatObservedAt(weekly.startObservedAt)} → ${formatObservedAt(weekly.midObservedAt)} → ${formatObservedAt(weekly.endObservedAt)}.`:`Latest seven complete reported days (${weekly.mid}–${weekly.end}) compared with the preceding seven.${weekly.reconstructed?' New stars are reconstructed from current stargazers by Pacific date; removed stars are unavailable and the partial current day is excluded.':` Additive daily ${fieldNoun} counts, UTC days.`}`}>{delta&&<span className={`egm-delta egm-delta--${delta.direction}`}>{delta.direction!=='flat'&&<Icon name={delta.direction==='up'?'arrowUp':'arrowDown'} size={12}/>}{delta.text}<span className="visually-hidden">{weekly.observed?' compared with prior seven snapshot intervals':' week over week'}</span></span>}<span>{weeklyText}</span></p>}
     </DataComponent>
   }
   const popularPages = id => {
@@ -203,7 +210,7 @@ function TabPage({activeTabId}) {
     <p className="egm-chart-home">{summary}</p>
     <PageLink className="egm-overview-next" page={page}>{linkLabel} <Icon name="arrowUpRight" size={14}/></PageLink>
   </DataComponent>
-  const downloadsTable = id => <Table id={id} queryId="downloads" title="Release asset downloads" rows={rows('downloads')} columns={downloadColumns} />
+  const downloadsTable = id => <Table id={id} queryId="downloads" title="Runtime package downloads" rows={rows('downloads').filter(row=>/^egm-(?:claude|openai)-.+\.zip$/i.test(row.asset??''))} sourceRows={rows('downloads')} columns={downloadColumns} note="Lifetime release-package downloads, not installs or successful runs. Checksum files remain in the source data." />
   if(activeTabId==='acquisition') {
     const channels = combinedReferralViews(rows('referrers'))
     const attributed = sum(channels,'count')
@@ -226,17 +233,18 @@ function TabPage({activeTabId}) {
   }
   if(activeTabId==='adoption') return <>
     <PageSummary page="adoption" queries={queries}/>
-    <Section id="adoption-signals-heading" spacing="none" columns={2}>
+    <DataComponent id="adoption-measurement-gap" queryId="traffic" queryIds={['traffic','downloads']} title="First use and repeat use" kind="custom" variant="card" displayRows={daily} sourceRowsByQuery={{traffic:daily,downloads:rows('downloads')}}>
+      <dl className="egm-adoption-gaps"><div><dt>First successful workflow</dt><dd>Not measured</dd></div><div><dt>Repeat use after seven days</dt><dd>Not measured</dd></div></dl>
+      <p className="egm-note">Next check: observe five new users following the existing installation and first-workflow instructions without help. Record completion and where each person stops, then check whether they use EGM again after seven days.</p>
+      <p className="egm-note">Clone operations and package downloads show code access. They do not establish successful installation, activation, or retention.</p>
+    </DataComponent>
+    <Section id="adoption-signals-heading" columns={2}>
       {metric('adoption-cloners','reach','Unique cloners',reach.cloners,`Distinct cloners GitHub counted over ${window}. Repeat clones by the same cloner count once; CI runners and fresh containers count as cloners. Summing the per-day unique cloners in the chart below will not equal this total.`)}
       {metric('adoption-clones','reach','Clone operations',reach.clones,`Times the repo was copied with Git over ${window}, including repeat copies and automated tools. This does not measure installs or active users.`)}
     </Section>
-    <Section id="adoption-depth-heading" title="Clone and download signals">
+    <Section id="adoption-depth-heading" title="Code access and package downloads">
       {clonePlot('adoption-clone-history')}
       {downloadsTable('adoption-release-downloads')}
-      <DataComponent id="adoption-measurement-gap" queryId="traffic" queryIds={['traffic','maintenance','downloads']} title="What adoption is not yet measured" kind="custom" variant="card" displayRows={[{recentViews,windowViews,openIssues:queue.openIssues??null}]} sourceRowsByQuery={{traffic:daily,maintenance:rows('maintenance'),downloads:rows('downloads')}}>
-        {windowViews>0&&recentDays.length===3&&daily.length>3&&<InsightCallout>{n(recentViews)} of the {n(windowViews)} repo views in {window} arrived {dateSpan(recentDays)} ({percentage(recentViews/windowViews)}; an even spread over {daily.length} days would be {percentage(3/daily.length)}).</InsightCallout>}
-        <p className="egm-note">Clones show that code was fetched, not that EGM ran successfully or was used again. EGM is normally installed by cloning or through the Claude Code plugin command, neither of which appears in release downloads, so downloads undercount installs. Release downloads are lifetime asset counts, not limited to the traffic window; SHA256SUMS is a checksum file.</p>
-      </DataComponent>
     </Section>
   </>
   if(activeTabId==='website') return <>
@@ -313,7 +321,7 @@ function TabPage({activeTabId}) {
       {item('overview-across-egm',12,<AcrossEgm {...{queries,reach,web}}/>,'custom')}
       {item('visitor-trend',6,<Plot id="visitor-trend" queryId="traffic" title="Daily views and unique visitors" rows={daily} spec={{...line('views',['views','visitors']),legend:{labels:{views:'Views',visitors:'Unique visitors per day'}}}} description={`${window}. GitHub reports each day separately; daily unique visitors cannot be summed.`} />)}
       {item('clone-trend',6,chartHome({id:'clone-trend',queryId:'traffic',title:'Daily clone activity',summary:`${n(reach.clones)} clone operations from ${n(reach.cloners)} unique cloners in ${window}.`,page:'adoption',linkLabel:'Adoption',displayRows:daily,sourceRows:daily}))}
-      {item('star-history',12,<StarGrowth rows={starHistory} observedAt={historyObservedAt} stale={queries.star_history?.source?.caveats?.some(text=>text.startsWith('Star history is stale:'))}/>)}
+      {item('star-history',12,<StarGrowth rows={starHistory} observedAt={historyObservedAt} stale={queries.star_history?.source?.caveats?.some(text=>text.startsWith('Star history is stale:'))} observations={queries.star_observations}/>)}
       {item('referral-chart',6,chartHome({id:'referral-chart',queryId:'referrers',queryIds:['referrers','reach'],title:'Top referring sources by repo views',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRowsByQuery:{referrers:rows('referrers'),reach:rows('reach')}}))}
       {item('popular-paths',6,chartHome({id:'popular-paths',queryId:'paths',title:'Popular repo pages',summary:popularPageRows(rows('paths'))[0]?`${pathLabel(popularPageRows(rows('paths'))[0].path)} has ${n(popularPageRows(rows('paths'))[0].count)} views.`:'No popular pages are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:popularPageRows(rows('paths')),sourceRows:rows('paths')}))}
     </SortableRegion>

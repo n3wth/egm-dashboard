@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url'
 import {promisify} from 'node:util'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 import {refreshSnapshot} from '../egm-cloudflare/refresh.mjs'
+import {revalidateResearchQueries} from '../egm-cloudflare/content-research.mjs'
 
 const runGh=promisify(execFile)
 const output=fileURLToPath(new URL('../egm-performance/.data-app-preview/snapshot.json',import.meta.url))
@@ -28,6 +29,7 @@ export async function refreshPreview() {
   if(previous.id!==seed.id||!previous.queries)throw Error('Existing preview snapshot does not match this dashboard')
   const result=await refreshSnapshot({GITHUB_TOKEN:'authenticated-by-gh-cli',REFRESH_UNTIL:new Date(Date.now()+30*60000).toISOString()},githubRequest,async()=>({}),{persist:false,previousSnapshot:previous})
   if(result.status!=='refreshed'||!result.snapshot?.queries)throw Error('Preview snapshot was not refreshed')
+  result.snapshot.queries=revalidateResearchQueries(result.snapshot.queries)
   await mkdir(dirname(output),{recursive:true})
   const temporary=join(dirname(output),`snapshot-${process.pid}.tmp`)
   await writeFile(temporary,JSON.stringify(result.snapshot,null,2)+'\n',{mode:0o600})

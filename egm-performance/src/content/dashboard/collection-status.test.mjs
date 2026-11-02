@@ -16,6 +16,7 @@ test('the summary counts sources that have a recorded success', () => {
     { lastSuccessAt: null, reason: 'unconfigured', status: 'unconfigured' }
   ]
   assert.equal(collectionSummary(sources, '2026-11-04T06:33:01Z', Date.parse('2026-10-28T00:00:00Z')).label, '0 of 2 sources healthy')
+  assert.equal(collectionStatusLines(sources[0],null,Date.parse('2026-10-28T00:00:00Z')).reason,'Stored data is more than 36 hours old')
 })
 test('health requires recent successful data and no exhausted budget',()=>{
   const now=Date.parse('2026-11-02T08:00:00Z')

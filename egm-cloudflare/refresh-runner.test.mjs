@@ -17,6 +17,29 @@ function fixture() {
 }
 const noRequest = () => { throw Error('network not expected') }
 
+test('cached research revalidation updates coverage counts without new collection timestamps',async()=>{
+  const f=fixture()
+  const at='2026-10-27T00:00:00Z'
+  const source={label:'Saved research',executedAt:at}
+  f.previous.queries.research_evidence={source,rows:[
+    {url:'https://example.org/link',status:'verified',rawMarkdown:'[.](https://example.org/elephant-goldfish-model)',lastAttemptAt:at},
+    {url:'https://example.org/prose',status:'verified',rawMarkdown:'Elephant Goldfish Model workflow installation.',lastAttemptAt:at},
+    {url:'https://example.org/unavailable',status:'inaccessible',rawMarkdown:null,lastAttemptAt:at}
+  ]}
+  f.previous.queries.research_status={source,rows:[{status:'available',nextAttemptAt:'2026-10-29T00:00:00Z',lastAttemptAt:at,totalAttempts:3,verified:2,unverified:0,inaccessible:1}]}
+  f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(f.previous))
+  const services=Object.fromEntries(['semrush','mentions','exa','exaResearch','youtube','youtubeComments','tavily','parallel','engagement','webPerformance'].map(name=>[name,async()=>({})]))
+  const result=await runRefresh(f.env,noRequest,{...services,now:()=>baseTime,github:async()=>({status:'refreshed',snapshot:f.previous}),contentResearch:async()=>assert.fail('cached research must not fetch')})
+  const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.equal(result.contentResearch,'cached')
+  assert.equal(saved.queries.research_evidence.rows[0].status,'unverified')
+  assert.deepEqual(saved.queries.research_status.rows[0],{...f.previous.queries.research_status.rows[0],verified:1,unverified:1})
+  assert.deepEqual(saved.queries.research_evidence.source,source)
+  assert.deepEqual(saved.queries.research_status.source,source)
+  assert.equal(saved.queries.research_evidence.rows[0].lastAttemptAt,at)
+  assert.equal(f.previous.queries.research_status.rows[0].verified,2)
+})
+
 test('bounded star collection keeps the runner snapshot without a second database read',async()=>{
   const f=fixture()
   const starHistory={rows:[{date:'2026-10-26',stars:123,newStars:23}],source:{executedAt:'2026-10-27T00:00:00Z',coverage:{startDate:'2026-10-26',endDate:'2026-10-26'},caveats:[]}}

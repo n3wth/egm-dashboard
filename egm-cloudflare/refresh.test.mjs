@@ -58,14 +58,14 @@ test('bounded or failed stargazer collection preserves dated history while traff
   const names={'':'repo','/traffic/views':'views','/traffic/clones':'clones','/traffic/popular/referrers':'referrers','/traffic/popular/paths':'paths','/issues':'issues','/pulls':'pulls','/releases':'releases','/pages':'pages','/commits':'commits'}
   const oldHistory={rows:[{date:'2026-10-20',stars:100,newStars:1}],source:{executedAt:'2026-10-20T12:00:00Z',coverage:{startDate:'2026-10-19',endDate:'2026-10-20'},caveats:['Original observation']}}
   const priorHistory=Array.from({length:337},(_,i)=>({observedAt:new Date(Date.parse('2026-10-10T00:00:00Z')+i*1800000).toISOString(),referralViews:i,referralVisitors:i}))
-  for(const total of [10001,10000,3500]) {
-    let starCalls=0,writes=0
+  for(const total of [300000,10001,10000,3500]) {
+    let starCalls=0,repoCalls=0,writes=0
     const env={REFRESH_UNTIL:'2099-01-01',GITHUB_TOKEN:'test',DB:{prepare(){return {async first(){return {body:JSON.stringify({queries:{star_history:oldHistory,website_referral_history:{rows:priorHistory}}})}},bind(){return {async run(){writes++}}}}}}}
     const result=await refreshSnapshot(env,async url=>{
       const u=new URL(url),path=u.pathname.replace('/repos/google/elephant-goldfish-model',''),page=Number(u.searchParams.get('page')??1)
       if(path==='/stargazers'){starCalls++;return new Response('{}',{status:403})}
       let value=await load(names[path])
-      if(path==='')value={...value,stargazers_count:total}
+      if(path===''){repoCalls++;value={...value,stargazers_count:total}}
       if(['issues','pulls','releases','commits'].includes(names[path]))value=value.slice((page-1)*100,page*100)
       return Response.json(value)
     },async()=>({}),{persist:false})
@@ -73,7 +73,11 @@ test('bounded or failed stargazer collection preserves dated history while traff
     assert.equal(result.status,'refreshed')
     assert.equal(result.starHistoryStatus,'stale')
     assert.equal(starCalls,total>=10000?0:1)
+    assert.equal(repoCalls,1,'observed totals reuse the repository request')
     assert.equal(data.queries.reach.rows[0].stars,total)
+    assert.equal(data.queries.star_observations.rows.length,1,'reconstructed history does not become observed totals')
+    assert.equal(data.queries.star_observations.rows[0].stars,total)
+    assert.equal(data.queries.star_observations.source.executedAt,data.generatedAt)
     assert.equal(data.queries.reach.source.executedAt,data.generatedAt)
     assert.deepEqual(data.queries.star_history.rows,oldHistory.rows)
     assert.equal(data.queries.star_history.source.executedAt,oldHistory.source.executedAt)
