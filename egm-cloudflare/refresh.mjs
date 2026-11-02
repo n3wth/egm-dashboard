@@ -3,6 +3,7 @@ import {activityRows,alignTraffic,downloadRows,issueQueue,referralHistory,staleS
 import {collectResearch} from './research.mjs'
 import {retainGithubHistory} from './github-history.mjs'
 import {starObservations} from './star-observations.mjs'
+import {maintenanceHistory} from './maintenance-history.mjs'
 import {githubCollectionEnabled} from './collection-schedule.mjs'
 
 export function refreshEnabled(env,time=Date.now()) {
@@ -74,6 +75,7 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   const collectedQueries=new Set(['traffic','reach','referrers','paths','maintenance','activity','issue_queue','downloads','website','website_contribution',...(stars?['star_history']:[])])
   stampCollectedQueries(data,collectedQueries,started,requests,traffic,starsByDay)
   data.queries.star_observations=starObservations(previousSnapshot,repo.stargazers_count,started)
+  data.queries.maintenance_history=maintenanceHistory(previousSnapshot,data.queries.maintenance.rows[0],started)
   data.generatedAt=started
   data.buildStatus='complete'
   Object.assign(data.queries,await research(env,request))

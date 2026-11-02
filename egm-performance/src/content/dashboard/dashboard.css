@@ -6,5 +6,5 @@
   --data-app-layout-gutter: var(--data-app-dashboard-gutter);
   max-width: calc(var(--data-app-content-width) + 2 * var(--data-app-layout-gutter));
   margin: 0 auto;
-  padding-block: 24px 80px;
+  padding-block: 24px;
 }

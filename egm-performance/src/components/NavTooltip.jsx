@@ -3,7 +3,7 @@ import {createPortal} from 'react-dom'
 import {navTooltipPosition} from './nav-tooltip-position.mjs'
 import './nav-tooltip.css'
 
-export function NavTooltip({label, children, className = '', ...props}) {
+export function NavTooltip({label, children, className = '', asChild = false, ...props}) {
   const id = useId()
   const anchor = useRef(null)
   const tip = useRef(null)
@@ -28,14 +28,26 @@ export function NavTooltip({label, children, className = '', ...props}) {
       document.removeEventListener('keydown', escape)
     }
   }, [visible, label])
-  return <span {...props} ref={anchor} className={`egm-nav-tooltip-trigger ${className}`} onPointerEnter={event => {
+  const events = {onPointerEnter: event => {
     if (event.pointerType === 'touch' || anchor.current.querySelector('[data-state="open"]')) return
     clearTimeout(timer.current)
     timer.current = setTimeout(() => setVisible(true), 500)
-  }} onPointerLeave={()=>{clearTimeout(timer.current);timer.current=setTimeout(hide,200)}} onFocus={event => {
+  }, onPointerLeave:()=>{clearTimeout(timer.current);timer.current=setTimeout(hide,200)}, onFocus:event => {
     if (event.target.matches(':focus-visible')) { clearTimeout(timer.current); setVisible(true) }
-  }} onBlur={hide} onPointerDown={hide} onClick={hide}>
-    {cloneElement(children, {'aria-describedby': visible ? id : children.props['aria-describedby']})}
-    {visible && createPortal(<span ref={tip} id={id} role="tooltip" className="egm-nav-tooltip" onPointerEnter={()=>clearTimeout(timer.current)} onPointerLeave={hide}>{label}</span>, document.body)}
+  }, onBlur:hide, onPointerDown:hide, onClick:hide}
+  const describedBy = [children.props['aria-describedby'],visible ? id : null].filter(Boolean).join(' ') || undefined
+  const trigger = asChild ? cloneElement(children, {
+    ...Object.fromEntries(Object.entries(events).map(([name,handler])=>[name,event=>{children.props[name]?.(event);handler(event)}])),
+    ref:element=>{anchor.current=element;const ref=children.props.ref;if(typeof ref==='function')ref(element);else if(ref)ref.current=element},
+    'aria-describedby':describedBy
+  }) : <span {...props} {...events} ref={anchor} className={`egm-nav-tooltip-trigger ${className}`}>
+    {cloneElement(children, {'aria-describedby':describedBy})}
   </span>
+  return <>{trigger}{visible && label && createPortal(<span ref={tip} id={id} role="tooltip" className="egm-nav-tooltip" onPointerEnter={()=>clearTimeout(timer.current)} onPointerLeave={hide}>{label}</span>, document.body)}</>
+}
+
+export function Hint({as:Tag='span',title,children,...props}) {
+  const passive=['span','p','time','h3','div'].includes(Tag)
+  const element=<Tag {...props} tabIndex={props.tabIndex??(title&&passive?0:undefined)}>{children}</Tag>
+  return title?<NavTooltip label={title} asChild>{element}</NavTooltip>:element
 }

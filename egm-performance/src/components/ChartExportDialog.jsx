@@ -1,3 +1,4 @@
+import { Hint } from './NavTooltip.jsx'
 import React, { useEffect, useLayoutEffect, useId, useMemo, useRef, useState } from "react";
 
 import { chartImageResolution, renderLiveChartImage } from "../chart-image.js";
@@ -223,7 +224,7 @@ export function ChartExportDialog({ component, rows, originalSize, provenance = 
               </div>
             </div>
           </div>
-            <button type="button" className="chart-export-resize" aria-label="Resize chart image"
+            <Hint as="button" type="button" className="chart-export-resize" aria-label="Resize chart image"
               title="Drag to resize, or use the arrow keys"
               onPointerDown={event => {
                 if (event.button !== 0) return;
@@ -250,11 +251,11 @@ export function ChartExportDialog({ component, rows, originalSize, provenance = 
         </div>
         <div className="chart-export-size-controls">
           <div className="chart-export-presets" role="group" aria-label="Image size presets">
-            {chartExportPresets.filter(item => item.id !== "custom").map(item => <button type="button" key={item.id} data-active={preset === item.id || undefined}
+            {chartExportPresets.filter(item => item.id !== "custom").map(item => <Hint as="button" type="button" key={item.id} data-active={preset === item.id || undefined}
               title={item.width ? `${item.label} · ${item.width} × ${item.height}` : item.label}
               aria-label={item.label} aria-pressed={preset === item.id} onClick={() => choosePreset(item.id)}>
               {item.label}
-            </button>)}
+            </Hint>)}
             <div className="chart-export-custom-size">
               <button type="button" data-active={preset === "custom" || undefined} aria-pressed={preset === "custom"}
                 onClick={() => choosePreset("custom")}>Custom</button>

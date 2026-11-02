@@ -1,3 +1,4 @@
+import { Hint } from './NavTooltip.jsx'
 import { dataAppExportOptions } from "../export-catalog.js";
 import { Feedback } from "../content/dashboard/Feedback.jsx";
 import { resetUsageIdentity } from "../content/dashboard/usage-analytics.js";
@@ -1114,7 +1115,7 @@ export function DataAppTopbar({
               {title}
             </TitleTag>
             {build.label && (
-              <span
+              <Hint as="span"
                 className="freshness freshness-label dashboard-authoring-status"
                 role="status"
                 title={
@@ -1125,7 +1126,7 @@ export function DataAppTopbar({
               >
                 {build.active && <Icon name="spinner" size={16} className="dashboard-authoring-spinner" />}
                 {build.label}
-              </span>
+              </Hint>
             )}
             {mode === "edit" ? (
               <span className="freshness freshness-label dashboard-edit-session-label">Editing</span>

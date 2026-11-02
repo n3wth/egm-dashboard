@@ -1,3 +1,4 @@
+import { Hint } from "../components/NavTooltip.jsx";
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { Scatter, ScatterChart, XAxis, YAxis, ZAxis, useChartWidth, usePlotArea } from "recharts";
 
@@ -97,13 +98,12 @@ function HeatmapTick({ x, y, payload, values, angled = false }) {
   }
   const labelY = y + 11;
   return (
-    <text ref={measureFont} x={x} y={labelY} fill={axisTextColor} textAnchor={angled ? "end" : "middle"}
+    <Hint as="text" title={value} tabIndex={0} ref={measureFont} x={x} y={labelY} fill={axisTextColor} textAnchor={angled ? "end" : "middle"}
       fontSize={axisTickFontSize}
       transform={angled ? `rotate(${angle} ${x} ${labelY})` : undefined}
       data-axis-layout={angled ? "angled" : "horizontal"}>
-      <title>{value}</title>
       {visible}
-    </text>
+    </Hint>
   );
 }
 

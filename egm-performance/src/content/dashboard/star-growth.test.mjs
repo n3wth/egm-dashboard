@@ -54,10 +54,12 @@ test('observed gaps and invalid samples stay unknown instead of becoming daily g
     {date:'2026-11-03',stars:130,observedAt:'2026-11-03T09:30:00Z'}
   ]
   const result=observedStarGrowth(rows,'2026-11-02T08:15:00Z')
-  assert.deepEqual(result.daily.map(row=>row.date),['2026-10-31','2026-11-02'])
-  assert.deepEqual(result.daily.map(row=>row.netStars),[null,null])
-  assert.deepEqual(result.daily.map(row=>row.partialNetStars),[null,null])
-  assert.ok(observedStarGrowth(rows,null).daily.every(row=>row.netStars===null&&row.partialNetStars===null&&row.coverage==='Coverage unknown'))
+  assert.deepEqual(result.daily.map(row=>row.date),['2026-10-31','2026-11-01','2026-11-02'])
+  assert.deepEqual(result.daily.map(row=>row.stars),[100,null,120])
+  assert.deepEqual(result.daily.map(row=>row.netStars),[null,null,null])
+  assert.deepEqual(result.daily.map(row=>row.partialNetStars),[null,null,null])
+  assert.equal(result.daily[1].coverage,'Not sampled')
+  assert.ok(observedStarGrowth(rows,null).daily.every(row=>row.netStars===null&&row.partialNetStars===null&&['Coverage unknown','Not sampled'].includes(row.coverage)))
   assert.deepEqual(observedStarGrowth([],null).recent,[])
 })
 

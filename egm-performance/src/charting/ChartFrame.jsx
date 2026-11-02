@@ -1,3 +1,4 @@
+import { Hint } from '../components/NavTooltip.jsx'
 import React, { useEffect, useRef, useState } from "react";
 import { ResponsiveContainer } from "recharts";
 
@@ -37,7 +38,7 @@ export function ChartLegend({ items = [], onToggle, onIsolate, position = "botto
       {items.map((item, index) => <li key={`${item.label}-${index}`}
         data-collapsed={!expanded && position !== "right" && index >= layout.visibleCount || undefined}
         inert={!expanded && position !== "right" && index >= layout.visibleCount ? true : undefined}>
-        <button type="button" className="chart-legend-button"
+        <Hint as="button" type="button" className="chart-legend-button"
           aria-label={`Toggle ${item.label}`} aria-pressed={item.visible !== false}
           title="Click to toggle. Double-click or press Shift+Enter to isolate."
           onClick={() => onToggle?.(item.value ?? item.label)}
@@ -51,7 +52,7 @@ export function ChartLegend({ items = [], onToggle, onIsolate, position = "botto
           <span className={`chart-legend-mark ${item.type ?? "square"}`}
             style={{ "--legend-color": item.color, opacity: item.opacity }} aria-hidden="true" />
           <span>{item.label}</span>
-        </button>
+        </Hint>
       </li>)}
     </ul>
     {position !== "right" && (overflowing || expanded) && <button

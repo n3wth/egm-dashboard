@@ -32,12 +32,14 @@ export function observedStarGrowth(rows,observedAt) {
     if(!saved||sampledAt>Date.parse(saved.observedAt))samples.set(row.date,row)
   }
   const sorted=[...samples.values()].sort((a,b)=>a.date.localeCompare(b.date))
-  const daily=sorted.map((row,index)=>{
+  const daily=sorted.flatMap((row,index)=>{
     const previous=sorted[index-1]
     const consecutive=previous&&Date.parse(row.date)-Date.parse(previous.date)===86400000&&Date.parse(row.observedAt)>Date.parse(previous.observedAt)
     const net=consecutive?row.stars-previous.stars:null
     const closed=partialDate!=null&&row.date<partialDate
-    return {...row,netStars:closed?net:null,partialNetStars:row.date===partialDate?net:null,fromObservedAt:consecutive?previous.observedAt:null,coverage:closed?'Closed sampling day':row.date===partialDate?'Partial sampling day':'Coverage unknown'}
+    const sample={...row,netStars:closed?net:null,partialNetStars:row.date===partialDate?net:null,fromObservedAt:consecutive?previous.observedAt:null,coverage:closed?'Closed sampling day':row.date===partialDate?'Partial sampling day':'Coverage unknown'}
+    // Break the line across missing dates instead of implying measured daily growth.
+    return previous&&!consecutive?[{date:new Date(Date.parse(previous.date)+86400000).toISOString().slice(0,10),stars:null,netStars:null,partialNetStars:null,coverage:'Not sampled'},sample]:[sample]
   })
   const cutoff=Date.parse(sorted.at(-1)?.date)-13*86400000
   const recent=daily.filter(row=>Date.parse(row.date)>=cutoff)

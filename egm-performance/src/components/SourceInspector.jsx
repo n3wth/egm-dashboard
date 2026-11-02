@@ -1,3 +1,4 @@
+import { Hint } from './NavTooltip.jsx'
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 // Standalone chart snippets only mount SourceSidebar. Keep receipt-only UI out
@@ -627,10 +628,10 @@ function SourceDetails({ component, query, rows = [], filters = [], allowCopy, r
                       ? entry.label.replace(/^reviewed\s+/iu, "Open ")
                       : `Open reviewed query${index ? ` ${index + 1}` : ""}`;
                   return (
-                    <a key={href} href={href} target="_blank" rel="noreferrer" title={label}>
+                    <Hint as="a" key={href} href={href} target="_blank" rel="noreferrer" title={label}>
                       <Icon name="link" size={14} />
                       {label}
-                    </a>
+                    </Hint>
                   );
                 })}
               </div>

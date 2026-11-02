@@ -5,6 +5,8 @@ import {observedStarGrowth} from './star-growth.mjs'
 import {formatObservedAt} from './collection-status.mjs'
 const count=value=>Number.isFinite(value)&&value>=0
 const number=value=>value.toLocaleString('en-US')
+const compact=value=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value).toLowerCase()
+const targetDistance=value=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:0}).format(value).toLowerCase()
 const shortDate=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
 const monthDay=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
 const dayOnly=value=>new Intl.DateTimeFormat('en-US',{day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
@@ -41,19 +43,17 @@ export function overviewSummary(queries={}) {
   const refs=queries.referrers?.rows??[]
   const ids=new Set()
   const sentences=[]
-  const facts=[]
   let headline=null
   const stars=count(reach?.stars)?`EGM has ${number(reach.stars)} recorded stars`:null
   if(stars) {
     ids.add('reach')
-    facts.push(reach.stars>=300000?'Team target 200k–300k reached':reach.stars>=200000?`200k target reached · ${number(300000-reach.stars)} stars to 300k`:`Team target: ${number(200000-reach.stars)} stars to 200k · ${number(300000-reach.stars)} to 300k`)
   }
   const history=queries.star_history
   const staleHistory=(history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
   const weekly=!staleHistory&&starWeeklyChange(history?.rows??[],history?.source?.executedAt)
   const observations=queries.star_observations
   const observedWeekly=staleHistory&&observedStarChange(observations?.rows??[],observations?.source?.executedAt)
-  const observedRows=staleHistory?observedStarGrowth(observations?.rows??[],observations?.source?.executedAt).daily:[]
+  const observedRows=staleHistory?observedStarGrowth(observations?.rows??[],observations?.source?.executedAt).daily.filter(row=>Number.isFinite(row.stars)):[]
   if(weekly) {
     headline=`${number(weekly.current)} new stars ${shortDate(weekly.mid)}–${shortDate(weekly.end)}, versus ${number(weekly.previous)} the prior week.`
     sentences.push(`${headline} These are complete Pacific-date weeks reconstructed from current stargazers; removed stars are unavailable.`)
@@ -80,22 +80,18 @@ export function overviewSummary(queries={}) {
     const trafficText=`${percentage(recent/total)} of ${number(total)} repo views arrived in the last 3 reported UTC days.`
     sentences.push(`${trafficText} The reported traffic window is ${shortDate(traffic[0].date)}–${shortDate(traffic.at(-1).date)}.`)
     headline??=trafficText
-    facts.push(`${number(total)} repo views · ${percentage(recent/total)} in last 3 reported UTC days`)
     ids.add('traffic')
   } else if(count(reach?.views)) {
     const trafficText=`GitHub recorded ${number(reach.views)} repo views in its two-week traffic window.`
     sentences.push(trafficText)
     headline??=trafficText
-    facts.push(`${number(reach.views)} repo views in reporting window`)
     ids.add('reach')
   }
   if(refs.length&&refs.every(row=>count(row.count))) {
     const totalReferrals=refs.reduce((sum,row)=>sum+row.count,0)
     const searchVideo=refs.filter(row=>isSearchVideo(row.referrer)).reduce((sum,row)=>sum+row.count,0)
     if(totalReferrals>0&&searchVideo>0) {
-      const attributed=`Google + YouTube = ${percentage(searchVideo/totalReferrals)} of attributed views`
       sentences.push(`Google and YouTube sent ${percentage(searchVideo/totalReferrals)} of the views GitHub attributes to its top ten referrers${reach?.views>0?` (${percentage(searchVideo/reach.views)} of all repo views)`:''}.`)
-      facts.push(attributed)
       ids.add('referrers');if(reach?.views>0)ids.add('reach')
     }
   }
@@ -104,5 +100,29 @@ export function overviewSummary(queries={}) {
     if(video){sentences.push(`The most-viewed YouTube video about EGM has ${number(video.views)} views.`);ids.add('youtube_videos')}
   }
   if(!sentences.length)return null
-  return {sentences,queryIds:[...ids],headline:headline??sentences[0],facts:facts.slice(0,3),range:reportingRange(queries)}
+  let displayHeadline=headline??sentences[0]
+  const displayFacts=[]
+  if(weekly) {
+    displayHeadline=`Star growth ${weekly.current>weekly.previous?'accelerated':weekly.current<weekly.previous?'slowed':'held steady'} in the latest complete week.`
+    displayFacts.push(`${compact(weekly.current)} new stars vs ${compact(weekly.previous)} the prior week · ${shortDate(weekly.mid)}–${shortDate(weekly.end)} Pacific`)
+  } else if(observedWeekly) {
+    displayHeadline=observedWeekly.current<0?'The latest sampled week lost stars.':observedWeekly.current===0?'Net stars held flat in the latest sampled week.':`Net star gains ${observedWeekly.current>observedWeekly.previous?'increased':observedWeekly.current<observedWeekly.previous?'slowed':'held steady'} across sampled weeks.`
+    displayFacts.push(`${compact(observedWeekly.current)} net stars vs ${compact(observedWeekly.previous)} across the prior seven sampling intervals.`)
+  } else if(stars&&observedRows.length>=2) {
+    const first=observedRows[0],last=observedRows.at(-1),change=last.stars-first.stars
+    displayHeadline=`Star totals ${change>0?'rose':change<0?'fell':'held steady'} between observations.`
+    displayFacts.push(`${compact(change)} net stars · samples dated ${shortDate(first.date)}–${shortDate(last.date)}. Daily history is still building.`)
+  } else if(stars) {
+    displayHeadline=staleHistory?'Weekly star momentum is not available yet.':`EGM has ${reach.stars>=1000?'about ':''}${compact(reach.stars)} recorded stars.`
+    if(staleHistory)displayFacts.push(`${compact(reach.stars)} recorded stars`)
+  }
+  if(stars)displayFacts.push(reach.stars>=300000?'Team target of 200k–300k stars reached.':reach.stars>=200000?`200k target reached · about ${targetDistance(300000-reach.stars)} stars to 300k`:`About ${targetDistance(200000-reach.stars)} stars to the 200k team target`)
+  if(displayFacts.length<2&&total>0&&traffic.length>=3)displayFacts.push(`${compact(total)} repo views · ${percentage(traffic.slice(-3).reduce((sum,row)=>sum+row.views,0)/total)} in the last three reported UTC days`)
+  else if(displayFacts.length<2&&count(reach?.views))displayFacts.push(`${compact(reach.views)} repo views in the reporting window`)
+  if(!stars) {
+    if(total>0&&traffic.length>=3)displayHeadline=`GitHub recorded ${compact(total)} repo views.`
+    else if(count(reach?.views))displayHeadline=`GitHub recorded ${compact(reach.views)} repo views.`
+    else {const video=(queries.youtube_videos?.rows??[]).filter(row=>count(row.views)).sort((a,b)=>b.views-a.views)[0];if(video)displayHeadline=`The leading recorded video has ${compact(video.views)} views.`}
+  }
+  return {sentences,queryIds:[...ids],headline:displayHeadline,facts:displayFacts.slice(0,1),notes:[...sentences,...displayFacts.slice(1)],range:reportingRange(queries)}
 }

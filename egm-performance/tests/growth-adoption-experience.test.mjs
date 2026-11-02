@@ -41,6 +41,16 @@ test('observed star fallback and Adoption present the supported measurements',as
       assert.deepEqual(snapshot,before)
     })
 
+    await t.test('sparse observations preserve the daily reconstruction and its stale warning',()=>{
+      const snapshot=makeSnapshot()
+      snapshot.queries.star_observations.rows=[observationRows[0],observationRows.at(-1)]
+      const html=render(snapshot,React.createElement(StarGrowth,{rows:snapshot.queries.star_history.rows,observedAt:snapshot.queries.star_history.source.executedAt,stale:true,observations:snapshot.queries.star_observations}))
+      assert.match(html,/Daily new stars/)
+      assert.match(html,/Star history is out of date/)
+      assert.match(html,/Observed totals/)
+      assert.doesNotMatch(html,/Observed star totals/)
+    })
+
     await t.test('one observed sample displays a total and cannot advertise a net-change comparison',()=>{
       const snapshot=makeSnapshot()
       snapshot.queries.star_observations.rows=snapshot.queries.star_observations.rows.slice(-1)
@@ -56,9 +66,10 @@ test('observed star fallback and Adoption present the supported measurements',as
     await t.test('Overview identifies observed weekly change and keeps the actual observation query as evidence',()=>{
       const snapshot=makeSnapshot()
       const html=render(snapshot,React.createElement(OverviewSummary,{queries:snapshot.queries}))
-      assert.match(html,/-35 net stars across the latest seven daily-snapshot intervals, versus 70 in the preceding seven/)
+      assert.match(html,/The latest sampled week lost stars/)
+      assert.match(html,/-35 net stars vs 70 across the prior seven sampling intervals/)
       assert.deepEqual(new Set(html.match(/data-query-ids="([^"]+)"/)?.[1].split(' ')),new Set(['reach','star_observations','traffic','referrers']))
-      assert.match(html,/190,000 stars to 200k/)
+      assert.match(html,/Notes and reporting period/)
       assert.doesNotMatch(html,/weekly star momentum is unavailable|new stars Oct/)
     })
 
@@ -66,7 +77,8 @@ test('observed star fallback and Adoption present the supported measurements',as
       const snapshot=makeSnapshot()
       snapshot.queries.star_observations.rows=[observationRows[0],observationRows[2]]
       const html=render(snapshot,React.createElement(OverviewSummary,{queries:snapshot.queries}))
-      assert.match(html,/20 net change between samples dated Oct 15–Oct 17/)
+      assert.match(html,/Star totals rose between observations/)
+      assert.match(html,/20 net stars · samples dated Oct 15–Oct 17/)
       assert.deepEqual(new Set(html.match(/data-query-ids="([^"]+)"/)?.[1].split(' ')),new Set(['reach','star_observations','traffic','referrers']))
       assert.doesNotMatch(html,/latest seven daily-snapshot intervals|the prior week/)
     })
