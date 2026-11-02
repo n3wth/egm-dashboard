@@ -1,4 +1,5 @@
 export { Chart, Chart as ChartRenderer } from "./components/Chart.jsx";
+export { NavTooltip } from "./components/NavTooltip.jsx";
 export { ChartEditor } from "./components/ChartEditor.jsx";
 export { ContainedDialog, NativeSelect } from "./components/contained-ui.jsx";
 export { barChartSpec } from "./charting/bar-family.js";
