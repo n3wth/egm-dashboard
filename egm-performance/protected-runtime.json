@@ -22,8 +22,8 @@
     "docs/components/sources.md": "2e6efcd576ec195c64895ded0aa29d629d94154fcc437828d2288a9440c31202",
     "docs/components/tables.md": "bad26c41789c621c24e25748111e20c6a100533477ef582c175a1edca12380f3",
     "index.html": "314bb3975bdcd7322067d234f99398b06f609c67c2321554eda742f2338b3c5e",
-    "package-lock.json": "3ef002b93493b112b4753e3c3822e5e37db522259d3595773f885adb69f30e28",
-    "package.json": "1f0156e7f8c0d640057b9f66e82459f7ee5007ebbd04d3e77bf2c461c18de40b",
+    "package-lock.json": "c4596e71c161c1cc10c7931cd06979c8c6e110af6df398567b3195f57a3c10d0",
+    "package.json": "362912a2ca10641fccb7c4571e571645bc03cad1393f8df66dcb476c011dfcba",
     "scripts/authorize-protected-change.mjs": "9b9f012d65c34a1f9ac4d107ba226f82aadabde72980c2d393c63e9d68eff6a3",
     "scripts/protected-file-digest.mjs": "2583e42fafb0d0fab7342b8dca163fe0d6771928dc41c830fbdfdee3af821822",
     "scripts/verify-protected-runtime.mjs": "47d95847a9135cd125581a4b994208adc3822cbef4a2c8bfaf562f0d2ef3a9af",
@@ -260,6 +260,6 @@
     "src/use-sortable-blocks.js": "5462804b0f62fcfc7fad6a581b1025057f827a368a0c528d218000c7928ba666",
     "src/verification-reminder.js": "9c135c75d15ef1a43aa98efd5db51aed44afbacb86206d073608cdb764957bc0",
     "src/worker.js": "bc859b3fcb14dc269367d5aecbbea5f6d307a477a607b3e376f992a8748b30f7",
-    "vite.config.js": "826b304639dfbe2872743e6ba411021bf6ec9e166e335beae719f184c305a229"
+    "vite.config.js": "36a7fe4a13dc21d362177d7647f2e97a4c6a035b3774272c19844d90f6646d11"
   }
 }

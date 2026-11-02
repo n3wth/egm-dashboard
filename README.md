@@ -22,7 +22,7 @@ npm test
 
 For a local preview with current GitHub observations, run `node scripts/refresh-preview.mjs`, then start the Vite dev server. It uses the authenticated `gh` CLI for repository reads, writes an ignored `.data-app-preview/snapshot.json`, and never updates production or calls paid collectors. Only development serving uses this override; builds retain the reviewed checked-in fallback. Source coverage and independent-provider timestamps remain explicit; missing dates are not filled.
 
-The existing application lockfile pins dependencies. Its source build verifies the protected runtime manifest before compiling. `npm run build` also copies the generated HTML into the Worker's assets directory. Generated output and dependencies are not committed.
+The existing application lockfile pins dependencies. Its source build verifies the protected runtime manifest before compiling. `npm run build` copies the generated HTML and content-hashed static chunks into the Worker's assets directory. Approved viewers may privately cache successful hashed assets for repeat visits; HTML and API responses stay `no-store`, and authentication still runs before private asset reads. Imports remain static, so this improves repeat transfer rather than reducing the first-load bundle. Generated output and dependencies are not committed.
 
 For application development:
 

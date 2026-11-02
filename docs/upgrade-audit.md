@@ -66,8 +66,7 @@ All changes are inside `src/content/`, reuse existing colour variables, and add 
 
 Not done here because they need protected, Worker or product decisions:
 
-- **Cache the app shell.** Serve fingerprinted assets with long-lived `cache-control` and keep only `/api/*` as `no-store`. This is the single biggest speed win for repeat visits (Worker change).
-- **Split the bundle.** Lazy-load the Ask panel (`ai`, zod, parse5), WorkOS widgets and the editing tools so readers download only the dashboard. Replace the full `@radix-ui/react-icons` import with the icons in use. This needs the single-file build to change.
+- **Reduce first-load code.** Static content-hashed chunks now support private repeat-visit caching after authentication. First visits still load all modules. Lazy loading would need a recovery path for missing old chunks during deployment before it can safely reduce that initial transfer.
 - **A real error screen** for a failed snapshot fetch, with a retry button and a link to the Feedback flow (protected bootstrap).
 - **Labelled tabs on wide screens, or a scroll cue on mobile** in the topbar (protected chrome).
 - **Fix the dev-only deep-link redirect** caused by StrictMode double registration in `registerDashboardTabs` (protected shell).
