@@ -4,12 +4,12 @@ import {overviewSummary,reportingRangeLabel,pacificReportingRangeLabel} from './
 
 test('uses exact recorded traffic and distinct referral denominators',()=>{
   const summary=overviewSummary({reach:{rows:[{stars:3624,views:29252}]},traffic:{rows:[{date:'2026-10-23',views:3406},{date:'2026-10-24',views:6000},{date:'2026-10-25',views:8000},{date:'2026-10-26',views:11846}]},referrers:{rows:[{referrer:'Google',count:5481},{referrer:'youtube.com',count:3313},{referrer:'other',count:4970}]}})
-  assert.match(summary.sentences[0],/3,624 recorded stars; 88% of the 29,252 repo views between Oct 23 and Oct 26 \(UTC\) arrived in the last three days, Oct 24–Oct 26; an even spread would be 75%\./)
-  assert.match(summary.sentences[1],/64% of the views GitHub attributes to its top ten referrers \(30% of all repo views\)/)
-  assert.equal(summary.sentences.length,2)
+  assert.match(summary.sentences[1],/88% of 29,252 repo views arrived in the last 3 reported UTC days/)
+  assert.match(summary.sentences[2],/64% of the views GitHub attributes to its top ten referrers \(30% of all repo views\)/)
+  assert.equal(summary.sentences.length,3)
   assert.deepEqual(new Set(summary.queryIds),new Set(['reach','traffic','referrers']))
-  assert.equal(summary.headline,'88% of 29,252 repo views arrived in the last 3 days.')
-  assert.deepEqual(summary.facts,['vs 75% if evenly spread','3,624 recorded stars','Google + YouTube = 64% of attributed views'])
+  assert.equal(summary.headline,'EGM has 3,624 recorded stars.')
+  assert.deepEqual(summary.facts,['Team target: 196,376 stars to 200k · 296,376 to 300k','29,252 repo views · 88% in last 3 reported UTC days','Google + YouTube = 64% of attributed views'])
   assert.deepEqual(summary.range,{label:'Oct 22, 5 PM PDT – Oct 26, 5 PM PDT',note:'Pacific Time'})
 })
 test('one compact label for the traffic dates',()=>{
@@ -35,4 +35,37 @@ test('incomplete traffic omits the burst percentage',()=>{
   const summary=overviewSummary({reach:{rows:[{stars:10}]},traffic:{rows:[{date:'2026-10-24',views:5},{date:'2026-10-25',views:null},{date:'2026-10-26',views:8}]}})
   assert.equal(summary.sentences[0],'EGM has 10 recorded stars.')
   assert.deepEqual(summary.queryIds,['reach'])
+})
+
+const history=Array.from({length:16},(_,index)=>({date:new Date(Date.UTC(2026,9,12+index)).toISOString().slice(0,10),stars:index<=7?100+index*10:170+(index-7)*20}))
+const starQuery={rows:history,source:{executedAt:'2026-10-28T02:00:00Z',caveats:[]}}
+
+test('leads with comparable complete Pacific weeks and arithmetic distance to the team target',()=>{
+  const summary=overviewSummary({reach:{rows:[{stars:330}]},star_history:starQuery})
+  assert.equal(summary.headline,'140 new stars Oct 20–Oct 26, versus 70 the prior week.')
+  assert.match(summary.sentences[0],/complete Pacific-date weeks reconstructed from current stargazers/)
+  assert.deepEqual(summary.facts,['Team target: 199,670 stars to 200k · 299,670 to 300k'])
+  assert.deepEqual(summary.queryIds,['reach','star_history'])
+  assert.doesNotMatch(JSON.stringify(summary),/forecast|will reach|on track/i)
+})
+
+test('stale star history cannot produce a current momentum claim',()=>{
+  const summary=overviewSummary({reach:{rows:[{stars:10010}]},star_history:{...starQuery,source:{...starQuery.source,caveats:['Star history is stale: collection was incomplete.']}}})
+  assert.equal(summary.headline,'EGM has 10,010 recorded stars; weekly star momentum is unavailable.')
+  assert.doesNotMatch(JSON.stringify(summary),/140 new stars|70 the prior/)
+  assert.deepEqual(summary.queryIds,['reach','star_history'])
+})
+
+test('missing or duplicate traffic dates do not become a last-three-days claim',()=>{
+  for(const dates of [['2026-10-23','2026-10-25','2026-10-26'],['2026-10-24','2026-10-25','2026-10-25'],['invalid','2026-10-25','2026-10-26']]) {
+    const summary=overviewSummary({reach:{rows:[{stars:10,views:20}]},traffic:{rows:dates.map(date=>({date,views:5}))}})
+    assert.doesNotMatch(JSON.stringify(summary),/last 3|last three/)
+    assert.match(summary.sentences[1],/20 repo views in its two-week traffic window/)
+    assert.deepEqual(summary.queryIds,['reach'])
+  }
+})
+
+test('target distance never turns negative after either target is reached',()=>{
+  assert.deepEqual(overviewSummary({reach:{rows:[{stars:250000}]}}).facts,['200k target reached · 50,000 stars to 300k'])
+  assert.deepEqual(overviewSummary({reach:{rows:[{stars:300001}]}}).facts,['Team target 200k–300k reached'])
 })

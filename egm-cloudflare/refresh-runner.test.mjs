@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { readFileSync } from 'node:fs'
 import { runRefresh } from './refresh-runner.mjs'
+import { refreshSnapshot } from './refresh.mjs'
 
 const baseTime = Date.parse('2026-10-28T00:00:00Z')
 function fixture() {
@@ -15,6 +16,38 @@ function fixture() {
   return { db, previous, env: { DB, REFRESH_UNTIL: '2026-11-04T06:33:00Z' } }
 }
 const noRequest = () => { throw Error('network not expected') }
+
+test('bounded star collection keeps the runner snapshot without a second database read',async()=>{
+  const f=fixture()
+  const starHistory={rows:[{date:'2026-10-26',stars:123,newStars:23}],source:{executedAt:'2026-10-27T00:00:00Z',coverage:{startDate:'2026-10-26',endDate:'2026-10-26'},caveats:[]}}
+  const referral={observedAt:'2026-10-27T00:00:00Z',referralViews:7,referralVisitors:3}
+  f.previous.queries.star_history=starHistory
+  f.previous.queries.website_referral_history={rows:[referral]}
+  f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(f.previous))
+  let snapshotReads=0
+  const original=f.env.DB.prepare.bind(f.env.DB)
+  f.env.DB.prepare=sql=>{
+    if(sql==='SELECT body FROM snapshots WHERE id=1'&&++snapshotReads>1)throw Error('second read unavailable')
+    return original(sql)
+  }
+  const names={'':'repo','/traffic/views':'views','/traffic/clones':'clones','/traffic/popular/referrers':'referrers','/traffic/popular/paths':'paths','/issues':'issues','/pulls':'pulls','/releases':'releases','/pages':'pages','/commits':'commits'}
+  const request=async url=>{
+    const u=new URL(url),path=u.pathname.replace('/repos/google/elephant-goldfish-model',''),page=Number(u.searchParams.get('page')??1)
+    assert.notEqual(path,'/stargazers')
+    let data=JSON.parse(readFileSync(new URL(`./test-fixtures/${names[path]}.json`,import.meta.url),'utf8'))
+    if(path==='')data={...data,stargazers_count:10000}
+    if(['issues','pulls','releases','commits'].includes(names[path]))data=data.slice((page-1)*100,page*100)
+    return Response.json(data)
+  }
+  const services=Object.fromEntries(['semrush','mentions','exa','exaResearch','contentResearch','youtube','youtubeComments','tavily','parallel','engagement','webPerformance'].map(name=>[name,async()=>({})]))
+  const result=await runRefresh({...f.env,GITHUB_TOKEN:'test',REFRESH_UNTIL:'2099-01-01'},request,{...services,now:()=>baseTime,github:(env,request,research,options)=>refreshSnapshot(env,request,async()=>({}),options)})
+  const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.equal(result.github,'refreshed')
+  assert.equal(snapshotReads,1)
+  assert.deepEqual(saved.queries.star_history.rows,starHistory.rows)
+  assert.equal(saved.queries.star_history.source.executedAt,starHistory.source.executedAt)
+  assert.deepEqual(saved.queries.website_referral_history.rows[0],referral)
+})
 
 test('transition preserves prior site data, honors both legacy attempts, and keeps comments', async () => {
   const f = fixture()

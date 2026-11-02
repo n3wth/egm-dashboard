@@ -51,7 +51,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
     let latest = previous
     try {
       if (githubDecision !== 'run') throw Error('collection_skipped')
-      const result = await (services.github ?? refreshSnapshot)(env, boundedRequest, undefined, { persist: false })
+      const result = await (services.github ?? refreshSnapshot)(env, boundedRequest, undefined, { persist: false, previousSnapshot: previous })
       if (result.status === 'refreshed' && !result.snapshot?.queries) throw Error('missing_staged_snapshot')
       state.github = result.status
       latest = result.snapshot ?? previous

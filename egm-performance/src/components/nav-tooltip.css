@@ -16,5 +16,5 @@
   line-height: 1.5;
   white-space: normal;
   overflow-wrap: anywhere;
-  pointer-events: none;
+  pointer-events: auto;
 }

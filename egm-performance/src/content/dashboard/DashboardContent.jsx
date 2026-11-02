@@ -18,6 +18,7 @@ import {VideoThumbnail} from './VideoThumbnail.jsx'
 import {trackDashboardSection} from './usage-analytics.js'
 import {EmptyState,StaleNotice} from './DataStates.jsx'
 import {CollectionStatus} from './CollectionStatus.jsx'
+import {formatObservedAt} from './collection-status.mjs'
 import {count} from './states.mjs'
 import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
@@ -51,7 +52,7 @@ function StarTooltip({active,payload=[],label}) {
   if(row?.coverage)details.push({label:'Coverage',value:row.coverage})
   return <ChartTooltip active={active} label={row?.date?shortDate(row.date):label} details={details}/>
 }
-function StarGrowth({rows,observedAt}) {
+export function StarGrowth({rows,observedAt,stale}) {
   const [measure,setMeasure]=useState('daily')
   const [range,setRange]=useState('recent')
   const growth=starGrowth(rows,observedAt)
@@ -63,10 +64,11 @@ function StarGrowth({rows,observedAt}) {
   const daily=measure==='daily'
   const weekly=starWeeklyChange(rows,observedAt)
   const fields=daily?['newStars','partialStars']:['completedStars','partialTotal']
-  const spec={...line(fields[0],fields),type:daily?'bar':'line',showLegend:false,colors:{[fields[0]]:'var(--chart-1)',[fields[1]]:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
+  const spec={...line(fields[0],fields),type:daily?'bar':'line',rightAxisFields:[],showLegend:false,colors:{[fields[0]]:'var(--chart-1)',[fields[1]]:'color-mix(in srgb, var(--chart-1) 40%, transparent)'}}
   const controls=<><SegmentedControl ariaLabel="Star measure" value={measure} onChange={setMeasure} options={[{value:'daily',label:'Daily gains'},{value:'total',label:'Cumulative'}]}/><SegmentedControl ariaLabel="Star history range" value={range} onChange={setRange} options={[{value:'recent',label:'Latest 14 days'},{value:'all',label:'Full history'}]}/></>
   return <EvidenceChart id="star-history" queryId="star_history" title={daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
-    {weekly&&<p className="egm-note"><strong>{weekly.current>weekly.previous?'More':weekly.current<weekly.previous?'Fewer':'The same number of'} new stars in the latest complete week.</strong> {n(weekly.current)} during {shortDate(weekly.mid)} – {shortDate(weekly.end)}, versus {n(weekly.previous)} in the preceding seven days. {weekly.previous<100?'The earlier baseline is small; a percentage would overstate the comparison.':''}</p>}
+    {stale&&<p className="egm-note" role="status"><strong>Star history is out of date.</strong> History was collected {formatObservedAt(observedAt)??'at an unknown time'}. The total stars metric may be newer.</p>}
+    {weekly&&<p className="egm-note"><strong>{weekly.current>weekly.previous?'More':weekly.current<weekly.previous?'Fewer':'The same number of'} new stars in the most recent complete week{stale?' in this history':''}.</strong> {n(weekly.current)} during {shortDate(weekly.mid)} – {shortDate(weekly.end)}, versus {n(weekly.previous)} in the preceding seven days. {weekly.previous<100?'The earlier baseline is small; a percentage would overstate the comparison.':''}</p>}
     <p className="egm-note">{range==='recent'&&growth.hiddenDays>0?`${growth.hiddenDays} earlier dates are outside this view; full history remains available. `:''}Pacific dates; faded marks show the incomplete day. Daily gains are reconstructed from current stargazers, excluding stars removed before collection. Gaps are unknown, not zero.</p>
     <p className="egm-note">Stars measure attention. Sustained adoption needs repeat usage or retention evidence; clones and downloads alone cannot establish it.</p>
   </EvidenceChart>
@@ -311,7 +313,7 @@ function TabPage({activeTabId}) {
       {item('overview-across-egm',12,<AcrossEgm {...{queries,reach,web}}/>,'custom')}
       {item('visitor-trend',6,<Plot id="visitor-trend" queryId="traffic" title="Daily views and unique visitors" rows={daily} spec={{...line('views',['views','visitors']),legend:{labels:{views:'Views',visitors:'Unique visitors per day'}}}} description={`${window}. GitHub reports each day separately; daily unique visitors cannot be summed.`} />)}
       {item('clone-trend',6,chartHome({id:'clone-trend',queryId:'traffic',title:'Daily clone activity',summary:`${n(reach.clones)} clone operations from ${n(reach.cloners)} unique cloners in ${window}.`,page:'adoption',linkLabel:'Adoption',displayRows:daily,sourceRows:daily}))}
-      {item('star-history',12,<StarGrowth rows={starHistory} observedAt={historyObservedAt}/>)}
+      {item('star-history',12,<StarGrowth rows={starHistory} observedAt={historyObservedAt} stale={queries.star_history?.source?.caveats?.some(text=>text.startsWith('Star history is stale:'))}/>)}
       {item('referral-chart',6,chartHome({id:'referral-chart',queryId:'referrers',queryIds:['referrers','reach'],title:'Top referring sources by repo views',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRowsByQuery:{referrers:rows('referrers'),reach:rows('reach')}}))}
       {item('popular-paths',6,chartHome({id:'popular-paths',queryId:'paths',title:'Popular repo pages',summary:popularPageRows(rows('paths'))[0]?`${pathLabel(popularPageRows(rows('paths'))[0].path)} has ${n(popularPageRows(rows('paths'))[0].count)} views.`:'No popular pages are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:popularPageRows(rows('paths')),sourceRows:rows('paths')}))}
     </SortableRegion>

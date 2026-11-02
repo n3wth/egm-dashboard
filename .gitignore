@@ -1,5 +1,6 @@
 **/node_modules/
 **/.wrangler/
+**/.data-app-preview/
 boing/site-deploy/.cloudflare/
 **/dist/
 **/.impeccable/

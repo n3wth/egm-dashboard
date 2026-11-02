@@ -18,12 +18,14 @@
 }
 
 .dashboard-root {
+  --data-app-anchor-offset: var(--dashboard-topbar-base-height, 56px);
   --dashboard-topbar-base-height: 52px;
   --dashboard-tabs-expanded-height: 36px;
   --dashboard-tabs-visible-height: 0px;
   --dashboard-tabs-height-duration: 120ms;
   --dashboard-tabs-height-easing: var(--motion-easing-emphasized);
 }
+.page[data-data-app-content="dashboard"] { scroll-margin-top:var(--data-app-anchor-offset); }
 
 .dashboard-root:has(> .dashboard-topbar[data-tabs-motion-ready]:not(.egm-single-row)) {
   transition: --dashboard-tabs-visible-height

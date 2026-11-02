@@ -45,6 +45,7 @@ export function ManageUsers({open,onClose,accessVersion}) {
   const [invitations,setInvitations]=useState(null)
   const [emailAvailable,setEmailAvailable]=useState(null)
   const [inviteError,setInviteError]=useState('')
+  const [inviteCanRetry,setInviteCanRetry]=useState(false)
   const [dialogElement,setDialogElement]=useState(null)
   const [canRetry,setCanRetry]=useState(false)
   const working=useRef(false)
@@ -61,27 +62,32 @@ export function ManageUsers({open,onClose,accessVersion}) {
     if(!response.ok)throw httpError(response,'Invitations are unavailable. Please try again later.')
     const data=await response.json()
     if(!Array.isArray(data.invitations))throw Error('Could not load invitations.')
-    if(!signal.aborted){setInvitations(data.invitations);setEmailAvailable(data.emailAvailable===true)}
+    if(!signal.aborted){setInvitations(data.invitations);setEmailAvailable(data.emailAvailable===true);setInviteCanRetry(false)}
   }
   useEffect(()=>{
     if(!open)return
     const controller=new AbortController();active.current=controller
     working.current=false
-    setRecord(null);setError('');setCanRetry(false);setBusy(false);setCopied(false);setCreatedLink(null);setNotice('');setInvitations(null);setEmailAvailable(null);setInviteError('');setEmail('');setExpiresInDays(7)
+    setRecord(null);setError('');setCanRetry(false);setBusy(false);setCopied(false);setCreatedLink(null);setNotice('');setInvitations(null);setEmailAvailable(null);setInviteError('');setInviteCanRetry(false);setEmail('');setExpiresInDays(7)
     load(controller.signal).catch(failure=>{if(!controller.signal.aborted){setError(failureMessage(failure,'Could not load users.'));setCanRetry(retryableStatus(failure.status))}})
-    loadInvitations(controller.signal).catch(failure=>{if(!controller.signal.aborted)setInviteError(failureMessage(failure,'Invitations are unavailable. Please try again later.'))})
+    loadInvitations(controller.signal).catch(failure=>{if(!controller.signal.aborted){setInviteError(failureMessage(failure,'Invitations are unavailable. Please try again later.'));setInviteCanRetry(retryableStatus(failure.status))}})
     return ()=>controller.abort()
   },[open])
   useEffect(()=>{
     if(open&&active.current)load(active.current.signal).catch(()=>{})
   },[accessVersion])
-  // The ref blocks a second click before the busy state has re-rendered.
+  function retryInvitations() {
+    const signal=active.current.signal
+    setInviteError('');setInviteCanRetry(false)
+    loadInvitations(signal).catch(failure=>{if(!signal.aborted){setInviteError(failureMessage(failure,'Could not reload invitations.'));setInviteCanRetry(retryableStatus(failure.status))}})
+  }
   function retryLoad() {
     const signal=active.current.signal
     setError('');setCanRetry(false)
     load(signal).catch(failure=>{if(!signal.aborted){setError(failureMessage(failure,'Could not load users.'));setCanRetry(retryableStatus(failure.status))}})
-    if(invitations===null){setInviteError('');loadInvitations(signal).catch(failure=>{if(!signal.aborted)setInviteError(failureMessage(failure,'Invitations are unavailable. Please try again later.'))})}
+    if(invitations===null)retryInvitations()
   }
+  // The ref blocks a second click before the busy state has re-rendered.
   async function decide(id,decision) {
     if(busy||working.current)return
     working.current=true
@@ -97,8 +103,7 @@ export function ManageUsers({open,onClose,accessVersion}) {
     if(busy||working.current)return
     working.current=true
     const signal=active.current.signal
-    setBusy(true);setInviteError('');setNotice('')
-    if(kind==='link'){setCopied(false);setCreatedLink(null)}
+    setBusy(true);setInviteError('');setInviteCanRetry(false);setNotice('')
     try {
       const response=await request('/api/invitations',signal,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({kind,expiresInDays,...(kind==='email'?{email:email.trim()}: {})})})
       if(!response.ok)throw response.status===401||response.status===429?httpError(response,''):Error(response.status===400?'Check the email address and expiration.':response.status===409?'An invitation may already exist or could not be saved. Check the list before trying again.':response.status===503&&kind==='email'?'Email invitations are not configured.':'Could not create the invitation.')
@@ -110,26 +115,28 @@ export function ManageUsers({open,onClose,accessVersion}) {
         let url
         try {url=new URL(data.url)} catch {throw Error('The invitation link was not returned.')}
         if(url.origin!==window.location.origin||url.pathname!=='/auth/invite'||!url.searchParams.get('invitation_token'))throw Error('The invitation link was not returned.')
+        setCopied(false)
         setCreatedLink({id:data.id,url:url.href,expiresAt:data.expiresAt})
       } else {
         setNotice('Invitation email accepted for delivery.')
         setEmail('')
       }
-      await loadInvitations(signal).catch(()=>{if(!signal.aborted)setInviteError('Invitation created, but the list could not be refreshed.')})
+      await loadInvitations(signal).catch(failure=>{if(!signal.aborted){setInviteError('Invitation created, but the list could not be refreshed.');setInviteCanRetry(retryableStatus(failure.status))}})
     } catch(failure){if(!signal.aborted)setInviteError(failureMessage(failure,'Could not create the invitation.'))}finally{working.current=false;if(!signal.aborted)setBusy(false)}
   }
   async function revokeInvitation(id) {
     if(busy||working.current)return
     working.current=true
     const signal=active.current.signal
-    setBusy(true);setInviteError('');setNotice('')
+    setBusy(true);setInviteError('');setInviteCanRetry(false);setNotice('')
     try {
       const response=await request('/api/invitations/revoke',signal,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id})})
       if(!response.ok)throw httpError(response,'Could not revoke the invitation. Refresh and try again.')
-      await loadInvitations(signal)
       if(signal.aborted)return
+      setInvitations(current=>current?.map(invitation=>invitation.id===id?{...invitation,revokedAt:new Date().toISOString()}:invitation)??null)
       if(createdLink?.id===id){setCreatedLink(null);setCopied(false)}
       setNotice('Invitation revoked.')
+      await loadInvitations(signal).catch(failure=>{if(!signal.aborted){setInviteError('Invitation revoked, but the list could not be refreshed.');setInviteCanRetry(retryableStatus(failure.status))}})
     }catch(failure){if(!signal.aborted)setInviteError(failureMessage(failure,'Could not revoke the invitation. Refresh and try again.'))}finally{working.current=false;if(!signal.aborted)setBusy(false)}
   }
   const date=value=>{const parsed=new Date(value);return value&&Number.isFinite(parsed.getTime())?parsed.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}):'Unknown'}
@@ -141,7 +148,7 @@ export function ManageUsers({open,onClose,accessVersion}) {
       <form className="egm-invite-email" onSubmit={event=>{event.preventDefault();if(emailAvailable)createInvitation('email')}}><input className="egm-field" aria-label="Email address" type="email" value={email} onChange={event=>setEmail(event.target.value)} placeholder="Email address" autoComplete="email" required /><Button type="submit" variant="primary" disabled={busy||emailAvailable!==true||!email.trim()}>Send invite</Button></form>
       <div className="egm-invite-options"><div className="egm-expiry-control"><span>Expires</span><Menu label="Invitation expiration" align="start" portalContainer={dialogElement} trigger={<Button type="button" className="egm-expiry-trigger" aria-label={`Invitation expiration: ${expiresInDays} ${expiresInDays===1?'day':'days'}`} disabled={busy}>{expiresInDays} {expiresInDays===1?'day':'days'}<Icon name="chevronDown" size={14}/></Button>}>{[1,7,30].map(days=><MenuItem key={days} role="menuitemradio" aria-checked={days===expiresInDays} onSelect={()=>setExpiresInDays(days)}>{days} {days===1?'day':'days'}{days===expiresInDays&&<Icon name="check" size={16}/>}</MenuItem>)}</Menu></div><Button type="button" disabled={busy||!invitations} onClick={()=>createInvitation('link')}>Create link</Button></div>
       {emailAvailable===false&&<p>Email invitations are unavailable. You can share a link instead.</p>}
-      {notice&&<p className="egm-manage-message" role="status">{notice}</p>}{inviteError&&<div className="egm-manage-message" role="alert"><p>{inviteError}</p>{invitations===null&&<Button type="button" onClick={retryLoad}>Try again</Button>}</div>}
+      {notice&&<p className="egm-manage-message" role="status">{notice}</p>}{inviteError&&<div className="egm-manage-message" role="alert"><p>{inviteError}</p>{inviteCanRetry&&<Button type="button" disabled={busy} onClick={retryInvitations}>Reload invitations</Button>}</div>}
       {createdLink&&<div className="egm-invite-created"><label>Invitation link<input className="egm-field" readOnly value={createdLink.url} onFocus={event=>event.target.select()} /></label><CopyInvitationLink copied={copied} onCopy={async()=>{try{await navigator.clipboard.writeText(createdLink.url);setInviteError('');setCopied(true)}catch{setCopied(false);setInviteError('Could not copy the link. Select it to copy manually.')}}}/><p>Expires {date(createdLink.expiresAt)}. Copy it now; it cannot be shown again.</p></div>}
     </section>
     <section className="egm-manage-section" aria-labelledby="egm-users-heading"><div className="egm-manage-section-heading"><h3 id="egm-users-heading">Users <span>({record.users.length})</span></h3>{pending.length>0&&<span>{pending.length} pending</span>}</div>
