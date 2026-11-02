@@ -14,7 +14,7 @@ test('saved interpretation uses original evidence and distinguishes computed fal
     const snapshot=JSON.parse(readFileSync('src/data.json','utf8'))
     const render=element=>renderToStaticMarkup(React.createElement(DataAppShell,{snapshot,hosted:false,persistLocally:false},element))
     const fallback=render(React.createElement(OverviewSummary,{queries:snapshot.queries}))
-    assert.match(fallback,/Daily analysis unavailable. Showing a calculated fallback/)
+    assert.doesNotMatch(fallback,/Daily analysis unavailable. Showing a calculated fallback/,'method details belong in the footer')
     assert.doesNotMatch(fallback,/Saved Gemini analysis/)
     const observedAt=snapshot.queries.reach.source.executedAt,generatedAt=new Date(Date.now()-60000).toISOString()
     const section={id:'overview',headline:'Attention does not establish activation.',summary:'First successful use needs direct observation.',nextStep:'Observe a new user following the existing first workflow.',queryIds:['reach'],unknowns:['Repeat use remains unmeasured.'],confidence:'low'}
