@@ -292,7 +292,7 @@ export function DataAppShell({
     filterDefinitions: scopedSnapshot.filters,
     visibleFilterIds: snapshot.report?.visibleFilterIds ?? snapshot.visibleReportFilters,
     hosted,
-    canEdit: ownerCanEdit,
+    canEdit,
     onSnapshotChange,
     initialFilters: resolveDashboardUrlFilters(snapshot, savedPresentation.filters, initialUrlState),
     authoritativeInitialFilters: initialUrlState.filters,
