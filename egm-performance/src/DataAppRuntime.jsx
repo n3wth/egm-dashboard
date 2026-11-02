@@ -4,6 +4,7 @@ import { DataAppShell } from "./DataAppShell.jsx";
 import { loadHostedSnapshot } from "./hosted-query-bootstrap.js";
 import { createQueryDataStore } from "./query-data-store.js";
 import { DataAppLoadingContent } from "./components/DataAppLoadingContent.jsx";
+import { Button } from "./components/ui.jsx";
 
 function DataAppLoading() {
   return (
@@ -18,6 +19,20 @@ function DataAppLoading() {
   );
 }
 
+export function DataAppLoadError({ onRetry }) {
+  return <main className="dashboard-shell-loading-error">
+    <section className="dashboard-shell-error-card" aria-labelledby="dashboard-load-error-title">
+      <div role="alert">
+        <h1 id="dashboard-load-error-title">Couldn’t load the dashboard</h1>
+        <p>Check your connection and try again. If your session expired or the dashboard was updated, reload the page.</p>
+      </div>
+      <div className="dashboard-shell-error-actions">
+        <Button variant="primary" onClick={onRetry}>Try again</Button>
+        <Button onClick={() => globalThis.location?.reload()}>Reload page</Button>
+      </div>
+    </section>
+  </main>;
+}
 
 // The protected runtime accepts authored content and reviewed data at its boundary.
 // Neither the source-build wrapper nor the prebuilt browser bundle owns a second
@@ -33,7 +48,13 @@ export function DataAppRuntime({
   const [snapshot, setSnapshot] = useState(hosted ? null : reviewedSnapshot);
   const [presentationRecord, setPresentationRecord] = useState({ presentation: {}, revision: 0 });
   const [error, setError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
   const [queryDataStore, setQueryDataStore] = useState(null);
+  const loaded = snapshot !== null;
+
+  useEffect(() => {
+    if (attempt > 0 && loaded) document.getElementById("data-app-main")?.focus();
+  }, [attempt, loaded]);
 
   useEffect(() => {
     if (!hosted) return;
@@ -61,19 +82,19 @@ export function DataAppRuntime({
         setPresentationRecord(record);
         setSnapshot(snapshotValue);
       })
-      .catch((failure) => {
+      .catch(() => {
         controller.abort();
-        if (active) setError(failure);
+        if (active) setError(true);
       });
     return () => {
       active = false;
       controller.abort();
       store?.dispose();
     };
-  }, [hosted]);
+  }, [hosted, attempt]);
 
   if (!snapshot) return error
-    ? <main className="dashboard-shell-loading-error" role="alert">{error.message}</main>
+    ? <DataAppLoadError onRetry={() => { setError(null); setAttempt(value => value + 1); }} />
     : <DataAppLoading />;
   return <ResolvedDataApp
     snapshot={snapshot}

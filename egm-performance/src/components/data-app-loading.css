@@ -59,6 +59,13 @@
   padding: 32px var(--data-app-dashboard-gutter) 64px;
 }
 .dashboard-shell-loading-heading { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 24px; }
+.dashboard-shell-loading-error { display: grid; min-height: 100dvh; box-sizing: border-box; align-content: center; }
+.dashboard-shell-error-card { width: min(100%, 480px); box-sizing: border-box; margin-inline: auto; padding: 24px; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); color: var(--text); }
+.dashboard-shell-error-card h1 { margin: 0 0 8px; font-size: var(--text-lg-size); font-weight: 500; line-height: 1.4; }
+.dashboard-shell-error-card p { margin: 0; color: var(--secondary); font-size: var(--text-sm-size); line-height: 1.6; }
+.dashboard-shell-error-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.dashboard-shell-error-actions .button { min-height: 40px; }
+@media (pointer: coarse), (max-width: 600px) { .dashboard-shell-error-actions .button { min-height: 44px; } }
 .dashboard-shell-loading-brand,.dashboard-shell-loading-nav,.dashboard-shell-loading-actions { display: flex; align-items: center; gap: 16px; }
 .dashboard-shell-loading-brand { min-width: 0; }
 .dashboard-shell-loading-nav { margin-left: auto; gap: 20px; }
