@@ -11,6 +11,7 @@ function fixture() {
   db.exec('CREATE TABLE snapshots(id INTEGER PRIMARY KEY,body TEXT NOT NULL,generated_at TEXT NOT NULL)')
   db.exec(readFileSync(new URL('./refresh-runner-schema.sql', import.meta.url), 'utf8'))
   db.exec(readFileSync(new URL('./github-history-schema.sql', import.meta.url), 'utf8'))
+  db.exec(readFileSync(new URL('./daily-analysis-schema.sql', import.meta.url), 'utf8'))
   const previous = { generatedAt: '2026-10-27T00:00:00Z', queries: { traffic: { rows: [{ date: '2026-10-26', views: 10 }] }, seo_keywords: { rows: [{ keyword: 'prior' }] }, semrush_status: { rows: [{ status: 'available' }] } } }
   db.prepare('INSERT INTO snapshots VALUES(1,?,?)').run(JSON.stringify(previous), previous.generatedAt)
   const DB = {
@@ -29,6 +30,25 @@ function fixture() {
 const noRequest = () => { throw Error('network not expected') }
 
 const independentNames = ['semrush','mentions','exa','exaResearch','contentResearch','youtube','youtubeComments','tavily','parallel','engagement','webPerformance']
+
+test('ongoing daily analysis does not reopen expired source collection or spend its budgets',async()=>{
+  const f=fixture(),time=Date.parse('2026-11-05T19:00:00Z')
+  const env={...f.env,DAILY_ANALYSIS_ENABLED:'true'}
+  let calls=0
+  const services={now:()=>time,github:()=>assert.fail('GitHub is not enabled'),...Object.fromEntries(independentNames.map(name=>[name,()=>assert.fail(`${name} remains expired`)])),dailyAnalysis:async(env,request,snapshot)=>{
+    calls++
+    await request('https://generativelanguage.googleapis.com/model')
+    assert.equal(snapshot.generatedAt,f.previous.generatedAt)
+    return {query:{rows:[{id:'overview',headline:'Saved analysis'}],source:{executedAt:new Date(time).toISOString()}},status:'available',reason:null,attempted:true,inputFingerprint:'fingerprint',checkedAt:new Date(time).toISOString()}
+  }}
+  const result=await runRefresh(env,async()=>new Response('{}'),services)
+  assert.equal(result.status,'partial');assert.equal(calls,1)
+  const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.equal(saved.queries.daily_analysis.rows[0].headline,'Saved analysis')
+  assert.equal(saved.refreshStatus.budget.calls.dailyAnalysis,1)
+  assert.equal(saved.refreshStatus.budget.calls.github,undefined)
+  independentNames.forEach(name=>assert.equal(saved.refreshStatus.budget.calls[name],undefined))
+})
 
 test('explicit GitHub continuation preserves paid cutoff and existing manual-run limits', async () => {
   for (const until of [undefined, 'bad', '2026-10-27T00:00:00Z', new Date(baseTime).toISOString()]) {
