@@ -22,7 +22,7 @@ import {count} from './states.mjs'
 import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
-import {PageFooter,SiteFooter} from './PageFooter.jsx'
+import {SiteFooter} from './PageFooter.jsx'
 import {starGrowth,observedStarGrowth} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
 import {overviewSummary,trafficCoverageNote} from './overview-summary.mjs'
@@ -76,7 +76,7 @@ export function StarGrowth({rows,observedAt,stale,observations,reportDates}) {
   const fields=observed?(daily?['netStars','partialNetStars']:['stars']):daily?['newStars','partialStars']:['completedStars','partialTotal']
   const spec={...line(fields[0],fields),type:daily?'bar':'line',rightAxisFields:[],showLegend:false,colors:Object.fromEntries(fields.map((field,index)=>[field,index?'color-mix(in srgb, var(--chart-1) 40%, transparent)':'var(--chart-1)']))}
   const controls=<>{hasObserved&&<SegmentedControl ariaLabel="Star measurement" value={observed?'observed':'reconstructed'} onChange={setBasis} options={[{value:'reconstructed',label:'Reconstructed history'},{value:'observed',label:'Observed totals'}]}/>}<SegmentedControl ariaLabel="Star measure" value={daily?'daily':'total'} onChange={setMeasure} options={[{value:'daily',label:observed?'Net change':'Daily gains',disabled:observed&&!hasNet},{value:'total',label:observed?'Total':'Cumulative'}]}/><SegmentedControl ariaLabel="Star history range" value={range} onChange={setRange} options={[{value:'recent',label:reportDates?.length?dateSpan(reportDates.map(date=>({date}))):'Latest 14 days'},{value:'all',label:'Full history'}]}/></>
-  return <EvidenceChart id="star-history" queryId={observed?'star_observations':'star_history'} title={observed?(daily?'Observed net star change':'Observed star totals'):daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={observed?observations.rows:rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
+  return <EvidenceChart id="star-history" className="egm-time-series" queryId={observed?'star_observations':'star_history'} title={observed?(daily?'Observed net star change':'Observed star totals'):daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={observed?observations.rows:rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
     {!observed&&stale&&<p className="egm-note" role="status"><strong>Star history is out of date.</strong> History was collected {formatObservedAt(observedAt)??'at an unknown time'}. The total stars metric may be newer.</p>}
     {reportDates?.length&&range==='recent'&&<p className="egm-note">Through today. Faded marks indicate the partial day; dates without observations are blank. Star history uses Pacific days; traffic uses UTC days.</p>}
     {weekly&&<p className="egm-note">{observed?`${n(weekly.current)} net stars across the latest seven daily-snapshot intervals, versus ${n(weekly.previous)} in the preceding seven. Actual bounds: ${formatObservedAt(weekly.startObservedAt)} → ${formatObservedAt(weekly.midObservedAt)} → ${formatObservedAt(weekly.endObservedAt)}.`:<><strong>{weekly.current>weekly.previous?'More':weekly.current<weekly.previous?'Fewer':'The same number of'} new stars in the most recent complete week{stale?' in this history':''}.</strong> {n(weekly.current)} during {shortDate(weekly.mid)} – {shortDate(weekly.end)}, versus {n(weekly.previous)} in the preceding seven days. {weekly.previous<100?'The earlier baseline is small; a percentage would overstate the comparison.':''}</>}</p>}
@@ -101,7 +101,7 @@ function Changed({value,children,as:Tag='div'}) {
 function Plot({id,queryId,title,rows,spec,description,sourceRows=rows,children,chartOptions}) {
   if(!rows.length)return <DataComponent {...{id,queryId,title,description}} kind="custom" variant="card" displayRows={[]} sourceRows={sourceRows}><EmptyState chart/></DataComponent>
   const brandedSpec = { ...spec, colors: spec.colors ?? {[spec.y]:'var(--chart-1)'} }
-  return <Changed value={JSON.stringify(rows)}><EvidenceChart {...{id,queryId,title,rows,description,sourceRows}} chartOptions={{fixedAxisWidths:true,...chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart></Changed>
+  return <Changed value={JSON.stringify(rows)}><EvidenceChart {...{id,queryId,title,rows,description,sourceRows}} className="egm-time-series" chartOptions={{fixedAxisWidths:true,...chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart></Changed>
 }
 function ChannelName({row}) {
   return <span className="egm-channel-name">{row.__categoryIcon&&<img src={row.__categoryIcon} width="16" height="16" alt=""/>}{row.source}</span>
@@ -173,7 +173,7 @@ function DashboardTab() {
   const {activeTabId} = useDashboardTabs(tabs)
   useEffect(() => { trackDashboardSection(activeTabId) }, [activeTabId])
   const summary=activeTabId==='reach'?overviewSummary(queries):pageSummary(activeTabId,queries)
-  return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol></section>}<PageFooter page={activeTabId}/></>
+  return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol></section>}</>
 }
 function TabPage({activeTabId}) {
   const {queries} = useDataApp()
