@@ -69,6 +69,7 @@ function DiscussionSignals({queries}) {
   const sourceRowsByQuery={research_evidence:rows,...(statusQuery?{research_status:statusQuery.rows}: {})}
   return <Section title="Verified discussion signals" id="research-discussion">
     <DataComponent id="research-discussion-evidence" queryId="research_evidence" queryIds={queryIds} title="Source checks and experiment proposals" kind="custom" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
+      <p className="egm-note">Reference checks use saved page prose. A project name appearing only in a link does not verify the page or its claims.</p>
       <div className="egm-discussion-list" data-reviewed-rows>{verified.map(row=>{const signal=row.themes?.[0];const quote=signal?.quote?.trim().split(/\s+/).slice(0,24).join(' ');return <article key={row.url}>
         <h3>{link(row.url,row.title||hostnameOf(row.url))}</h3>
         <button type="button" className="egm-signal-status history-tooltip-trigger" aria-label="Verified reference. A reference to EGM was found in the retrieved page. This does not verify every claim."><Icon name="check" size={14}/> Verified reference<Tooltip>A reference to EGM was found in the retrieved page. This does not verify every claim.</Tooltip></button>

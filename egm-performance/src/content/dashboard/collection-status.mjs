@@ -25,7 +25,9 @@ export function collectionStatusLines(source, endsAt, now = Date.now(), timeZone
   const ended = (endsAt && Date.parse(endsAt) <= now) || source.reason === 'collection_window_ended'
   const observed = source.lastSuccessAt && formatObservedAt(source.lastSuccessAt, timeZone)
   const success = observed ? `Last success ${observed}` : 'No successful collection yet'
-  const reason = ended ? 'Collection window ended' : reasonText[source.reason] ?? (source.status === 'failed' ? 'Failed' : null)
+  const stale=Number.isFinite(Date.parse(source.lastSuccessAt))&&now-Date.parse(source.lastSuccessAt)>=36*3600000
+  const blocked=source.status==='failed'||['monthly_cap','unconfigured','credential_unavailable'].includes(source.reason)
+  const reason = ended ? 'Collection window ended' : !blocked&&stale?'Stored data is more than 36 hours old':reasonText[source.reason] ?? (source.status === 'failed' ? 'Failed' : null)
   return { success, reason }
 }
 

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {weeklyChange,starWeeklyChange,weeklyChangeLabel,weeklyDelta} from './weekly-change.mjs'
+import {weeklyChange,starWeeklyChange,observedStarChange,weeklyChangeLabel,weeklyDelta} from './weekly-change.mjs'
 const days=Array.from({length:14},(_,index)=>({date:new Date(Date.UTC(2026,9,13+index)).toISOString().slice(0,10),views:index<7?10:20,clones:5,visitors:3,mergedPRs:index<7?1:2}))
 test('compares additive counts across two complete consecutive weeks',()=>{assert.equal(weeklyChange(days,'views').change,100);assert.equal(weeklyChange(days,'clones').change,0);assert.equal(weeklyChange(days,'mergedPRs').current,14)})
 test('never calculates weekly unique visitors from daily uniques',()=>{assert.equal(weeklyChange(days,'visitors'),null);assert.equal(weeklyChange(days,'cloners'),null)})
@@ -43,4 +43,45 @@ test('delta shows a percentage only when the baseline week can support one',()=>
   assert.deepEqual(weeklyDelta({change:-50,previous:4,current:2}),{direction:'down',text:'−2'})
   assert.deepEqual(weeklyDelta({change:0,previous:7,current:7}),{direction:'flat',text:'No change'})
   assert.equal(weeklyDelta(null),null)
+})
+
+const observedDays=Array.from({length:16},(_,index)=>{
+  const midnight=Date.UTC(2026,9,18+index),date=new Date(midnight).toISOString().slice(0,10)
+  const offset=date>='2026-11-01'?8:7
+  return {date,stars:index<=7?100+index*10:170+(index-7)*20,observedAt:new Date(midnight+(23.5+offset)*3600000).toISOString()}
+})
+test('observed comparison uses closed daily snapshots and preserves actual DST-spanning bounds',()=>{
+  const observedAt=observedDays.at(-1).observedAt
+  const result=observedStarChange(observedDays,observedAt)
+  assert.equal(result.previous,70)
+  assert.equal(result.current,140)
+  assert.equal(result.change,100)
+  assert.equal(result.start,'2026-10-18')
+  assert.equal(result.mid,'2026-10-25')
+  assert.equal(result.end,'2026-11-01')
+  assert.equal(result.startObservedAt,observedDays[0].observedAt)
+  assert.equal(result.midObservedAt,observedDays[7].observedAt)
+  assert.equal(result.endObservedAt,observedDays[14].observedAt)
+  assert.equal(Date.parse(result.endObservedAt)-Date.parse(result.midObservedAt),169*3600000)
+  assert.equal(result.observed,true)
+  assert.equal(result.reconstructed,false)
+  assert.deepEqual(observedStarChange([...observedDays].reverse(),observedAt),result)
+  assert.deepEqual(observedStarChange(observedDays.map((row,index)=>index===15?{...row,stars:999999}:row),observedAt),result)
+})
+
+test('observed comparison allows negative net totals without a misleading percentage baseline',()=>{
+  const declining=observedDays.map((row,index)=>({...row,stars:index<=7?1000-index*2:986-(index-7)}))
+  const result=observedStarChange(declining,declining.at(-1).observedAt)
+  assert.equal(result.previous,-14)
+  assert.equal(result.current,-7)
+  assert.equal(result.change,null)
+})
+
+test('observed comparison needs fifteen valid consecutive closed sampling dates',()=>{
+  const observedAt=observedDays.at(-1).observedAt
+  assert.equal(observedStarChange(observedDays.slice(1),observedAt),null)
+  assert.equal(observedStarChange(observedDays.filter((_,index)=>index!==6),observedAt),null)
+  assert.equal(observedStarChange(observedDays.map((row,index)=>index===6?{...row,observedAt:observedDays[7].observedAt}:row),observedAt),null)
+  assert.equal(observedStarChange(observedDays,null),null)
+  assert.equal(observedStarChange([],observedAt),null)
 })

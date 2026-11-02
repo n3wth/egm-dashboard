@@ -7,8 +7,8 @@ const safeLink=value=>{try{const url=new URL(value);return url.protocol==='https
 // Room for three structured experiments; the stream guard caps characters at the same budget.
 const answerTokens=2048
 const trending=/trend|viral|popular|momentum/i
-const trendQueries=['research_new_repos','newly_popular','emerging','peers','star_history','youtube_videos','mentions']
-const labels={live_github:'EGM right now',reach:'Repository reach',star_history:'EGM star growth',traffic:'Repository traffic',emerging:'New repos to watch',research_new_repos:'New repos to watch',newly_popular:'Popular repos to watch',peers:'Similar repositories',youtube_videos:'Videos mentioning EGM',mentions:'Public mentions',research_evidence:'Verified discussion signals'}
+const trendQueries=['research_new_repos','newly_popular','emerging','peers','star_observations','star_history','youtube_videos','mentions']
+const labels={live_github:'EGM right now',reach:'Repository reach',star_observations:'Observed repository star totals',star_history:'Reconstructed EGM star growth',traffic:'Repository traffic',emerging:'New repos to watch',research_new_repos:'New repos to watch',newly_popular:'Popular repos to watch',peers:'Similar repositories',youtube_videos:'Videos mentioning EGM',mentions:'Public mentions',research_evidence:'Verified discussion signals'}
 const metricLabels={website_contribution:{rank:'Referrer rank',viewShare:'Share of repo views',topTenShare:'Share of top-10 referrer views',websiteViews:'egm.dev referral views',repositoryViews:'Repo views',topTenViews:'Top-10 referrer views'}}
 const humanLabel=value=>String(value).replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ').replace(/^./,letter=>letter.toUpperCase()).replace(/\bUrl\b/,'URL')
 export function askHistory(value) {

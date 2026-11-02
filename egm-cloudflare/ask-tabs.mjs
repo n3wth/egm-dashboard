@@ -2,6 +2,7 @@
 const tabs = {
   reach: ['/overview', 'Overview'],
   star_history: ['/overview', 'Overview'],
+  star_observations: ['/overview', 'Overview'],
   traffic: ['/overview', 'Overview'],
   live_github: ['/overview', 'Overview'],
   referrers: ['/acquisition', 'Acquisition'],

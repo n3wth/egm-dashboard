@@ -2,6 +2,7 @@ import seed from '../egm-performance/src/data.json' with {type:'json'}
 import {activityRows,alignTraffic,downloadRows,issueQueue,referralHistory,staleStarCaveat,stampCollectedQueries,starHistory,usableStargazers} from './github-snapshot.mjs'
 import {collectResearch} from './research.mjs'
 import {retainGithubHistory} from './github-history.mjs'
+import {starObservations} from './star-observations.mjs'
 
 export function refreshEnabled(env,time=Date.now()) {
   const until=Date.parse(env.REFRESH_UNTIL)
@@ -72,6 +73,7 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   }
   const collectedQueries=new Set(['traffic','reach','referrers','paths','maintenance','activity','issue_queue','downloads','website','website_contribution',...(stars?['star_history']:[])])
   stampCollectedQueries(data,collectedQueries,started,requests,traffic,starsByDay)
+  data.queries.star_observations=starObservations(previousSnapshot,repo.stargazers_count,started)
   data.generatedAt=started
   data.buildStatus='complete'
   Object.assign(data.queries,await research(env,request))

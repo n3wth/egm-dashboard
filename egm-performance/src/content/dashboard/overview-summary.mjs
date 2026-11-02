@@ -1,6 +1,7 @@
 import {percentage} from './percentage.mjs'
 import {isSearchVideo} from './referrer-channels.mjs'
-import {starWeeklyChange} from './weekly-change.mjs'
+import {starWeeklyChange,observedStarChange} from './weekly-change.mjs'
+import {observedStarGrowth} from './star-growth.mjs'
 const count=value=>Number.isFinite(value)&&value>=0
 const number=value=>value.toLocaleString('en-US')
 const shortDate=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
@@ -39,10 +40,22 @@ export function overviewSummary(queries={}) {
   const history=queries.star_history
   const staleHistory=(history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
   const weekly=!staleHistory&&starWeeklyChange(history?.rows??[],history?.source?.executedAt)
+  const observations=queries.star_observations
+  const observedWeekly=staleHistory&&observedStarChange(observations?.rows??[],observations?.source?.executedAt)
+  const observedRows=staleHistory?observedStarGrowth(observations?.rows??[],observations?.source?.executedAt).daily:[]
   if(weekly) {
     headline=`${number(weekly.current)} new stars ${shortDate(weekly.mid)}–${shortDate(weekly.end)}, versus ${number(weekly.previous)} the prior week.`
     sentences.push(`${headline} These are complete Pacific-date weeks reconstructed from current stargazers; removed stars are unavailable.`)
     ids.add('star_history')
+  } else if(observedWeekly) {
+    headline=`${number(observedWeekly.current)} net stars across the latest seven daily-snapshot intervals, versus ${number(observedWeekly.previous)} in the preceding seven.`
+    sentences.push(`${headline} These are changes between actual observation times, not exact midnight-to-midnight gains.`)
+    ids.add('star_observations')
+  } else if(stars&&observedRows.length>=2) {
+    const first=observedRows[0],last=observedRows.at(-1)
+    headline=`${stars}; ${number(last.stars-first.stars)} net change between samples dated ${shortDate(first.date)}–${shortDate(last.date)}.`
+    sentences.push(`${headline} Daily-snapshot history is still building; missing dates are not filled.`)
+    ids.add('star_observations')
   } else if(stars) {
     headline=staleHistory?`${stars}; weekly star momentum is unavailable.`:`${stars}.`
     sentences.push(headline)
