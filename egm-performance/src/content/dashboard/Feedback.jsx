@@ -67,11 +67,11 @@ export function Feedback() {
   if (!import.meta.env.DEV && globalThis.location?.hostname !== 'egm.n3wth.com') return null
   return <>
     <button type="button" className="dashboard-header-action-button egm-feedback-trigger" aria-label="Feedback" onClick={() => { setAttempt(0); setOpen(true) }}><Icon name="feedback" size={navbarIconSize} className="egm-feedback-icon"/><span className="egm-feedback-label">Feedback</span></button>
-    <Dialog open={open} onClose={close} showClose={!busy} title="Give feedback" className="egm-feedback-dialog">
+    <Dialog open={open} onClose={close} showClose={!busy} title="Give feedback" className="egm-form-dialog egm-feedback-dialog">
       {sent ? <div role="status"><p>Thanks for your feedback.</p><Button onClick={close}>Done</Button></div> : unavailable ? <div role="alert"><p>{unavailable.message}</p><div className="egm-feedback-actions"><Button onClick={close}>Close</Button>{unavailable.retry && <Button variant="primary" onClick={() => setAttempt(value => value + 1)}>Try again</Button>}</div></div> : !survey ? <p role="status">Loading feedback…</p> : <form onSubmit={submit}>
         <p>Tell us about a bug or suggest an improvement. Your feedback is sent to PostHog and connected review tools.</p>
         <fieldset><legend>What would you like to share?</legend><div className="egm-feedback-options">{['Bug report', 'Feature request'].map(value => <label key={value}><input type="radio" name="feedback-kind" value={value} checked={kind === value} onChange={() => setKind(value)} />{value}</label>)}</div></fieldset>
-        <textarea id="egm-feedback-message" aria-label="Tell us more" value={message} onChange={event => setMessage(event.target.value)} maxLength={2000} required rows={5} placeholder="Describe the problem or idea" />
+        <textarea className="egm-field" id="egm-feedback-message" aria-label="Tell us more" value={message} onChange={event => setMessage(event.target.value)} maxLength={2000} required rows={5} placeholder="Describe the problem or idea" />
         {error && <p role="alert">{error}</p>}
         <div className="egm-feedback-actions"><Button onClick={close} disabled={busy}>Cancel</Button><Button type="submit" variant="primary" disabled={busy || !kind || !message.trim()}>{busy ? 'Sending…' : 'Send feedback'}</Button></div>
       </form>}

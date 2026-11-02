@@ -1,0 +1,41 @@
+/* Authored controls share the runtime palette, radius and spacing scale. */
+.egm-field {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--control-radius);
+  background: var(--control);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm-size);
+  font-weight: 400;
+  line-height: var(--text-sm-line);
+}
+.egm-field::placeholder { color: var(--secondary); }
+.egm-field:hover:not(:disabled):not(:read-only) { border-color: var(--secondary); }
+.egm-field:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.egm-field:disabled { opacity: .45; cursor: not-allowed; }
+.egm-form-dialog { font-size: var(--text-sm-size); line-height: 1.5; }
+.egm-form-dialog .button { min-height: 40px; }
+.egm-form-dialog .button:disabled { opacity: .45; cursor: not-allowed; }
+.egm-form-dialog .button:focus-visible,
+.egm-icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.button.egm-icon-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--secondary);
+}
+.button.egm-icon-button:hover { color: var(--text); }
+.egm-field--compact { min-height: 32px; padding: var(--space-1) var(--space-2); font-size: var(--text-xs-size); }
+@media (pointer: coarse), (max-width: 600px) {
+  .egm-field { min-height: 44px; font-size: 16px; }
+  .egm-form-dialog .button,
+  .button.egm-icon-button { min-width: 44px; min-height: 44px; }
+}

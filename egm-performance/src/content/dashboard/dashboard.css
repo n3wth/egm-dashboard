@@ -1,3 +1,5 @@
+@import './components.css';
+
 .page {
   --data-app-content-width: var(--data-app-dashboard-content-width);
   --data-app-layout-intent: standard;
