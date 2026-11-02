@@ -274,11 +274,24 @@ test('prompt requires neutral verbs and measurable experiment criteria',async()=
   env.INFER.run=async(_,input)=>{system=input.messages[0].content;return {response:'100 views [S1]'}}
   await handleAsk(request(),env,user)
   assert.match(system,/never drove, caused, led to or resulted in/)
-  assert.match(system,/current cited value as the baseline, the observation window/)
+  assert.match(system,/current cited value as the baseline only when that metric can observe the proposed outcome/)
   assert.match(system,/rolling 14-day window/)
   assert.match(system,/observedAt is the collection time; coverage gives the period measured and may end earlier/)
   assert.match(system,/state material coverage gaps, lag dates or stale source dates when they change the answer/)
   assert.doesNotMatch(system,/do not print record dates because/)
+})
+test('adoption experiments require direct manual measurement when activation and retention are unmeasured',async()=>{
+  const env=environment()
+  let system
+  env.INFER.run=async(_,input)=>{system=input.messages[0].content;return {response:'Adoption is not measured [S1]'}}
+  await handleAsk(request({question:'Does recent star growth prove adoption, and what should we validate next?'}),env,user)
+  assert.match(system,/explicitly say Not measured and propose a new manual measurement/)
+  assert.match(system,/Never invent a baseline or an arbitrary percentage change as a success criterion/)
+  assert.match(system,/Stars, clones, downloads, visitor counts and open issue or PR counts are not activation or retention measures/)
+  assert.match(system,/five new users: follow the existing installation instructions and complete one first workflow, record completion and blockers, then check whether participants return after seven days/)
+  assert.match(system,/Label this Proposed manual measurement/)
+  assert.match(system,/Do not propose adding telemetry to a README or claim documentation is missing unless the supplied evidence identifies that specific documentation gap/)
+  assert.doesNotMatch(system,/Only use measures this dashboard already records/)
 })
 test('Ask retains source coverage separately from collection freshness for undated referral rows',()=>{
   const source={label:'GitHub referrers',executedAt:'2026-11-02T08:31:00Z',coverage:{startDate:'2026-10-18',endDate:'2026-10-31',apiToken:'not-for-context'}}
