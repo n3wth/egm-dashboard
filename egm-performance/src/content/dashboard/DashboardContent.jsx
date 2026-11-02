@@ -129,24 +129,17 @@ function useVideoGrid(available) {
   },[])
   return videoGrid(available,width)
 }
-function AcrossEgm({queries,reach,web}) {
+function AcrossEgm({queries}) {
   const analysis=savedAnalysis(queries,'overview_experiment')
-  const ids=[...['website','reach','referrers','youtube_videos','research_evidence','issue_queue','mentions'].filter(id=>queries[id]),...(analysis?['daily_analysis',...analysis.evidenceQueryIds]:[])]
+  const ids=[...['referrers','paths','youtube_videos','research_evidence','issue_queue'].filter(id=>queries[id]),...(analysis?['daily_analysis',...analysis.evidenceQueryIds]:[])]
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
   const rankedVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views)
   const grid=useVideoGrid(rankedVideos.length)
   const popularVideos=rankedVideos.slice(0,grid.count)
   const experiment=analysis?null:suggestExperiment(queries)
-  const viewShare=ratio(web.referralViews,reach.views)
-  const visitorShare=ratio(web.referralVisitors,reach.visitors)
-  const displayRows=[{signal:'Website referrals',views:web?.referralViews??null,viewShare,visitorShare},...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(experiment?[{signal:'Suggested experiment',url:experiment.winner.url,category:experiment.category}]:[])]
-  return <DataComponent id="overview-across-egm" queryId="website" queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
+  const displayRows=[...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(experiment?[{signal:'Suggested experiment',url:experiment.winner.url,category:experiment.category}]:[])]
+  return <DataComponent id="overview-across-egm" queryId={ids[0]} queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
     <div className="egm-highlights" data-reviewed-rows>
-      <article className="egm-highlight egm-highlight-referrals">
-        <h3>egm.dev referrals</h3>
-        <p className="egm-highlight-value">{viewShare!=null&&visitorShare!=null?<><strong>{percentage(viewShare)}</strong> of repo views and <strong>{percentage(visitorShare)}</strong> of unique visitors arrived from egm.dev.</>:'egm.dev was not among GitHub’s top ten referrers, so its share is unknown.'}</p>
-        <PageLink className="egm-highlight-link" page="website">Website <Icon name="arrowUpRight" size={14}/></PageLink>
-      </article>
       <article className="egm-highlight egm-highlight-videos">
         <h3>Popular videos</h3>
         {popularVideos.length?<div className="egm-overview-videos" style={{'--video-columns':grid.columns}}>{popularVideos.map(video=>{
@@ -161,7 +154,7 @@ function AcrossEgm({queries,reach,web}) {
       </article>
       <article className="egm-highlight egm-highlight-experiment">
         <h3>Suggested experiment</h3>
-        {analysis?<AnalysisText analysis={analysis}/>:<>{experiment?<><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success">What to record: {experiment.success}</p><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><AnalysisLabel/><p>{experiment.rule}</p></details></>:<p className="egm-highlight-value">No specific first-use, documentation, or recorded-channel evidence supports an experiment yet.</p>}</>}
+        {analysis?<AnalysisText analysis={analysis}/>:<>{experiment?<><div className="egm-experiment-plan"><div><h4>{experiment.category==='first-use'?'Find the first-use blocker':experiment.category==='docs'?'Test the path through the docs':'Test one distribution channel'}</h4><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success"><strong>Measure</strong>{experiment.success}</p></div><div className="egm-experiment-basis"><h4>Why this test</h4><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><AnalysisLabel/><p>{experiment.rule}</p></details></div></div></>:<p className="egm-highlight-value">No specific first-use, documentation, or recorded-channel evidence supports an experiment yet.</p>}</>}
       </article>
     </div>
   </DataComponent>
@@ -220,8 +213,8 @@ function TabPage({activeTabId}) {
     return <Table id={id} queryId="paths" title="Popular repo pages" rows={pages} sourceRows={sourceRows} columns={pageColumns} pageSize={12} note={pages.some(row=>row.combined)?'Views for the same file at /blob/main and /blob/HEAD are combined. Unique visitors are not added, because those audiences overlap by an unknown amount.':undefined} />
   }
   const clonePlot = id => <Plot id={id} queryId="traffic" title="Daily clone activity" rows={plotDaily} sourceRows={daily} spec={{...line('clones',['clones','cloners']),legend:{labels:{clones:'Clone operations',cloners:'Unique cloners per day'}}}} description={`${window}. Missing dates are blank. Clone operations include repeat and automated clones; daily unique cloners cannot be summed.`} />
-  const chartHome = ({id, queryId, queryIds, title, summary, page, linkLabel, displayRows, sourceRows, sourceRowsByQuery}) => <DataComponent {...{id, queryId, queryIds, title}} kind="custom" variant="card" displayRows={displayRows} sourceRows={sourceRows} sourceRowsByQuery={sourceRowsByQuery}>
-    <p className="egm-chart-home">{summary}</p>
+  const chartHome = ({id, queryId, queryIds, title, summary, page, linkLabel, displayRows, sourceRows, sourceRowsByQuery,ranked=false}) => <DataComponent {...{id, queryId, queryIds, title}} kind="custom" variant="card" displayRows={displayRows} sourceRows={sourceRows} sourceRowsByQuery={sourceRowsByQuery}>
+    {ranked&&displayRows.length?<><div className="egm-ranking-heading"><span>{queryId==='paths'?'Page':'Source'}</span><span>Repo views</span></div><ol className="egm-ranking" data-reviewed-rows>{displayRows.filter(row=>Number.isFinite(row.count)&&row.count>=0).slice(0,5).map(row=><li key={row.source??row.path}><div><span>{row.source??pageLink(row.path,row)}</span><strong>{n(row.count)}</strong></div><span className="egm-ranking-track" aria-hidden="true"><span style={{width:`${displayRows[0].count>0?row.count/displayRows[0].count*100:0}%`}}/></span></li>)}</ol><p className="egm-note">{queryId==='paths'?'Most-viewed reported pages. Repeat views are included; combined main and HEAD paths share one row.':'Top five channels from GitHub’s reported referrers. Traffic outside the reported top ten is unattributed.'}</p></>:<p className="egm-chart-home">{summary}</p>}
     <PageLink className="egm-overview-next" page={page}>{linkLabel} <Icon name="arrowUpRight" size={14}/></PageLink>
   </DataComponent>
   const downloadsTable = id => <Table id={id} queryId="downloads" title="Runtime package downloads" rows={rows('downloads').filter(row=>/^egm-(?:claude|openai)-.+\.zip$/i.test(row.asset??''))} sourceRows={rows('downloads')} columns={downloadColumns} note="Lifetime release-package downloads, not installs or successful runs. Checksum files remain in the source data." />
@@ -336,8 +329,8 @@ function TabPage({activeTabId}) {
       {item('visitor-trend',6,<Plot id="visitor-trend" queryId="traffic" title="Daily views and unique visitors" rows={plotDaily} sourceRows={daily} spec={{...line('views',['views','visitors']),legend:{labels:{views:'Views',visitors:'Unique visitors per day'}}}} description={`${window}. Missing dates are blank. GitHub reports each day separately; daily unique visitors cannot be summed.`} />)}
       {item('clone-trend',6,clonePlot('clone-trend'))}
       {item('star-history',12,<StarGrowth rows={starHistory} observedAt={historyObservedAt} stale={queries.star_history?.source?.caveats?.some(text=>text.startsWith('Star history is stale:'))} observations={queries.star_observations} reportDates={reportDates}/>)}
-      {item('referral-chart',6,chartHome({id:'referral-chart',queryId:'referrers',queryIds:['referrers','reach'],title:'Top referring sources by repo views',summary:combinedReferralViews(rows('referrers'))[0]?`${combinedReferralViews(rows('referrers'))[0].source} leads with ${n(combinedReferralViews(rows('referrers'))[0].count)} repo views.`:'No referring sources are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:combinedReferralViews(rows('referrers')),sourceRowsByQuery:{referrers:rows('referrers'),reach:rows('reach')}}))}
-      {item('popular-paths',6,chartHome({id:'popular-paths',queryId:'paths',title:'Popular repo pages',summary:popularPageRows(rows('paths'))[0]?`${pathLabel(popularPageRows(rows('paths'))[0].path)} has ${n(popularPageRows(rows('paths'))[0].count)} views.`:'No popular pages are recorded for this window.',page:'acquisition',linkLabel:'Acquisition',displayRows:popularPageRows(rows('paths')),sourceRows:rows('paths')}))}
+      {item('referral-chart',6,chartHome({id:'referral-chart',queryId:'referrers',title:'Where repo traffic comes from',summary:'No referring sources are recorded for this window.',page:'acquisition',linkLabel:'Explore acquisition',ranked:true,displayRows:combinedReferralViews(rows('referrers')),sourceRows:rows('referrers')}))}
+      {item('popular-paths',6,chartHome({id:'popular-paths',queryId:'paths',title:'What visitors read',summary:'No popular pages are recorded for this window.',page:'acquisition',linkLabel:'Explore repo traffic',ranked:true,displayRows:popularPageRows(rows('paths')),sourceRows:rows('paths')}))}
     </SortableRegion>
   </>
 }
