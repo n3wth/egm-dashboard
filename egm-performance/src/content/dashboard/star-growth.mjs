@@ -45,3 +45,8 @@ export function observedStarGrowth(rows,observedAt) {
   const recent=daily.filter(row=>Date.parse(row.date)>=cutoff)
   return {daily,recent,hiddenDays:daily.length-recent.length}
 }
+
+export function hasObservedDailyChange(rows,observedAt) {
+  const latest=observedStarGrowth(rows,observedAt).daily.at(-1)
+  return Number.isFinite(latest?.netStars)||Number.isFinite(latest?.partialNetStars)
+}

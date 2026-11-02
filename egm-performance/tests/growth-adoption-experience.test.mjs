@@ -51,6 +51,15 @@ test('observed star fallback and Adoption present the supported measurements',as
       assert.doesNotMatch(html,/Observed star totals/)
     })
 
+    await t.test('two consecutive observations show daily change while the weekly comparison waits',()=>{
+      const snapshot=makeSnapshot()
+      snapshot.queries.star_observations.rows=observationRows.slice(-2)
+      const html=render(snapshot,React.createElement(StarGrowth,{rows:snapshot.queries.star_history.rows,observedAt:snapshot.queries.star_history.source.executedAt,stale:true,observations:snapshot.queries.star_observations}))
+      assert.match(html,/Observed net star change/)
+      assert.match(html,/Comparison needs 15 consecutive closed sampling dates/)
+      assert.doesNotMatch(html,/Star history is out of date|net stars across the latest seven/)
+    })
+
     await t.test('one observed sample displays a total and cannot advertise a net-change comparison',()=>{
       const snapshot=makeSnapshot()
       snapshot.queries.star_observations.rows=snapshot.queries.star_observations.rows.slice(-1)

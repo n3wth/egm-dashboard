@@ -23,7 +23,7 @@ import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
 import {SiteFooter} from './PageFooter.jsx'
-import {starGrowth,observedStarGrowth} from './star-growth.mjs'
+import {starGrowth,observedStarGrowth,hasObservedDailyChange} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
 import {analysisSummary,savedAnalysis} from './saved-analysis.mjs'
 import {AnalysisLabel,AnalysisText} from './SavedAnalysis.jsx'
@@ -64,7 +64,7 @@ export function StarGrowth({rows,observedAt,stale,observations,reportDates}) {
   const [range,setRange]=useState('recent')
   const [basis,setBasis]=useState('auto')
   const hasObserved=Boolean(observations?.rows?.length)
-  const observed=hasObserved&&(basis==='observed'||(basis==='auto'&&stale&&(!rows.length||observedStarChange(observations.rows,observations.source?.executedAt))))
+  const observed=hasObserved&&(basis==='observed'||(basis==='auto'&&stale&&(!rows.length||hasObservedDailyChange(observations.rows,observations.source?.executedAt))))
   const growth=observed?observedStarGrowth(observations.rows,observations.source?.executedAt):starGrowth(rows,observedAt)
   const byDate=new Map(growth.daily.map(row=>[row.date,row]))
   const selected=range==='recent'?(reportDates?.length?reportDates.map(date=>byDate.get(date)??{date,stars:null,coverage:'Not available'}):growth.recent):growth.daily
@@ -81,10 +81,12 @@ export function StarGrowth({rows,observedAt,stale,observations,reportDates}) {
   return <EvidenceChart id="star-history" className="egm-time-series" queryId={observed?'star_observations':'star_history'} title={observed?(daily?'Observed net star change':'Observed star totals'):daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={observed?observations.rows:rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
     {!observed&&stale&&<p className="egm-note" role="status"><strong>Star history is out of date.</strong> History was collected {formatObservedAt(observedAt)??'at an unknown time'}. The total stars metric may be newer.</p>}
     {reportDates?.length&&range==='recent'&&<p className="egm-note">Through today. Faded marks indicate the partial day; dates without observations are blank. Star history uses Pacific days; traffic uses UTC days.</p>}
+    <details className="egm-chart-notes"><summary>How to read this chart</summary>
     {weekly&&<p className="egm-note">{observed?`${n(weekly.current)} net stars across the latest seven daily-snapshot intervals, versus ${n(weekly.previous)} in the preceding seven. Actual bounds: ${formatObservedAt(weekly.startObservedAt)} → ${formatObservedAt(weekly.midObservedAt)} → ${formatObservedAt(weekly.endObservedAt)}.`:<><strong>{weekly.current>weekly.previous?'More':weekly.current<weekly.previous?'Fewer':'The same number of'} new stars in the most recent complete week{stale?' in this history':''}.</strong> {n(weekly.current)} during {shortDate(weekly.mid)} – {shortDate(weekly.end)}, versus {n(weekly.previous)} in the preceding seven days. {weekly.previous<100?'The earlier baseline is small; a percentage would overstate the comparison.':''}</>}</p>}
     <p className="egm-note">{range==='recent'&&growth.hiddenDays>0?`${growth.hiddenDays} earlier dates are outside this view; full history remains available. `:''}{observed?'Latest observed repository totals per Pacific date, not exact midnight totals. Net change can be negative; faded marks show the partial sampling date. Missing sampling dates are unknown, not zero.':'Pacific dates; faded marks show the incomplete day. Daily gains are reconstructed from current stargazers, excluding stars removed before collection. Gaps are unknown, not zero.'}</p>
     {observed&&!weekly&&<p className="egm-note">Comparison needs 15 consecutive closed sampling dates. Reconstructed history remains available separately.</p>}
     <p className="egm-note">Stars measure attention. Sustained adoption needs repeat usage or retention evidence; clones and downloads alone cannot establish it.</p>
+    </details>
   </EvidenceChart>
 }
 function Changed({value,children,as:Tag='div'}) {
@@ -196,7 +198,7 @@ function TabPage({activeTabId}) {
     const websiteMetric=id.startsWith('website-')
     const queueMetric=['open-issues','open-prs'].includes(id)
     const historyStale=(queries.star_history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
-    const observedHistory=id==='stars'&&historyStale&&rows('star_observations').length>0&&(!rows('star_history').length||Boolean(observedStarChange(rows('star_observations'),queries.star_observations?.source?.executedAt)))
+    const observedHistory=id==='stars'&&historyStale&&rows('star_observations').length>0&&(!rows('star_history').length||hasObservedDailyChange(rows('star_observations'),queries.star_observations?.source?.executedAt))
     const historyQuery=queueMetric?'maintenance_history':websiteMetric?'website_referral_history':id==='stars'?(observedHistory?'star_observations':'star_history'):id==='merged-prs'?'activity':'traffic'
     const history=rows(historyQuery)
     const trendValues=!field?[]:queueMetric?sampledTrendValues(history,field):websiteMetric?history.map(row=>row[field]):alignedTrendValues(history,field,reportDates)
