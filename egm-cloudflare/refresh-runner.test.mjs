@@ -9,7 +9,7 @@ function fixture() {
   const db = new DatabaseSync(':memory:')
   db.exec('CREATE TABLE snapshots(id INTEGER PRIMARY KEY,body TEXT NOT NULL,generated_at TEXT NOT NULL)')
   db.exec(readFileSync(new URL('./refresh-runner-schema.sql', import.meta.url), 'utf8'))
-  const previous = { generatedAt: '2026-10-27T00:00:00Z', queries: { traffic: { rows: [{ views: 10 }] }, seo_keywords: { rows: [{ keyword: 'prior' }] }, semrush_status: { rows: [{ status: 'available' }] } } }
+  const previous = { generatedAt: '2026-10-27T00:00:00Z', queries: { traffic: { rows: [{ date: '2026-10-26', views: 10 }] }, seo_keywords: { rows: [{ keyword: 'prior' }] }, semrush_status: { rows: [{ status: 'available' }] } } }
   db.prepare('INSERT INTO snapshots VALUES(1,?,?)').run(JSON.stringify(previous), previous.generatedAt)
   const DB = { prepare(sql) { return { bind(...args) { return { async first() { return db.prepare(sql).get(...args) ?? null }, async run() { return db.prepare(sql).run(...args) } } }, async first() { return db.prepare(sql).get() ?? null } } } }
   return { db, previous, env: { DB, REFRESH_UNTIL: '2026-11-04T06:33:00Z' } }
@@ -32,6 +32,8 @@ test('transition preserves prior site data, honors both legacy attempts, and kee
   })
   const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
   assert.equal(result.youtubeComments, 'checked')
+  assert.equal(saved.githubHistory.daily.traffic.find(row=>row.date==='2026-10-26').views,10)
+  assert.ok(saved.githubHistory.daily.traffic.some(row=>row.date==='2026-10-13'),'recover reviewed seed history before the live window')
   assert.deepEqual(saved.queries.site_performance, legacy)
   assert.equal(saved.queries.youtube_comments.rows[0].videoId, 'fixture')
   assert.equal(saved.queries.web_pagespeed_status.rows[0].nextAttemptAt, new Date(baseTime + 23 * 3600000).toISOString())
@@ -125,7 +127,7 @@ test('independent source failures cannot overwrite newly collected GitHub data o
   const f = fixture()
   await runRefresh(f.env, noRequest, { now: () => baseTime, github: async (env, request, research, options) => {
     assert.equal(options.persist, false)
-    const latest = { generatedAt: '2026-10-28T00:00:00Z', queries: { traffic: { rows: [{ views: 20 }] } } }
+    const latest = { generatedAt: '2026-10-28T00:00:00Z', queries: { traffic: { rows: [{ date: '2026-10-27', views: 20 }] } } }
     return { status: 'refreshed', snapshot: latest }
   }, semrush: async () => { throw Error('provider failure') }, mentions: async () => { throw Error('provider failure') } })
   const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
@@ -162,7 +164,7 @@ test('staged GitHub data is never visible before final merge and retains prior s
     now: () => baseTime,
     github: async (env, request, research, options) => {
       assert.equal(options.persist, false)
-      return { status: 'refreshed', snapshot: { generatedAt: new Date(baseTime).toISOString(), queries: { traffic: { rows: [{ views: 20 }] }, exa_research_status: { rows: [{ successfulBatches: 0, totalCostDollars: 0 }] } } } }
+      return { status: 'refreshed', snapshot: { generatedAt: new Date(baseTime).toISOString(), queries: { traffic: { rows: [{ date: '2026-10-27', views: 20 }] }, exa_research_status: { rows: [{ successfulBatches: 0, totalCostDollars: 0 }] } } } }
     },
     semrush: async () => { await wait; throw Error('provider failed') },
     mentions: async () => ({}), exa: async () => ({}), exaResearch: async () => { throw Error('offline') }, contentResearch: async () => ({})
@@ -183,7 +185,7 @@ test('failed final publication leaves the entire prior snapshot and budget intac
   f.env.DB = { prepare(sql) { if (sql.startsWith('INSERT INTO snapshots')) throw Error('storage unavailable'); return base.prepare(sql) } }
   await assert.rejects(runRefresh(f.env, noRequest, {
     now: () => baseTime,
-    github: async () => ({ status: 'refreshed', snapshot: { generatedAt: new Date(baseTime).toISOString(), queries: { traffic: { rows: [{ views: 20 }] } } } }),
+    github: async () => ({ status: 'refreshed', snapshot: { generatedAt: new Date(baseTime).toISOString(), queries: { traffic: { rows: [{ date: '2026-10-27', views: 20 }] } } } }),
     semrush: async () => ({}), mentions: async () => ({}), exa: async () => ({}), exaResearch: async () => ({}), contentResearch: async () => ({})
   }), /storage unavailable/)
   assert.deepEqual(JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body), f.previous)

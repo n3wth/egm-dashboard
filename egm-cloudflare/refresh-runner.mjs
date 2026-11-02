@@ -1,4 +1,6 @@
 import { refreshSnapshot } from './refresh.mjs'
+import { retainGithubHistory } from './github-history.mjs'
+import seed from '../egm-performance/src/data.json' with {type:'json'}
 import { collectSemrush } from './semrush.mjs'
 import { collectMentions } from './mentions.mjs'
 import { collectExa } from './exa.mjs'
@@ -62,6 +64,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
       return { ...state, reason: 'no_base_snapshot' }
     }
     const merged = { ...latest, queries: { ...previous.queries, ...latest.queries } }
+    merged.githubHistory=retainGithubHistory(previous.githubHistory?previous:{...previous,githubHistory:retainGithubHistory({},seed)},latest)
     const oldQueries = previous.queries ?? {}
     const planned = name => {
       const decision = planCollection(name, merged.queries, budget, clock())

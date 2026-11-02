@@ -13,8 +13,14 @@ export function reportingRangeLabel(dates=[]) {
   return `${monthDay(start)} – ${endLabel}`
 }
 export function reportingRange(queries={}) {
-  const label=reportingRangeLabel((queries.traffic?.rows??[]).map(row=>row.date))
-  return label?{label,note:'UTC'}:null
+  const label=pacificReportingRangeLabel((queries.traffic?.rows??[]).map(row=>row.date))
+  return label?{label,note:'Pacific Time'}:null
+}
+export function pacificReportingRangeLabel(dates=[]) {
+  const days=dates.filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date??'')&&Number.isFinite(Date.parse(date))).sort()
+  if(days.length<2)return null
+  const format=value=>new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',timeZoneName:'short'}).format(new Date(value))
+  return `${format(days[0]+'T00:00:00Z')} – ${format(Date.parse(days.at(-1)+'T00:00:00Z')+86400000)}`
 }
 export function overviewSummary(queries={}) {
   const reach=queries.reach?.rows?.[0]

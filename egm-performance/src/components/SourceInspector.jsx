@@ -44,12 +44,13 @@ const SourceSelect = receiptsEnabled ? Select : NativeSelect;
 
 function formatSnapshot(value, withTimezone = false) {
   return new Intl.DateTimeFormat(undefined, {
+    timeZone: "America/Los_Angeles",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     month: "short",
     year: "numeric",
-    ...(withTimezone ? { timeZoneName: "short" } : {}),
+    timeZoneName: "short",
   }).format(new Date(value));
 }
 

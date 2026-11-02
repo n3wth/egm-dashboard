@@ -22,7 +22,7 @@ import {count} from './states.mjs'
 import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
-import {PageFooter} from './PageFooter.jsx'
+import {PageFooter,SiteFooter} from './PageFooter.jsx'
 import {starGrowth} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
 
@@ -149,7 +149,7 @@ function AcrossEgm({queries,reach,web}) {
 }
 export function DashboardContent() {
   const {snapshot} = useDataApp()
-  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/><CollectionStatus refreshStatus={snapshot?.refreshStatus}/></>
+  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/><CollectionStatus refreshStatus={snapshot?.refreshStatus}/><SiteFooter generatedAt={snapshot?.generatedAt}/></>
 }
 function DashboardTab() {
   const {appTitle,setAppTitle} = useDataApp()
