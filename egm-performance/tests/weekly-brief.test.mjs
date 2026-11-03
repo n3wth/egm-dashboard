@@ -248,15 +248,15 @@ test('ossHealthViewModel adapts 1-row live GitHub snapshot shape into 4 display 
   assert.equal(model.rows[3].displayValue, '14 substantive · 2 noise')
 })
 
-test('renders adoption and development tabs without throwing when snapshot lacks weekly_brief, oss_health, or workflow_research', async () => {
+test('renders adoption and development tabs without throwing when snapshot lacks weekly_brief, oss_health, workflow_research, or traffic_history', async () => {
   const server = await createServer({
     server: { middlewareMode: true },
     appType: 'custom'
   })
   try {
     const rawSnapshot = JSON.parse(readFileSync('src/data.json', 'utf8'))
-    // Clone snapshot and strip the 3 queries to simulate pre-existing D1 snapshot
-    const { weekly_brief, oss_health, workflow_research, ...legacyQueries } = rawSnapshot.queries
+    // Clone snapshot and strip the 4 queries to simulate pre-existing D1 snapshot
+    const { weekly_brief, oss_health, workflow_research, traffic_history, ...legacyQueries } = rawSnapshot.queries
     const legacySnapshot = {
       ...rawSnapshot,
       queries: legacyQueries
