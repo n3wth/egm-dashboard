@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import {
   buildGrowthUpdateEmail,
   growthUpdateEmailPreview,
+  generateGrowthEmailInsight,
   sendGrowthUpdateEmail,
   defaultGrowthRecipient,
   growthChartLightUrl,
@@ -12,7 +13,7 @@ import {
 } from './growth-update-email.mjs'
 import seed from '../egm-performance/src/data.json' with { type: 'json' }
 
-test('buildGrowthUpdateEmail includes linked improvements, attention items, light/dark images, and zero em dashes', () => {
+test('buildGrowthUpdateEmail uses hosted images, single-line linked items, transparent background, and zero em dashes', () => {
   const email = buildGrowthUpdateEmail(seed, {
     images: [{
       src: 'https://egm.n3wth.com/email/custom-light.png',
@@ -26,22 +27,23 @@ test('buildGrowthUpdateEmail includes linked improvements, attention items, ligh
   assert.match(email.text, /https:\/\/egm\.n3wth\.com/)
   assert.match(email.text, /https:\/\/egm\.n3wth\.com\/development#weekly-building-brief/)
 
-  // Verify light and dark mode chart images + custom image support
+  // Verify hosted light and dark mode chart URLs + custom image support (no attachments)
   assert.match(email.html, new RegExp(growthChartLightUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   assert.match(email.html, new RegExp(growthChartDarkUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   assert.match(email.html, /https:\/\/egm\.n3wth\.com\/email\/custom-light\.png/)
   assert.match(email.html, /https:\/\/egm\.n3wth\.com\/email\/custom-dark\.png/)
   assert.match(email.html, /prefers-color-scheme:dark/)
+  assert.match(email.html, /background:transparent;background-color:transparent/)
 
-  // Verify links on User-verified improvements and Needs attention items
-  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/pull\/194"[^>]*>Render brainstorm lenses table with valid GFM pipes<\/a>/)
-  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/193"[^>]*>Issue #193<\/a>/)
+  // Verify links on single-line User-verified improvements and Needs attention items
+  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/pull\/194"[^>]*>Valid GFM pipes in brainstorm table<\/a>/)
+  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/193"[^>]*>#193<\/a>/)
   assert.match(email.html, /href="https:\/\/github\.com\/timfee"[^>]*>@timfee<\/a>/)
-  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/274"[^>]*>Resolve Claude Code 2\.1\.312 plugin manifest key rejection<\/a>/)
-  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/272"[^>]*>agy plugin validate --strict fails on root AGENTS\.md and missing plugin\.json logo<\/a>/)
-  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/196"[^>]*>Unprefixed \/egm-\* slash commands fail discovery when disable-model-invocation is true<\/a>/)
-  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/238"[^>]*>Claude Code child isolation verifier rejects structured SubagentHandback<\/a>/)
-  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/261"[^>]*>Bootstrap script test execution and non-Claude harness read-only reviewer enforcement<\/a>/)
+  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/274"[^>]*>Claude Code 2\.1\.312 manifest key fix<\/a>/)
+  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/272"[^>]*>agy plugin validate --strict packaging<\/a>/)
+  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/196"[^>]*>Unprefixed \/egm-\* command discovery<\/a>/)
+  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/238"[^>]*>SubagentHandback isolation retest<\/a>/)
+  assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/261"[^>]*>Bootstrap tests &amp; read-only reviewer<\/a>/)
   assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/264"[^>]*>#264<\/a>/)
   assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/issues\/268"[^>]*>#268<\/a>/)
 
@@ -51,6 +53,24 @@ test('buildGrowthUpdateEmail includes linked improvements, attention items, ligh
   assert.doesNotMatch(email.html, /<strong>/i, 'No mid-sentence strong tags')
   assert.doesNotMatch(email.text, /[—–]/, 'No em or en dashes in plain text')
   assert.doesNotMatch(email.html, /[—–]/, 'No em or en dashes in HTML')
+})
+
+test('generateGrowthEmailInsight synthesizes and linkifies LLM one-line insight when INFER is present', async () => {
+  const mockEnv = {
+    INFER: {
+      async run() {
+        return { response: 'v0.1.0 lags main by 24 PRs · Ship v0.1.1 and #272 to unblock evaluators.' }
+      }
+    }
+  }
+  const line = await generateGrowthEmailInsight(mockEnv, {
+    latestRelease: 'v0.1.0',
+    unreleasedMergedPRs: 24,
+    headline: 'lag',
+    implication: 'ship',
+    attentionItems: []
+  })
+  assert.equal(line, 'v0.1.0 lags main by 24 PRs · Ship v0.1.1 and #272 to unblock evaluators.')
 })
 
 test('sendGrowthUpdateEmail sends once via Resend to newth@google.com and records state in D1', async () => {
@@ -95,6 +115,7 @@ test('sendGrowthUpdateEmail sends once via Resend to newth@google.com and record
     assert.equal(calls[0].url, 'https://api.resend.com/emails')
     assert.deepEqual(calls[0].init.body.to, [defaultGrowthRecipient])
     assert.equal(calls[0].init.body.from, 'EGM Dashboard <updates@n3wth.com>')
+    assert.equal(calls[0].init.body.attachments, undefined, 'No attachments payload; all images are hosted HTTPS URLs')
 
     const second = await sendGrowthUpdateEmail(env, {}, mockFetch)
     assert.equal(second.status, 'already_sent')
