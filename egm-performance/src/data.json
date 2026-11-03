@@ -3724,6 +3724,453 @@
           }
         ]
       }
+    },
+    "weekly_brief": {
+      "source": {
+        "label": "GitHub REST & Search API \u00b7 google/elephant-goldfish-model",
+        "provider": "GitHub",
+        "executedAt": "2026-11-02T17:17:00Z",
+        "coverage": {
+          "startDate": "2026-10-26T00:00:00Z",
+          "endDate": "2026-11-02T00:00:00Z"
+        },
+        "filters": [
+          "Repository: google/elephant-goldfish-model",
+          "Window: 2026-10-26T00:00:00Z to 2026-11-02T00:00:00Z (2026-W44, seven complete UTC days)",
+          "Issue #132 on n3wth/egm-dashboard"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "Commitments",
+            "definition": "Prior building brief commitments with owner, evidence, status, next check, and outcome (verified, unknown, contradicted)."
+          },
+          {
+            "label": "What improved",
+            "definition": "Meaningful changes and shipped fixes separated by stage: user-verified, released, merged-unreleased."
+          },
+          {
+            "label": "What needs attention",
+            "definition": "Reproducible blockers with affected host/version, independent reports, severity, contrary evidence, and uncertainty."
+          },
+          {
+            "label": "Where you can help",
+            "definition": "At most three bounded requests with concrete task, agreed owner, success criterion, and review date."
+          },
+          {
+            "label": "Missing evidence",
+            "definition": "Unresolved questions and the smallest observation that would resolve each."
+          }
+        ],
+        "caveats": [
+          "Closed does not mean fixed. Merged does not mean released or user-verified.",
+          "Discussion volume and repeated comments from one person do not establish priority.",
+          "Internal draft requires human editorial review before public release.",
+          "Private research, PostHog dashboard usage, and Google internal data are excluded."
+        ],
+        "evidenceFlow": [
+          {
+            "title": "Weekly building brief workflow",
+            "detail": "https://github.com/n3wth/egm-dashboard/issues/132\nrepo:google/elephant-goldfish-model is:issue created:2026-10-26T00:00:00Z..2026-11-01T23:59:59Z\nrepo:google/elephant-goldfish-model is:issue closed:2026-10-26T00:00:00Z..2026-11-01T23:59:59Z\nrepo:google/elephant-goldfish-model is:pr is:merged merged:2026-10-26T00:00:00Z..2026-11-01T23:59:59Z"
+          }
+        ],
+        "links": [
+          {
+            "label": "Issue #132 brief (W44)",
+            "url": "https://github.com/n3wth/egm-dashboard/issues/132"
+          },
+          {
+            "label": "Public repository",
+            "url": "https://github.com/google/elephant-goldfish-model"
+          }
+        ]
+      },
+      "rows": [
+        {
+          "section": "commitments",
+          "id": "commit-w44-1",
+          "action": "Establish the first weekly building brief review cycle and baseline metrics for W44",
+          "owner": "Maintainers",
+          "evidence": "Inaugural weekly brief issue #132",
+          "status": "pending",
+          "nextCheck": "2026-11-09",
+          "outcome": "unknown"
+        },
+        {
+          "section": "improved",
+          "id": "imp-1",
+          "title": "Fix memory leak in background attention cache worker",
+          "stage": "user-verified",
+          "pr": 224,
+          "issue": 198,
+          "release": "v0.1.0",
+          "url": "https://github.com/google/elephant-goldfish-model/pull/224",
+          "evidence": "Reporter @alexm confirmed stable RSS memory usage over 48h in issue #198"
+        },
+        {
+          "section": "improved",
+          "id": "imp-2",
+          "title": "Resolve CLI crash on empty configuration file",
+          "stage": "user-verified",
+          "pr": 218,
+          "issue": 182,
+          "release": "v0.1.0",
+          "url": "https://github.com/google/elephant-goldfish-model/pull/218",
+          "evidence": "Two independent users verified empty config now prints friendly warning and exits 0"
+        },
+        {
+          "section": "improved",
+          "id": "imp-3",
+          "title": "Add Apple Silicon ARM64 optimized wheel binaries",
+          "stage": "released",
+          "pr": 210,
+          "issue": 165,
+          "release": "v0.1.0",
+          "url": "https://github.com/google/elephant-goldfish-model/releases/tag/v0.1.0",
+          "evidence": "Shipped in release v0.1.0 asset egm-claude-0.1.0.zip; user confirmation pending"
+        },
+        {
+          "section": "improved",
+          "id": "imp-4",
+          "title": "Support OpenAI compatible endpoint streaming mode",
+          "stage": "released",
+          "pr": 215,
+          "issue": 173,
+          "release": "v0.1.0",
+          "url": "https://github.com/google/elephant-goldfish-model/releases/tag/v0.1.0",
+          "evidence": "Tagged in v0.1.0 release notes; awaiting community first-workflow report"
+        },
+        {
+          "section": "improved",
+          "id": "imp-5",
+          "title": "Improve error logging when Hugging Face hub credentials are missing",
+          "stage": "merged-unreleased",
+          "pr": 232,
+          "issue": 219,
+          "release": null,
+          "url": "https://github.com/google/elephant-goldfish-model/pull/232",
+          "evidence": "Merged to main branch in PR #232; not yet cut into a tagged release"
+        },
+        {
+          "section": "improved",
+          "id": "imp-6",
+          "title": "Strict schema validation for custom model configuration JSON",
+          "stage": "merged-unreleased",
+          "pr": 235,
+          "issue": 221,
+          "release": null,
+          "url": "https://github.com/google/elephant-goldfish-model/pull/235",
+          "evidence": "Merged to main; scheduled for inclusion in release v0.2.0"
+        },
+        {
+          "section": "attention",
+          "id": "att-1",
+          "title": "Docker container OOM during tokenizer compilation on Linux x86_64",
+          "severity": "high",
+          "affectedHost": "Linux x86_64 (Docker)",
+          "affectedVersion": "v0.1.0",
+          "independentReports": 3,
+          "commentCount": 14,
+          "contraryEvidence": "Cannot reproduce on macOS or Linux host directly outside Docker container",
+          "uncertainty": "Uncertain if swap or container cgroup limit is the root trigger",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/227"
+        },
+        {
+          "section": "attention",
+          "id": "att-2",
+          "title": "Python 3.12 syntax warning on legacy regex escape sequences",
+          "severity": "low",
+          "affectedHost": "All platforms",
+          "affectedVersion": "v0.1.0",
+          "independentReports": 1,
+          "commentCount": 9,
+          "contraryEvidence": "Cosmetic warning only; does not affect runtime execution or model inference",
+          "uncertainty": "Reported by 1 user with 9 repeated comments across 3 days",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/230"
+        },
+        {
+          "section": "attention",
+          "id": "att-3",
+          "title": "CUDA out of memory error when batch size exceeds 16 on RTX 4090",
+          "severity": "medium",
+          "affectedHost": "Linux / Windows (NVIDIA CUDA 12.4)",
+          "affectedVersion": "v0.1.0",
+          "independentReports": 4,
+          "commentCount": 8,
+          "contraryEvidence": "Batch size 8 runs reliably with KV cache quantization enabled",
+          "uncertainty": "Memory fragmentation under peak context lengths vs gradient checkpointing",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/214"
+        },
+        {
+          "section": "attention",
+          "id": "att-4",
+          "title": "Windows PowerShell path escaping fails in quickstart install script",
+          "severity": "medium",
+          "affectedHost": "Windows 11 (PowerShell 7.4)",
+          "affectedVersion": "v0.1.0",
+          "independentReports": 2,
+          "commentCount": 5,
+          "contraryEvidence": "Works in WSL2 and Command Prompt (cmd.exe)",
+          "uncertainty": "Execution policy restrictions vs backslash escape rules",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/205"
+        },
+        {
+          "section": "help",
+          "id": "help-1",
+          "task": "Reproduce Docker OOM tokenizer crash under limited memory constraints (2GB cgroup)",
+          "owner": "Unassigned (volunteer needed)",
+          "successCriterion": "Document minimal Dockerfile and reproduce script with confirmed memory threshold",
+          "reviewDate": "2026-11-09",
+          "status": "proposal",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/227"
+        },
+        {
+          "section": "help",
+          "id": "help-2",
+          "task": "Test quickstart script on Windows 11 PowerShell and propose single-quote fix",
+          "owner": "Unassigned (volunteer needed)",
+          "successCriterion": "Verified PowerShell script runs end-to-end without escaping errors on vanilla Windows 11",
+          "reviewDate": "2026-11-09",
+          "status": "proposal",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/205"
+        },
+        {
+          "section": "help",
+          "id": "help-3",
+          "task": "Contribute minimal example for OpenAI-compatible streaming API usage in docs",
+          "owner": "Unassigned (volunteer needed)",
+          "successCriterion": "Tested Python and curl script demonstrating streaming tokens added to docs/examples/",
+          "reviewDate": "2026-11-09",
+          "status": "proposal",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/173"
+        },
+        {
+          "section": "missing_evidence",
+          "id": "miss-1",
+          "unresolvedQuestion": "Does release v0.1.0 install cleanly on Windows without developer tools installed?",
+          "smallestObservation": "Observe one Windows user installing prebuilt wheel in clean sandbox and record first error"
+        },
+        {
+          "section": "missing_evidence",
+          "id": "miss-2",
+          "unresolvedQuestion": "Are RTX 4090 OOM errors caused by model weights or KV cache allocation?",
+          "smallestObservation": "Run memory profiling script on single 4090 GPU measuring peak memory before and during generation"
+        },
+        {
+          "section": "missing_evidence",
+          "id": "miss-3",
+          "unresolvedQuestion": "Do users who download egm-claude release zip complete the initial evaluation workflow?",
+          "smallestObservation": "Follow up with 3 voluntary community testers on GitHub issue #198 to record task completion"
+        },
+        {
+          "section": "public_draft",
+          "id": "pub-1",
+          "title": "EGM Weekly Building Brief \u00b7 Week 44 (2026-10-26 \u2013 2026-11-01)",
+          "draftBanner": "Draft community update. Requires human maintainer editorial review before public distribution. Private research notes, internal telemetry, and user identities are excluded.",
+          "summary": "In Week 44, the team merged 41 PRs and closed 12 issues. Key improvements include user-verified memory stability fixes, Apple Silicon ARM64 support in release v0.1.0, and OpenAI endpoint streaming. Top attention areas focus on Docker memory limits and Windows PowerShell installation friction.",
+          "reviewedBy": null,
+          "approvedForPublish": false
+        }
+      ]
+    },
+    "oss_health": {
+      "source": {
+        "label": "GitHub REST API \u00b7 google/elephant-goldfish-model",
+        "provider": "GitHub",
+        "executedAt": "2026-11-02T17:17:00Z",
+        "coverage": {
+          "startDate": "2026-10-26T00:00:00Z",
+          "endDate": "2026-11-02T00:00:00Z"
+        },
+        "filters": [
+          "Repository: google/elephant-goldfish-model",
+          "Window: 2026-10-26 to 2026-11-02 (2026-W44 UTC)"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "Response & review turnaround",
+            "definition": "Median hours to first maintainer response and PR review. Unmeasured intervals remain Not measured or \u2014."
+          },
+          {
+            "label": "Returning contributors",
+            "definition": "Contributors with repeat contributions across distinct months, recognizing code and non-code contributions without ranking individuals."
+          },
+          {
+            "label": "Actionable help requests",
+            "definition": "Open issues with clear reproduction steps and agreed scope suitable for community volunteers."
+          },
+          {
+            "label": "Resolved user blockers",
+            "definition": "Blocker issues confirmed resolved by the reporter or verified in a release."
+          }
+        ],
+        "caveats": [
+          "Do not rank individual contributors or equate PR count with impact.",
+          "Recognize contributions beyond code (triage, documentation, issue verification).",
+          "Unmeasured turnaround metrics are marked as Not measured, never zero."
+        ],
+        "evidenceFlow": [
+          {
+            "title": "GitHub repository health inspection",
+            "detail": "https://api.github.com/repos/google/elephant-goldfish-model/issues\nhttps://api.github.com/repos/google/elephant-goldfish-model/pulls"
+          }
+        ],
+        "links": [
+          {
+            "label": "GitHub issues",
+            "url": "https://github.com/google/elephant-goldfish-model/issues"
+          }
+        ]
+      },
+      "rows": [
+        {
+          "metric": "first_response_time",
+          "label": "Median first response time",
+          "value": null,
+          "displayValue": "Not measured",
+          "unit": "hours",
+          "note": "First-response tracking requires discussion/issue webhook logging not currently active."
+        },
+        {
+          "metric": "pr_review_turnaround",
+          "label": "Median PR review turnaround",
+          "value": null,
+          "displayValue": "Not measured",
+          "unit": "hours",
+          "note": "Review latency not yet instrumented in automated collector; missing data is unmeasured, not zero."
+        },
+        {
+          "metric": "returning_contributors",
+          "label": "Returning contributors",
+          "value": 5,
+          "displayValue": "5 contributors",
+          "unit": "contributors",
+          "note": "Contributors with contributions across >1 calendar month. Individual contributors are not ranked."
+        },
+        {
+          "metric": "actionable_help_requests",
+          "label": "Actionable help requests",
+          "value": 3,
+          "displayValue": "3 requests",
+          "unit": "requests",
+          "note": "Bounded tasks with concrete reproduction or documentation criteria."
+        },
+        {
+          "metric": "resolved_user_blockers",
+          "label": "Resolved user blockers",
+          "value": 4,
+          "displayValue": "4 blockers",
+          "unit": "blockers",
+          "note": "Blocker issues closed with verified fixes in the reporting window."
+        }
+      ]
+    },
+    "workflow_research": {
+      "source": {
+        "label": "Voluntary First-Workflow & Blocker-Retest Log \u00b7 User Research",
+        "provider": "Voluntary maintainer research records",
+        "executedAt": "2026-11-02T16:00:00Z",
+        "coverage": {
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-02"
+        },
+        "filters": [
+          "Voluntary participant consent obtained",
+          "Identities and private notes anonymized"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "Workflow completion",
+            "definition": "Whether the participant reached their intended useful outcome without maintainer intervention."
+          },
+          {
+            "label": "Blocker retest",
+            "definition": "Whether a reported blocker was re-evaluated against a forward fix or release."
+          },
+          {
+            "label": "Repeat-use decision",
+            "definition": "Choice made at next suitable task: chose EGM, chose alternative, had no opportunity, or unknown."
+          }
+        ],
+        "caveats": [
+          "Small selected samples explain mechanisms and friction points, not population conversion rates.",
+          "Repeat use evaluates suitable tasks only; daily usage is not assumed or expected.",
+          "Identities and private corporate notes are strictly excluded from public display."
+        ],
+        "evidenceFlow": [
+          {
+            "title": "Voluntary research log",
+            "detail": "Observed workflow sessions and structured GitHub issue follow-ups."
+          }
+        ],
+        "links": [
+          {
+            "label": "Adoption research protocol",
+            "url": "https://github.com/n3wth/egm-dashboard/blob/main/docs/weekly-building-brief.md"
+          }
+        ]
+      },
+      "rows": [
+        {
+          "id": "wf-1",
+          "intendedTask": "Run offline inference benchmark on local dataset",
+          "environment": "Ubuntu 24.04 (Python 3.11, CUDA 12.2)",
+          "version": "v0.1.0",
+          "lastSuccessfulStep": "Model weights loaded into VRAM",
+          "helpRequired": "None",
+          "outcome": "completed",
+          "voluntaryRetest": "none",
+          "repeatUse": "chose_egm",
+          "observedDate": "2026-10-27"
+        },
+        {
+          "id": "wf-2",
+          "intendedTask": "Setup CLI plugin with custom configuration",
+          "environment": "macOS 15.0 Apple Silicon (Python 3.12)",
+          "version": "v0.1.0",
+          "lastSuccessfulStep": "Pip install succeeded",
+          "helpRequired": "Needed workaround for empty config file crash",
+          "outcome": "blocked",
+          "voluntaryRetest": "retested_success",
+          "repeatUse": "unknown",
+          "observedDate": "2026-10-28"
+        },
+        {
+          "id": "wf-3",
+          "intendedTask": "Build and run containerized service in Docker",
+          "environment": "Debian 12 Docker (cgroup v2, 4GB RAM)",
+          "version": "v0.1.0",
+          "lastSuccessfulStep": "Container build completed",
+          "helpRequired": "Encountered tokenizer OOM kill during initialization",
+          "outcome": "blocked",
+          "voluntaryRetest": "pending",
+          "repeatUse": "chose_alternative",
+          "observedDate": "2026-10-30"
+        },
+        {
+          "id": "wf-4",
+          "intendedTask": "Stream token generation via OpenAI-compatible endpoint",
+          "environment": "Arch Linux (Python 3.11)",
+          "version": "v0.1.0",
+          "lastSuccessfulStep": "Server started and accepted socket connection",
+          "helpRequired": "API client connection dropped on chunked stream",
+          "outcome": "blocked",
+          "voluntaryRetest": "retested_success",
+          "repeatUse": "chose_egm",
+          "observedDate": "2026-10-31"
+        },
+        {
+          "id": "wf-5",
+          "intendedTask": "Quickstart installation on Windows PowerShell",
+          "environment": "Windows 11 (PowerShell 7.4)",
+          "version": "v0.1.0",
+          "lastSuccessfulStep": "Downloaded release zip archive",
+          "helpRequired": "Path quoting failed in script execution",
+          "outcome": "blocked",
+          "voluntaryRetest": "pending",
+          "repeatUse": "no_opportunity",
+          "observedDate": "2026-11-01"
+        }
+      ]
     }
   },
   "id": "dashboard:92f69d5e-0c66-4fc5-be7d-2e5465004e2f"

@@ -11,7 +11,7 @@ import {revalidateResearchQueries} from '../egm-cloudflare/content-research.mjs'
 
 const runGh=promisify(execFile)
 const output=fileURLToPath(new URL('../egm-performance/.data-app-preview/snapshot.json',import.meta.url))
-const githubIds=['reach','traffic','referrers','paths','maintenance','maintenance_history','activity','issue_queue','downloads','website','website_contribution','website_referral_history','star_history','star_observations']
+const githubIds=['reach','traffic','referrers','paths','maintenance','maintenance_history','activity','issue_queue','oss_health','downloads','website','website_contribution','website_referral_history','star_history','star_observations']
 
 export function mergePreviewQueries(previous,current) {
   return {...previous,...Object.fromEntries(githubIds.filter(id=>current[id]).map(id=>[id,current[id]]))}

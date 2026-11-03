@@ -1,5 +1,5 @@
 import seed from '../egm-performance/src/data.json' with {type:'json'}
-import {activityRows,alignTraffic,downloadRows,issueQueue,referralHistory,staleStarCaveat,stampCollectedQueries,starHistory,usableStargazers} from './github-snapshot.mjs'
+import {activityRows,alignTraffic,downloadRows,issueQueue,ossHealthRows,referralHistory,staleStarCaveat,stampCollectedQueries,starHistory,usableStargazers} from './github-snapshot.mjs'
 import {collectResearch} from './research.mjs'
 import {retainGithubHistory} from './github-history.mjs'
 import {starObservations} from './star-observations.mjs'
@@ -62,6 +62,7 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   set('activity',activityRows(traffic,pulls,issues,commits))
   set('issue_queue',issueQueue(openIssues))
   set('downloads',downloadRows(releases))
+  if(data.queries.oss_health) set('oss_health',ossHealthRows(pulls,issues,releases,started))
   set('website',[{domain:domain.cname,httpsEnforced:domain.https_enforced,domainState:domain.protected_domain_state,certificateState:domain.https_certificate?.state,referralViews:web?.count??null,referralVisitors:web?.uniques??null}])
   data.queries.website_referral_history=referralHistory(previousQueries.website_referral_history?.rows,started,web,traffic)
   set('website_contribution',[{rank:web?referrers.indexOf(web)+1:null,viewShare:web&&views.count?web.count/views.count:null,topTenShare:web&&attributed?web.count/attributed:null,websiteViews:web?.count??null,repositoryViews:views.count,topTenViews:attributed}])
@@ -72,13 +73,15 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
     const caveat=staleStarCaveat(repo.stargazers_count)
     data.queries.star_history.source.caveats=[...new Set([...(data.queries.star_history.source.caveats??[]).filter(text=>!text.startsWith('Star history is stale:')),caveat])]
   }
-  const collectedQueries=new Set(['traffic','reach','referrers','paths','maintenance','activity','issue_queue','downloads','website','website_contribution',...(stars?['star_history']:[])])
+  const collectedQueries=new Set(['traffic','reach','referrers','paths','maintenance','activity','issue_queue','downloads','website','website_contribution',...(stars?['star_history']:[]),...(data.queries.oss_health?['oss_health']:[])])
   stampCollectedQueries(data,collectedQueries,started,requests,traffic,starsByDay)
   data.queries.star_observations=starObservations(previousSnapshot,repo.stargazers_count,started)
   data.queries.maintenance_history=maintenanceHistory(previousSnapshot,data.queries.maintenance.rows[0],started)
   data.generatedAt=started
   data.buildStatus='complete'
   Object.assign(data.queries,await research(env,request))
+  if(previousQueries.weekly_brief) data.queries.weekly_brief=structuredClone(previousQueries.weekly_brief)
+  if(previousQueries.workflow_research) data.queries.workflow_research=structuredClone(previousQueries.workflow_research)
   // The multi-source runner stages this result and owns its single final commit.
   if(persist) {
     data.githubHistory=retainGithubHistory(previousSnapshot.githubHistory?previousSnapshot:{...previousSnapshot,githubHistory:retainGithubHistory({},seed)},data)

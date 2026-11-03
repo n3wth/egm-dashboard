@@ -31,6 +31,7 @@ import {AnalysisLabel,AnalysisText} from './SavedAnalysis.jsx'
 import {overviewSummary,trafficCoverageNote} from './overview-summary.mjs'
 import {pageSummary} from './page-summary.mjs'
 import {alignedTrendValues,sampledTrendValues,dailySnapshotValues,chartDates} from './metric-trend.mjs'
+import {WeeklyBriefSection, OssHealthSection, WorkflowResearchSection} from './WeeklyBrief.jsx'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = count
@@ -252,11 +253,14 @@ function TabPage({activeTabId}) {
   }
   if(activeTabId==='adoption') return <>
     <PageSummary page="adoption" queries={queries}/>
+    <div id="adoption-measurement-gap">
     <DataComponent id="adoption-measurement-gap" queryId="traffic" queryIds={['traffic','downloads']} title="First use and repeat use" kind="custom" variant="card" displayRows={daily} sourceRowsByQuery={{traffic:daily,downloads:rows('downloads')}}>
       <dl className="egm-adoption-gaps"><div><dt>First successful workflow</dt><dd>Not measured</dd></div><div><dt>Repeat use after seven days</dt><dd>Not measured</dd></div></dl>
       <p className="egm-note">Next check: observe five new users following the existing installation and first-workflow instructions without help. Record completion and where each person stops, then check whether they use EGM again after seven days.</p>
       <p className="egm-note">Clone operations and package downloads show code access. They do not establish successful installation, activation, or retention.</p>
     </DataComponent>
+    </div>
+    <WorkflowResearchSection queries={queries}/>
     <Section id="adoption-signals-heading" columns={2}>
       {metric('adoption-cloners','reach','Unique cloners',reach.cloners,`Distinct cloners GitHub counted over ${window}. Repeat clones by the same cloner count once; CI runners and fresh containers count as cloners. Summing the per-day unique cloners in the chart below will not equal this total.`)}
       {metric('adoption-clones','reach','Clone operations',reach.clones,`Times the repo was copied with Git over ${window}, including repeat copies and automated tools. This does not measure installs or active users.`)}
@@ -305,6 +309,8 @@ function TabPage({activeTabId}) {
   </>
   if(activeTabId==='development') return <>
     <PageSummary page="development" queries={queries}/>
+    <WeeklyBriefSection queries={queries}/>
+    <OssHealthSection queries={queries}/>
     <Section id="development-summary" spacing="none">
     <SortableRegion id="development:canvas" variant="freeform" className="egm-dashboard-grid egm-development-grid" authoredRevision={3} rows={[
       {id:'dev:metrics',kind:'metrics',items:['open-issues','open-prs','merged-prs']},
