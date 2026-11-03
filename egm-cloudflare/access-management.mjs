@@ -2,6 +2,7 @@ import {notifyAccessDecision} from './decision-email.mjs'
 import {scheduleWorkosAudit} from './workos-audit-log.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
 import {readBody} from './request-body.mjs'
+import {userActivity} from './user-activity.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
 const photoCache=new WeakMap()
 
@@ -50,8 +51,8 @@ export async function manageAccess(request,env,user,fetcher=fetch,ctx) {
   if(!user||user.status!=='approved'||user.verified!==1||(env.WORKOS_RBAC_ENABLED==='true'?user.canManageAccess!==true:!isDashboardOwner(user,env)))return reply({error:'owner_required'},403)
   if(request.method==='GET') {
     const result=await env.DB.prepare('SELECT id,name,email,status,created_at,decided_at FROM users ORDER BY created_at DESC LIMIT 200').all()
-    const photos=await userPhotos(env,result.results,user,fetcher)
-    return reply({users:result.results.map(entry=>({...entry,profilePictureUrl:photos.get(entry.id)??null})),shareUrl:env.APP_URL+'/overview',ownerId:result.results.find(entry=>isDashboardOwner(entry,env))?.id??null})
+    const [photos,activity]=await Promise.all([userPhotos(env,result.results,user,fetcher),userActivity(env,result.results,fetcher)])
+    return reply({users:result.results.map(entry=>({...entry,profilePictureUrl:photos.get(entry.id)??null,activity:activity.users[entry.id]??null})),activity:{status:activity.status,windowDays:activity.windowDays,asOf:activity.asOf},shareUrl:env.APP_URL+'/overview',ownerId:result.results.find(entry=>isDashboardOwner(entry,env))?.id??null})
   }
   if(request.method!=='POST')return reply({error:'method_not_allowed'},405)
   if(request.headers.get('origin')!==env.APP_URL)return reply({error:'invalid_origin'},403)
