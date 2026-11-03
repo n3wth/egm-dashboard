@@ -217,3 +217,91 @@ test('rendered dashboard components bind provenance, toolbar, and preserve adopt
     await server.close()
   }
 })
+
+
+test('ossHealthViewModel adapts 1-row live GitHub snapshot shape into 4 display metrics', () => {
+  const liveRow = {
+    openIssues: 42,
+    openPRs: 7,
+    nonDraftOpenPRs: 5,
+    oldestOpenPrDays: 4,
+    mergedPRs: 24,
+    medianPrTurnaroundHours: 3.5,
+    firstResponseDelayHours: null,
+    latestRelease: 'v0.1.0',
+    releasedMergedPRs: 8,
+    unreleasedMergedPRs: 24,
+    returningContributors: 9,
+    independentIssueReporters: 6,
+    closedSpamOrBlankIssues: 2,
+    closedSubstantiveIssues: 14
+  }
+  const model = ossHealthViewModel({ oss_health: { rows: [liveRow] } })
+  assert.equal(model.rows.length, 4)
+  assert.equal(model.rows[0].metric, 'first_response_delay')
+  assert.equal(model.rows[0].displayValue, 'Not measured')
+  assert.equal(model.rows[1].metric, 'returning_contributors')
+  assert.equal(model.rows[1].displayValue, '9 returning · 6 reporters')
+  assert.equal(model.rows[2].metric, 'actionable_help_requests')
+  assert.equal(model.rows[2].displayValue, '42 issues · 5 PRs')
+  assert.equal(model.rows[3].metric, 'resolved_user_blockers')
+  assert.equal(model.rows[3].displayValue, '14 substantive · 2 noise')
+})
+
+test('renders adoption and development tabs without throwing when snapshot lacks weekly_brief, oss_health, or workflow_research', async () => {
+  const server = await createServer({
+    server: { middlewareMode: true },
+    appType: 'custom'
+  })
+  try {
+    const rawSnapshot = JSON.parse(readFileSync('src/data.json', 'utf8'))
+    // Clone snapshot and strip the 3 queries to simulate pre-existing D1 snapshot
+    const { weekly_brief, oss_health, workflow_research, ...legacyQueries } = rawSnapshot.queries
+    const legacySnapshot = {
+      ...rawSnapshot,
+      queries: legacyQueries
+    }
+
+    const { DataAppShell } = await server.ssrLoadModule('/src/DataAppShell.jsx')
+    const { DashboardContent } = await server.ssrLoadModule(
+      '/src/content/dashboard/DashboardContent.jsx'
+    )
+
+    // Render adoption tab with legacy queries
+    assert.doesNotThrow(() => {
+      const adoptionHtml = renderToStaticMarkup(
+        React.createElement(
+          DataAppShell,
+          {
+            snapshot: legacySnapshot,
+            hosted: true,
+            persistLocally: false,
+            initialPresentation: { tabs: [{ id: 'adoption', label: 'Adoption' }] }
+          },
+          React.createElement(DashboardContent)
+        )
+      )
+      assert.match(adoptionHtml, /data-component-id="adoption-workflow-research"/)
+    })
+
+    // Render development tab with legacy queries
+    assert.doesNotThrow(() => {
+      const devHtml = renderToStaticMarkup(
+        React.createElement(
+          DataAppShell,
+          {
+            snapshot: legacySnapshot,
+            hosted: true,
+            persistLocally: false,
+            initialPresentation: { tabs: [{ id: 'development', label: 'Development' }] }
+          },
+          React.createElement(DashboardContent)
+        )
+      )
+      assert.match(devHtml, /data-component-id="weekly-brief-commitments"/)
+      assert.match(devHtml, /data-component-id="oss-health-metrics"/)
+    })
+  } finally {
+    await server.close()
+  }
+})

@@ -333,7 +333,25 @@ export async function handle(request,env,ctx) {
   }
   if(url.pathname==='/api/snapshot' && request.method==='GET') {
     const current=await env.DB.prepare("SELECT json_remove(body,'$.githubHistory') AS body,generated_at FROM snapshots WHERE id=1").first()
-    if(current) return new Response(current.body,{headers:{'content-type':'application/json','cache-control':'private, no-store','x-egm-snapshot-version':current.generated_at}})
+    if(current) {
+      let body=current.body
+      try {
+        const parsed=JSON.parse(body)
+        if(parsed && typeof parsed==='object' && parsed.queries && typeof parsed.queries==='object') {
+          let merged=false
+          if(seed?.queries) {
+            for(const [key,value] of Object.entries(seed.queries)) {
+              if(!parsed.queries[key]) {
+                parsed.queries[key]=value
+                merged=true
+              }
+            }
+          }
+          if(merged) body=JSON.stringify(parsed)
+        }
+      } catch {}
+      return new Response(body,{headers:{'content-type':'application/json','cache-control':'private, no-store','x-egm-snapshot-version':current.generated_at}})
+    }
     return json(seed)
   }
   if(request.method!=='GET' && request.method!=='HEAD') return new Response('Method not allowed',{status:405})

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { readFileSync } from 'node:fs'
 import { handle, seal } from './worker.mjs'
+import seed from '../egm-performance/src/data.json' with { type: 'json' }
 
 test('dashboard snapshot omits stored history while preserving current data, version and access', async () => {
   const db = new DatabaseSync(':memory:')
@@ -20,7 +21,7 @@ test('dashboard snapshot omits stored history while preserving current data, ver
     assert.equal(response.status,200)
     assert.equal(response.headers.get('x-egm-snapshot-version'),snapshot.generatedAt)
     assert.equal(response.headers.get('cache-control'),'private, no-store')
-    assert.deepEqual(await response.json(),{generatedAt:snapshot.generatedAt,queries:snapshot.queries})
+    assert.deepEqual(await response.json(),{generatedAt:snapshot.generatedAt,queries:{...seed.queries,...snapshot.queries}})
     assert.equal(db.prepare('SELECT body FROM snapshots').get().body,body,'archive remains unchanged in storage')
     assert.equal((await handle(new Request(env.APP_URL+'/api/snapshot'),env)).status,401)
   } finally { db.close() }
