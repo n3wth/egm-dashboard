@@ -97,6 +97,7 @@ The last valid analysis remains available when generation fails, its switch is d
 - `egm-cloudflare`: authenticated Worker, collectors, D1 schemas, and tests.
 - `egm-cloudflare/test-fixtures`: recorded GitHub responses for offline tests.
 - `assets/branding`: light/dark SVG icon, favicon, and wordmark assets.
+- `scripts/demo`: records a demo video of the running dashboard. Start the dev server, then run `scripts/demo/build.sh`; it needs Playwright with Chromium, ffmpeg and python3.
 
 The sign-in animation's editable Rive source is `assets/branding/egm-handoff.rml`; the app serves the checked-in `.riv` export. The source Figma skill icons and EGM mark are in `assets/branding/rive-source/`. To rebuild it, create a Rive CLI project, replace its `scene.rml` with that source, run `rive <project-directory> --once`, and copy the resulting `.riv` to `assets/branding/egm-handoff.riv`.
 
