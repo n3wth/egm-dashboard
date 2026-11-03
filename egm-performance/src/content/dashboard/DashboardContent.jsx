@@ -29,7 +29,7 @@ import {analysisSummary,savedAnalysis} from './saved-analysis.mjs'
 import {AnalysisLabel,AnalysisText} from './SavedAnalysis.jsx'
 import {overviewSummary,trafficCoverageNote} from './overview-summary.mjs'
 import {pageSummary} from './page-summary.mjs'
-import {alignedTrendValues,sampledTrendValues,chartDates} from './metric-trend.mjs'
+import {alignedTrendValues,sampledTrendValues,dailySnapshotValues,chartDates} from './metric-trend.mjs'
 
 const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]}]
 const n = count
@@ -76,7 +76,7 @@ export function StarGrowth({rows,observedAt,stale,observations,reportDates}) {
   const daily=measure==='daily'&&(!observed||hasNet)
   const weekly=observed?observedStarChange(observations.rows,observations.source?.executedAt):starWeeklyChange(rows,observedAt)
   const fields=observed?(daily?['netStars','partialNetStars']:['stars']):daily?['newStars','partialStars']:['completedStars','partialTotal']
-  const spec={...line(fields[0],fields),type:daily?'bar':'line',rightAxisFields:[],showLegend:false,colors:Object.fromEntries(fields.map((field,index)=>[field,index?'color-mix(in srgb, var(--chart-1) 40%, transparent)':'var(--chart-1)']))}
+  const spec={...line(fields[0],fields),type:daily?'stackedBar':'line',rightAxisFields:[],showLegend:false,colors:Object.fromEntries(fields.map((field,index)=>[field,index?'color-mix(in srgb, var(--chart-1) 40%, transparent)':'var(--chart-1)']))}
   const controls=<>{hasObserved&&<SegmentedControl ariaLabel="Star measurement" value={observed?'observed':'reconstructed'} onChange={setBasis} options={[{value:'reconstructed',label:'Reconstructed history'},{value:'observed',label:'Observed totals'}]}/>}<SegmentedControl ariaLabel="Star measure" value={daily?'daily':'total'} onChange={setMeasure} options={[{value:'daily',label:observed?'Net change':'Daily gains',disabled:observed&&!hasNet},{value:'total',label:observed?'Total':'Cumulative'}]}/><SegmentedControl ariaLabel="Star history range" value={range} onChange={setRange} options={[{value:'recent',label:reportDates?.length?dateSpan(reportDates.map(date=>({date}))):'Latest 14 days'},{value:'all',label:'Full history'}]}/></>
   return <EvidenceChart id="star-history" className="egm-time-series" queryId={observed?'star_observations':'star_history'} title={observed?(daily?'Observed net star change':'Observed star totals'):daily?'Daily new stars':'Star accumulation'} rows={displayRows} sourceRows={observed?observations.rows:rows} spec={spec} variant="card" height={300} headerControls={controls} chartOptions={{fixedAxisWidths:true,tooltipContent:<StarTooltip/>}}>
     {!observed&&stale&&<p className="egm-note" role="status"><strong>Star history is out of date.</strong> History was collected {formatObservedAt(observedAt)??'at an unknown time'}. The total stars metric may be newer.</p>}
@@ -105,7 +105,8 @@ function Changed({value,children,as:Tag='div'}) {
 function Plot({id,queryId,title,rows,spec,description,sourceRows=rows,children,chartOptions}) {
   if(!rows.length)return <DataComponent {...{id,queryId,title,description}} kind="custom" variant="card" displayRows={[]} sourceRows={sourceRows}><EmptyState chart/></DataComponent>
   const brandedSpec = { ...spec, colors: spec.colors ?? {[spec.y]:'var(--chart-1)'} }
-  return <Changed value={JSON.stringify(rows)}><EvidenceChart {...{id,queryId,title,rows,description,sourceRows}} className="egm-time-series" chartOptions={{fixedAxisWidths:true,...chartOptions}} spec={brandedSpec} variant="card" height={300}>{children}</EvidenceChart></Changed>
+  const latest=queryId==='traffic'?rows.map(row=>row.date).filter(Boolean).sort().at(-1):null
+  return <Changed value={JSON.stringify(rows)}><EvidenceChart {...{id,queryId,title,rows,description,sourceRows}} className="egm-time-series" chartOptions={{fixedAxisWidths:true,...chartOptions}} spec={brandedSpec} variant="card" height={300}>{latest&&<p className="egm-note">Data through {shortDate(latest)} (UTC).{latest===new Date().toISOString().slice(0,10)?' Today is incomplete.':''}</p>}{children}</EvidenceChart></Changed>
 }
 function ChannelName({row}) {
   return <span className="egm-channel-name">{row.__categoryIcon&&<img src={row.__categoryIcon} width="16" height="16" alt=""/>}{row.source}</span>
@@ -181,7 +182,8 @@ function TabPage({activeTabId}) {
   const reach = rows('reach')[0]??{}, daily = rows('traffic'), web = rows('website')[0]??{}, queue = rows('maintenance')[0]??{}
   const reportDates=chartDates(daily)
   const dailyByDate=new Map(daily.map(row=>[row.date,row]))
-  const plotDaily=reportDates.map(date=>dailyByDate.get(date)??{date,views:null,visitors:null,clones:null,cloners:null})
+  const trafficDates=reportDates.slice(0,reportDates.findLastIndex(date=>dailyByDate.has(date))+1)
+  const plotDaily=trafficDates.map(date=>dailyByDate.get(date)??{date,views:null,visitors:null,clones:null,cloners:null})
   const span = dateSpan(daily), window = span === 'Unavailable' ? 'GitHub’s two-week window' : `${span} UTC`
   const chartSpan=dateSpan(reportDates.map(date=>({date})))
   const item = (id,span,content,kind='chart') => <SortableItem key={id} id={id} label={id} kind={kind} className={`egm-block egm-block--${kind}`} style={{'--egm-span':span}}>{content}</SortableItem>
@@ -194,7 +196,7 @@ function TabPage({activeTabId}) {
     const observedHistory=id==='stars'&&historyStale&&rows('star_observations').length>0&&(!rows('star_history').length||hasObservedDailyChange(rows('star_observations'),queries.star_observations?.source?.executedAt))
     const historyQuery=queueMetric?'maintenance_history':websiteMetric?'website_referral_history':id==='stars'?(observedHistory?'star_observations':'star_history'):id==='merged-prs'?'activity':'traffic'
     const history=rows(historyQuery)
-    const trendValues=!field?[]:queueMetric?sampledTrendValues(history,field):websiteMetric?history.map(row=>row[field]):alignedTrendValues(history,field,reportDates)
+    const trendValues=!field?[]:queueMetric?sampledTrendValues(history,field):websiteMetric?dailySnapshotValues(history,field):alignedTrendValues(history,field,reportDates)
     const additiveWeekly=['total-views','total-clones','adoption-clones','merged-prs'].includes(id)
     const weekly=additiveWeekly?weeklyChange(history,field):observedHistory?observedStarChange(history,queries.star_observations?.source?.executedAt):id==='stars'&&!historyStale?starWeeklyChange(history,queries.star_history?.source?.executedAt):null
     const weeklyText=weekly?.observed?`${n(weekly.current)} net · ${n(weekly.previous)} prior seven snapshot intervals`:weeklyChangeLabel(weekly,id==='stars'?'new':'')
@@ -280,7 +282,7 @@ function TabPage({activeTabId}) {
             {status?.status==='stale'&&<p className="egm-note">The latest collection failed; showing the last successful result.</p>}
             {ended&&<p className="egm-note">The collection window has ended. This result will not refresh until collection is re-enabled.</p>}
             {status?.status==='available'&&due&&!ended&&<p className="egm-note">A refresh is due on the next scheduled run.</p>}
-            {!data.length?<p>Unavailable{status?.reason?` (${status.reason.replaceAll('_',' ')})`:'.'}</p>:name==='pagespeed'?<><p>Performance score: {data[0].score} / 100</p><p>Largest Contentful Paint: {displayMetric(data[0].lcpMs,'ms')} · Cumulative Layout Shift: {displayMetric(data[0].cls)} · Total Blocking Time: {displayMetric(data[0].totalBlockingTimeMs,'ms')}</p><p className="egm-note">PageSpeed Insights simulated mobile test of the egm.dev home page, {performanceDate(data[0].fetchedAt)} UTC. Results vary between runs.</p></>:<><p>{fieldRows.map(row=>`${webVitals[row.metric]}: ${displayMetric(row.p75,row.metric==='cumulative_layout_shift'?null:'ms')}`).join(' · ')}</p><p>{fieldRows.map(row=>`${webVitals[row.metric]} rated good: ${Number.isFinite(row.goodFraction)?percentage(row.goodFraction):'Unavailable'}`).join(' · ')}</p><p className="egm-note">75th percentile across real Chrome users of the egm.dev origin, all device types. {period?`${performanceDate(period.startDate)}–${performanceDate(period.endDate)}.`:'Collection period unavailable.'}</p></>}
+            {!data.length?<p>Unavailable{status?.reason?` (${status.reason.replaceAll('_',' ')})`:'.'}</p>:name==='pagespeed'?<><div className="egm-performance-reading"><div className="egm-performance-score"><span>Performance score</span><strong>{data[0].score}<small> / 100</small></strong><meter min="0" max="100" value={data[0].score} aria-label="Lighthouse performance score"/></div><dl className="egm-vitals">{[['Largest Contentful Paint',data[0].lcpMs,'ms'],['Cumulative Layout Shift',data[0].cls],['Total Blocking Time',data[0].totalBlockingTimeMs,'ms']].map(([label,value,unit])=><div key={label}><dt>{label}</dt><dd>{displayMetric(value,unit)}</dd></div>)}</dl></div><p className="egm-note">PageSpeed Insights simulated mobile test of the egm.dev home page, {performanceDate(data[0].fetchedAt)} UTC. Results vary between runs.</p></>:<><dl className="egm-vitals egm-vitals--field">{fieldRows.map(row=><div key={row.metric}><dt>{webVitals[row.metric]}</dt><dd>{displayMetric(row.p75,row.metric==='cumulative_layout_shift'?null:'ms')}</dd><p>{Number.isFinite(row.goodFraction)?`${percentage(row.goodFraction)} of observations rated good`:'Rating unavailable'}</p>{Number.isFinite(row.goodFraction)&&<meter min="0" max="1" value={row.goodFraction} aria-label={`${webVitals[row.metric]} fraction rated good`}/>}</div>)}</dl><p className="egm-note">75th percentile across real Chrome users of the egm.dev origin, all device types. {period?`${performanceDate(period.startDate)}–${performanceDate(period.endDate)}.`:'Collection period unavailable.'}</p></>}
           </div>
         </DataComponent>
       })}

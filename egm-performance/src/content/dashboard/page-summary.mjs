@@ -1,6 +1,7 @@
 import {percentage} from './percentage.mjs'
 import {reportingRange} from './overview-summary.mjs'
 import {channelViews} from './referrer-channels.mjs'
+import {videoCoverage} from './video-coverage.mjs'
 const valid=value=>Number.isFinite(value)&&value>=0
 const n=value=>value.toLocaleString('en-US')
 const compact=value=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value).toLowerCase()
@@ -42,7 +43,7 @@ export function pageSummary(page,queries={}) {
   if(page==='mentions') {
     const videos=rows('youtube_videos')
     const measured=videos.filter(row=>valid(row.views)).sort((a,b)=>b.views-a.views)
-    if(measured.length)add(`The most-viewed YouTube video has ${n(measured[0].views)} views; a view count is available for ${n(measured.length)} of ${n(videos.length)} discovered videos.`,'youtube_videos')
+    if(measured.length)add(`The most-viewed measured YouTube video has ${n(measured[0].views)} views; view counts are available for ${n(measured.length)} of ${n(videoCoverage(queries).discovered)} discovered videos.`,...videoCoverage(queries).queryIds)
     const social=rows('mentions').filter(row=>row.kind==='Social').length
     if(queries.mentions&&social)add(`${n(social)} social posts are recorded in the primary discovery collection.`,'mentions')
     else if(!measured.length&&queries.mentions)add(`${n(new Set(rows('mentions').map(row=>row.url).filter(Boolean)).size)} source links are recorded in the primary discovery collection.`,'mentions')
@@ -60,7 +61,7 @@ export function pageSummary(page,queries={}) {
     facts=[`${compact(reach.clones)} clone operations${valid(reach.cloners)?` from ${compact(reach.cloners)} unique cloners`:''} in the traffic window.`,'Clones measure code access, including repeat and automated activity.']
   }
   if(page==='website') {
-    headline=valid(web?.referralViews)?web.referralViews>0?'egm.dev is sending visitors to the repo.':'No egm.dev referrals were reported in this window.':web?'egm.dev referral counts are unknown.':'egm.dev appears in recorded referrals.'
+    headline=valid(web?.referralViews)?web.referralViews>0?`egm.dev sent ${compact(web.referralViews)} views to the repo.`:'No egm.dev referrals were reported in this window.':web?'egm.dev referral counts are unknown.':'egm.dev appears in recorded referrals.'
     facts=valid(web?.referralViews)?[`${valid(web?.referralVisitors)?`${compact(web.referralVisitors)} visitors · `:''}${compact(web.referralViews)} referral views`]:[]
     const rank=rows('website_contribution')[0]?.rank
     if(valid(rank)&&rank>0)facts.push(`#${n(rank)} among reported referrers`)
@@ -82,7 +83,7 @@ export function pageSummary(page,queries={}) {
   }
   if(page==='mentions') {
     const videos=rows('youtube_videos'),measured=videos.filter(row=>valid(row.views)).sort((a,b)=>b.views-a.views)
-    if(measured.length){headline=`The leading recorded video has ${compact(measured[0].views)} views.`;facts=[`View counts available for ${n(measured.length)} of ${n(videos.length)} discovered videos.`]}
+    if(measured.length){headline=`The leading measured video has ${new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:0}).format(measured[0].views).toLowerCase()} views.`;facts=[`${n(measured.length)} videos measured · ${n(videoCoverage(queries).discovered)} discovered`]}
     else {headline='Recorded mentions are ready to review.';facts=[]}
     const social=rows('mentions').filter(row=>row.kind==='Social').length
     if(social)facts.push(`${compact(social)} social posts in the primary discovery collection`)
