@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { readFileSync } from 'node:fs'
 import { runRefresh } from './refresh-runner.mjs'
 import { refreshSnapshot } from './refresh.mjs'
+import {analysisSections} from './daily-analysis.mjs'
 
 const baseTime = Date.parse('2026-10-28T00:00:00Z')
 function fixture() {
@@ -30,6 +31,46 @@ function fixture() {
 const noRequest = () => { throw Error('network not expected') }
 
 const independentNames = ['semrush','mentions','exa','exaResearch','contentResearch','youtube','youtubeComments','tavily','parallel','engagement','webPerformance']
+
+test('slow source collection leaves a separate bounded slot for the daily interpretation',async()=>{
+  const f=fixture()
+  let time=baseTime,modelCalls=0
+  const services={now:()=>time,github:async()=>({status:'refreshed',snapshot:{...f.previous,generatedAt:new Date(baseTime).toISOString()}}),...Object.fromEntries(independentNames.map(name=>[name,async()=>({})])),webPerformance:async(env,request)=>{time=baseTime+10*60000;await assert.rejects(request('https://paid.example'),/refresh_deadline/);return {}}}
+  const env={...f.env,GITHUB_COLLECTION_ENABLED:'true',DAILY_ANALYSIS_ENABLED:'true',GEMINI_API_KEY:'test'}
+  const request=async(url,init)=>{
+    assert.match(url,/generativelanguage.googleapis.com/)
+    modelCalls++
+    const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text)
+    const known=new Set(input.records.map(record=>record.queryId))
+    const sections=Object.entries(analysisSections).map(([id,ids])=>({id,headline:'The available observations need cautious interpretation.',summary:'The cited records do not measure successful use or retention.',nextStep:'Observe a new user attempting the existing first workflow.',queryIds:ids.filter(id=>known.has(id)).slice(0,1),confidence:'low',unknowns:['Successful first use is not measured.']}))
+    time+=10000
+    return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({sections})}]},finishReason:'STOP'}]})
+  }
+  const result=await runRefresh(env,request,services)
+  assert.equal(f.db.prepare('SELECT status FROM daily_analysis_runs').get().status,'available','an exhausted collection deadline must not consume the reserved daily attempt')
+  assert.equal(modelCalls,1,'collection must not consume the model request deadline')
+  assert.equal(result.status,'refreshed')
+  const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.equal(saved.queries.daily_analysis.rows.length,9)
+  assert.equal(saved.refreshStatus.budget.calls.dailyAnalysis,1)
+})
+
+test('insufficient analysis time skips without consuming the durable daily reservation',async()=>{
+  for(const prior of [null,{rows:[{id:'overview',headline:'Saved interpretation'}],source:{executedAt:new Date(baseTime).toISOString()}}]) {
+    const f=fixture()
+    if(prior){f.previous.queries.daily_analysis=prior;f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(f.previous))}
+    let time=baseTime
+    const services={now:()=>time,github:async()=>({status:'refreshed',snapshot:{...f.previous,generatedAt:new Date(baseTime).toISOString()}}),...Object.fromEntries(independentNames.map(name=>[name,async()=>({})])),webPerformance:async()=>{time=baseTime+11*60000+50000;return {}},dailyAnalysis:()=>assert.fail('must leave the daily attempt for a later refresh')}
+    const result=await runRefresh({...f.env,GITHUB_COLLECTION_ENABLED:'true',DAILY_ANALYSIS_ENABLED:'true'},noRequest,services)
+    assert.equal(result.status,'refreshed')
+    assert.equal(result.dailyAnalysis,'skipped_deadline')
+    assert.equal(f.db.prepare('SELECT count(*) AS count FROM daily_analysis_runs').get().count,0)
+    const saved=JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+    assert.equal(saved.refreshStatus.budget.calls.dailyAnalysis,undefined)
+    assert.deepEqual(saved.queries.daily_analysis_status.rows,[{status:prior?'stale':'unavailable',reason:'insufficient_time_budget',checkedAt:new Date(time).toISOString()}])
+    if(prior)assert.deepEqual(saved.queries.daily_analysis,prior,'the status update retains the last valid interpretation')
+  }
+})
 
 test('ongoing daily analysis does not reopen expired source collection or spend its budgets',async()=>{
   const f=fixture(),time=Date.parse('2026-11-05T19:00:00Z')
