@@ -35,6 +35,8 @@ export async function runRefresh(env, request = fetch, services = {}) {
   const state = { status: 'failed', github: 'failed', semrush: 'failed', mentions: 'failed', exa: 'failed' }
   const githubDeadline = env.GITHUB_COLLECTION_ENABLED === 'true' ? start + 10 * 60000 : Math.min(cutoff, start + 10 * 60000)
   const deadline = Number.isFinite(cutoff) ? Math.min(cutoff, start + 10 * 60000) : start
+  // Reserve an inference tail inside the cron wall-time limit; source deadlines stay unchanged.
+  const analysisDeadline=start+12*60000
   const requestUntil = limit => async (url, init = {}, timeoutMs = 20000) => {
     const remaining = limit - clock()
     if (remaining <= 0) throw Error('refresh_deadline')
@@ -48,7 +50,7 @@ export async function runRefresh(env, request = fetch, services = {}) {
   }
   const boundedRequest = requestUntil(deadline)
   const githubRequest = requestUntil(githubDeadline)
-  const analysisRequest = requestUntil(start+10*60000)
+  const analysisRequest = requestUntil(analysisDeadline)
   try {
     const original = await env.DB.prepare('SELECT body FROM snapshots WHERE id=1').first()
     const previous = original ? JSON.parse(original.body) : { queries: {} }
@@ -167,7 +169,13 @@ export async function runRefresh(env, request = fetch, services = {}) {
       state.webPerformance = 'checked'
     } catch { state.webPerformance = 'failed' }
     if(analysisEnabled&&(env.GEMINI_API_KEY||env.INFER||services.dailyAnalysis)) {
-      try {
+      // Leave the existing model request timeout intact before reserving a paid daily attempt.
+      if(clock()+20000>=analysisDeadline){
+        state.dailyAnalysis='skipped_deadline'
+        const checkedAt=new Date(clock()).toISOString()
+        merged.queries.daily_analysis_status={rows:[{status:merged.queries.daily_analysis?'stale':'unavailable',reason:'insufficient_time_budget',checkedAt}],source:{label:'Daily analysis generation status',executedAt:checkedAt}}
+      }
+      else try {
         const analysis=await (services.dailyAnalysis??collectDailyAnalysis)(env,analysisRequest,merged,{now:clock,leaseId:id})
         if(analysis.query){
           merged.queries.daily_analysis=analysis.query
@@ -180,10 +188,10 @@ export async function runRefresh(env, request = fetch, services = {}) {
       } catch {state.dailyAnalysis='failed'}
     }
     // GitHub collection is 30 minutes; search discovery uses provider caches.
-    // GitHub may continue beyond the paid cutoff; its own deadline and the
-    // fencing token still bound publication. Paid requests use their cutoff.
+    // Source requests keep their own deadlines and the paid cutoff. Analysis
+    // may finish in its bounded tail before fenced publication.
     const finished = clock()
-    if (finished >= (analysisEnabled?start+10*60000:githubDeadline)) { state.status = 'expired'; return { ...state } }
+    if (finished >= (analysisEnabled?analysisDeadline:githubDeadline)) { state.status = 'expired'; return { ...state } }
     const commitAt = new Date(finished).toISOString()
     // Keep runner outcomes separate from provider status rows, whose cache and
     // budget fields must survive failures unchanged. Never persist error text.
