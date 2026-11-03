@@ -19,6 +19,8 @@ export async function packageAssets(root=new URL('../',import.meta.url)) {
   await mkdir(new URL('email/',assetRoot),{recursive:true})
   await copyFile(new URL('assets/branding/egm-mark-black.png',root),new URL('email/egm-mark-black.png',assetRoot))
   await copyFile(new URL('assets/branding/egm-mark-white.png',root),new URL('email/egm-mark-white.png',assetRoot))
+  await copyFile(new URL('assets/branding/growth-chart-light.png',root),new URL('email/growth-chart-light.png',assetRoot)).catch(()=>{})
+  await copyFile(new URL('assets/branding/growth-chart-dark.png',root),new URL('email/growth-chart-dark.png',assetRoot)).catch(()=>{})
 }
 
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
