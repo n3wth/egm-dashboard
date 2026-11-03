@@ -3,6 +3,8 @@
  * OSS Health indicators, and Voluntary First-Workflow / Blocker-Retest Log.
  */
 
+import seed from '../../data.json' with { type: 'json' }
+
 export const UNMEASURED_LABEL = 'Not measured'
 export const UNKNOWN_PLACEHOLDER = '—'
 export const MAX_HELP_REQUESTS = 3
@@ -13,7 +15,7 @@ export function formatUnknownValue(value, fallback = UNKNOWN_PLACEHOLDER) {
 }
 
 export function weeklyBriefViewModel(queries = {}) {
-  const briefQuery = queries.weekly_brief ?? {}
+  const briefQuery = queries.weekly_brief?.rows?.length ? queries.weekly_brief : (seed?.queries?.weekly_brief ?? {})
   const rows = Array.isArray(briefQuery.rows) ? briefQuery.rows : []
   const metadata = briefQuery.metadata ?? {}
 
@@ -92,9 +94,44 @@ export function weeklyBriefViewModel(queries = {}) {
 }
 
 export function ossHealthViewModel(queries = {}) {
-  const ossQuery = queries.oss_health ?? {}
-  const rows = Array.isArray(ossQuery.rows) ? ossQuery.rows : []
+  const ossQuery = queries.oss_health?.rows?.length ? queries.oss_health : (seed?.queries?.oss_health ?? {})
+  const rawRows = Array.isArray(ossQuery.rows) ? ossQuery.rows : []
   const metrics = ossQuery.metrics ?? {}
+
+  let rows = rawRows
+  if (rawRows.length === 1 && !rawRows[0].metric && ('openIssues' in rawRows[0] || 'returningContributors' in rawRows[0])) {
+    const r = rawRows[0]
+    rows = [
+      {
+        metric: 'first_response_delay',
+        label: 'Median first response delay',
+        value: r.firstResponseDelayHours ?? null,
+        displayValue: r.firstResponseDelayHours == null ? 'Not measured' : `${r.firstResponseDelayHours}h`,
+        note: `Median PR turnaround: ${r.medianPrTurnaroundHours ?? '—'}h across ${r.mergedPRs ?? 0} merged PRs`
+      },
+      {
+        metric: 'returning_contributors',
+        label: 'Returning contributors',
+        value: r.returningContributors ?? 0,
+        displayValue: `${r.returningContributors ?? 0} returning · ${r.independentIssueReporters ?? 0} reporters`,
+        note: 'Contributors with >=2 non-bot PRs or issues in window'
+      },
+      {
+        metric: 'actionable_help_requests',
+        label: 'Open queue & release cutline',
+        value: r.openIssues ?? 0,
+        displayValue: `${r.openIssues ?? 0} issues · ${r.nonDraftOpenPRs ?? r.openPRs ?? 0} PRs`,
+        note: `${r.unreleasedMergedPRs ?? 0} merged PRs unreleased since ${r.latestRelease ?? 'v0.1.0'}`
+      },
+      {
+        metric: 'resolved_user_blockers',
+        label: 'Substantive vs noise closures',
+        value: r.closedSubstantiveIssues ?? 0,
+        displayValue: `${r.closedSubstantiveIssues ?? 0} substantive · ${r.closedSpamOrBlankIssues ?? 0} noise`,
+        note: 'Excludes blank template bursts and spam closures'
+      }
+    ]
+  }
 
   const formattedRows = rows.map(row => {
     let display = row.displayValue
@@ -120,7 +157,7 @@ export function ossHealthViewModel(queries = {}) {
 }
 
 export function workflowResearchViewModel(queries = {}) {
-  const researchQuery = queries.workflow_research ?? {}
+  const researchQuery = queries.workflow_research?.rows?.length ? queries.workflow_research : (seed?.queries?.workflow_research ?? {})
   const rows = Array.isArray(researchQuery.rows) ? researchQuery.rows : []
   const metrics = researchQuery.metrics ?? {}
 

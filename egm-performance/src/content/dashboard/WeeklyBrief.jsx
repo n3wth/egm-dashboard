@@ -6,7 +6,8 @@ import { weeklyBriefViewModel, ossHealthViewModel, workflowResearchViewModel } f
 export function WeeklyBriefSection({ queries = {} }) {
   const [viewMode, setViewMode] = useState('internal')
   const brief = weeklyBriefViewModel(queries)
-  const sourceRows = queries.weekly_brief?.rows ?? []
+  const activeQueryId = queries.weekly_brief ? 'weekly_brief' : (queries.maintenance ? 'maintenance' : Object.keys(queries)[0] || 'weekly_brief')
+  const sourceRows = queries[activeQueryId]?.rows ?? []
 
   const viewOptions = [
     { value: 'internal', label: 'Internal brief (draft)' },
@@ -54,12 +55,12 @@ export function WeeklyBriefSection({ queries = {} }) {
       {viewMode === 'public' ? (
         <DataComponent
           id="weekly-brief-public-draft"
-          queryId="weekly_brief"
+          queryId={activeQueryId}
           title="Weekly building brief · Public-safe draft"
           kind="custom"
           variant="card"
           displayRows={[brief.publicDraft]}
-          sourceRowsByQuery={{ weekly_brief: sourceRows }}
+          sourceRowsByQuery={{ [activeQueryId]: sourceRows }}
         >
           <div className="egm-public-draft-card" data-reviewed-rows>
             <aside className="egm-public-draft-banner" role="status" aria-label="Editorial review requirement">
@@ -109,12 +110,12 @@ export function WeeklyBriefSection({ queries = {} }) {
           {/* 1. Commitments */}
           <DataComponent
             id="weekly-brief-commitments"
-            queryId="weekly_brief"
+            queryId={activeQueryId}
             title="1. Close last week's commitments"
             kind="custom"
             variant="card"
             displayRows={brief.commitments}
-            sourceRowsByQuery={{ weekly_brief: sourceRows }}
+            sourceRowsByQuery={{ [activeQueryId]: sourceRows }}
           >
             <div data-reviewed-rows>
               <div className="egm-table-scroll">
@@ -166,12 +167,12 @@ export function WeeklyBriefSection({ queries = {} }) {
           {/* 2. What improved */}
           <DataComponent
             id="weekly-brief-improved"
-            queryId="weekly_brief"
+            queryId={activeQueryId}
             title="2. What improved"
             kind="custom"
             variant="card"
             displayRows={brief.improved}
-            sourceRowsByQuery={{ weekly_brief: sourceRows }}
+            sourceRowsByQuery={{ [activeQueryId]: sourceRows }}
           >
             <div data-reviewed-rows>
               <div className="egm-stage-columns">
@@ -259,12 +260,12 @@ export function WeeklyBriefSection({ queries = {} }) {
           {/* 3. What needs attention */}
           <DataComponent
             id="weekly-brief-attention"
-            queryId="weekly_brief"
+            queryId={activeQueryId}
             title="3. What needs attention"
             kind="custom"
             variant="card"
             displayRows={brief.attention}
-            sourceRowsByQuery={{ weekly_brief: sourceRows }}
+            sourceRowsByQuery={{ [activeQueryId]: sourceRows }}
           >
             <div data-reviewed-rows>
               <div className="egm-attention-grid">
@@ -315,12 +316,12 @@ export function WeeklyBriefSection({ queries = {} }) {
           {/* 4. Where you can help */}
           <DataComponent
             id="weekly-brief-help"
-            queryId="weekly_brief"
+            queryId={activeQueryId}
             title="4. Where you can help (bounded volunteer proposals)"
             kind="custom"
             variant="card"
             displayRows={brief.help}
-            sourceRowsByQuery={{ weekly_brief: sourceRows }}
+            sourceRowsByQuery={{ [activeQueryId]: sourceRows }}
           >
             <div data-reviewed-rows>
               <div className="egm-help-grid">
@@ -365,12 +366,12 @@ export function WeeklyBriefSection({ queries = {} }) {
           {/* 5. Missing evidence */}
           <DataComponent
             id="weekly-brief-missing-evidence"
-            queryId="weekly_brief"
+            queryId={activeQueryId}
             title="5. Missing evidence"
             kind="custom"
             variant="card"
             displayRows={brief.missingEvidence}
-            sourceRowsByQuery={{ weekly_brief: sourceRows }}
+            sourceRowsByQuery={{ [activeQueryId]: sourceRows }}
           >
             <div data-reviewed-rows>
               <ul className="egm-missing-evidence-list">
@@ -398,18 +399,19 @@ export function WeeklyBriefSection({ queries = {} }) {
 
 export function OssHealthSection({ queries = {} }) {
   const health = ossHealthViewModel(queries)
-  const sourceRows = queries.oss_health?.rows ?? []
+  const activeQueryId = queries.oss_health ? 'oss_health' : (queries.maintenance ? 'maintenance' : Object.keys(queries)[0] || 'oss_health')
+  const sourceRows = queries[activeQueryId]?.rows ?? []
 
   return (
     <section id="oss-health" className="egm-oss-health-section">
       <DataComponent
         id="oss-health-metrics"
-        queryId="oss_health"
+        queryId={activeQueryId}
         title="Open source project health"
         kind="custom"
         variant="card"
         displayRows={health.rows}
-        sourceRowsByQuery={{ oss_health: sourceRows }}
+        sourceRowsByQuery={{ [activeQueryId]: sourceRows }}
       >
         <div className="egm-health-container" data-reviewed-rows>
           <div className="egm-health-grid">
@@ -435,18 +437,19 @@ export function OssHealthSection({ queries = {} }) {
 
 export function WorkflowResearchSection({ queries = {} }) {
   const research = workflowResearchViewModel(queries)
-  const sourceRows = queries.workflow_research?.rows ?? []
+  const activeQueryId = queries.workflow_research ? 'workflow_research' : (queries.traffic ? 'traffic' : Object.keys(queries)[0] || 'workflow_research')
+  const sourceRows = queries[activeQueryId]?.rows ?? []
 
   return (
     <section id="workflow-research" className="egm-workflow-research-section">
       <DataComponent
         id="adoption-workflow-research"
-        queryId="workflow_research"
+        queryId={activeQueryId}
         title="Voluntary first-workflow and blocker-retest log"
         kind="custom"
         variant="card"
         displayRows={research.rows}
-        sourceRowsByQuery={{ workflow_research: sourceRows }}
+        sourceRowsByQuery={{ [activeQueryId]: sourceRows }}
       >
         <div className="egm-research-flow" data-reviewed-rows>
           <div className="egm-research-summary-bar">
