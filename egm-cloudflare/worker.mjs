@@ -19,6 +19,9 @@ import {issueUserSessionsWidgetToken} from './workos-widgets.mjs'
 import {accessLive,accessChanged} from './access-live.mjs'
 import {readBody} from './request-body.mjs'
 import {capturePosthogEvent} from './ai-analytics.mjs'
+import {scheduleWorkosAudit} from './workos-audit-log.mjs'
+import {auditAccessRequested} from './approval-events.mjs'
+import {handleWorkosWebhook} from './workos-webhooks.mjs'
 export {AccessLive} from './access-live.mjs'
 import seed from '../egm-performance/src/data.json' with {type:'json'}
 const enc = new TextEncoder()
@@ -56,8 +59,8 @@ const inviteCookie = async (token,env) => cookie('__Host-egm_invite',await seal(
 const cookieValue = (request,name) => request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1)
 const navigation = (request,url) => request.method==='GET' && !url.pathname.startsWith('/api/') && (!/\.[a-z0-9]+$/i.test(url.pathname) || /\.html$/i.test(url.pathname))
 const unavailable = request => navigation(request,new URL(request.url)) ? renderAccessPage('unavailable',new URL(request.url).pathname==='/auth/callback'?{href:cookieValue(request,'__Host-egm_invite')?'/auth/invite':'/auth/login'}:{}) : new Response('Temporarily unavailable',{status:503,headers:{'cache-control':'no-store'}})
-// Vite build output: content-hashed names change whenever the bytes do.
-const hashedAsset = /^\/assets\/[\w.-]+-[\w-]{8}\.(?:js|css|woff2|svg|png|wasm)$/
+const hashedAsset = /^\/assets\/[\w.-]+-[\w-]{8}\.(js|css|woff2|svg|png|wasm)$/
+const assetTypes={js:['text/javascript','application/javascript'],css:['text/css'],woff2:['font/woff2','application/font-woff2'],svg:['image/svg+xml'],png:['image/png'],wasm:['application/wasm']}
 const json = (value,status=200,headers={}) => new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json','cache-control':'private, no-store',...headers}})
 export function profilePhoto(value) {
   try {const url=new URL(value);return typeof value==='string'&&value.length<=2048&&url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.port&&!url.username&&!url.password?url.href:null}catch{return null}
@@ -122,6 +125,7 @@ export async function handle(request,env,ctx) {
   if(['/favicon.svg','/og.png','/apple-touch-icon.png','/email/egm-mark-black.png','/email/egm-mark-white.png'].includes(url.pathname) && request.method==='GET') return env.ASSETS.fetch(request)
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(['/fonts/SuisseIntl-Book.woff2','/fonts/SuisseIntl-Medium.woff2','/fonts/SuisseIntl-Semibold.woff2','/fonts/SuisseIntl-Bold.woff2'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
+  if(url.pathname==='/webhooks/workos') return handleWorkosWebhook(request,env)
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return unavailable(request)
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})
   if(url.pathname==='/mcp') return mcp(request,env,ctx)
@@ -137,9 +141,11 @@ export async function handle(request,env,ctx) {
     if(request.method!=='POST') return new Response('Use POST',{status:405})
     if(request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
     const session=await open(cookieValue(request,'__Host-egm_session'),sessionSecrets(env),'session')
+    const signedOut=session?.sid?await env.DB.prepare('SELECT user_id FROM sessions WHERE id=?').bind(session.sid).first():null
     if(session?.sid && (env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true')) await revokeWorkosSession(env,session.sid)
     if(session?.sid && (env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true')) try { await env.DB.prepare('DELETE FROM workos_sessions WHERE session_id=?').bind(session.sid).run() } catch {}
     if(session?.sid) await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(session.sid).run()
+    if(signedOut?.user_id) scheduleWorkosAudit(env,{action:'egm.user.signed_out',actorId:signedOut.user_id,targetId:signedOut.user_id,targetType:'user'},request,promise=>ctx?.waitUntil?.(promise))
     const headers=new Headers({location:'/', 'cache-control':'private, no-store'})
     headers.append('set-cookie',cookie('__Host-egm_session','',0))
     headers.append('set-cookie',cookie('__Host-egm_flow','',0))
@@ -210,7 +216,9 @@ export async function handle(request,env,ctx) {
       if(!invited) return fail('invite_invalid')
     }
     if(!existing && !invited) {
-      await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,[user.first_name,user.last_name].filter(Boolean).join(' ')||email,isOwner?'approved':'pending',new Date().toISOString()).run()
+      const name=[user.first_name,user.last_name].filter(Boolean).join(' ')||email
+      await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,name,isOwner?'approved':'pending',new Date().toISOString()).run()
+      if(!isOwner) auditAccessRequested(env,{id:user.id,name,email},request,promise=>ctx?.waitUntil?.(promise))
       if(!isOwner) ctx?.waitUntil(Promise.allSettled([flushApprovalEvents(env).catch(error=>console.error('Approval event flush failed',error?.message)),flushGrokNotifications(env)]))
       if(!isOwner) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     }
@@ -301,7 +309,7 @@ export async function handle(request,env,ctx) {
     const read=async()=>{
       const record=await env.DB.prepare('SELECT body,revision FROM presentation WHERE id=1').first()
       const widgetsEnabled=workosSessionConfigured(env)
-      return {presentation:JSON.parse(record.body),revision:record.revision,canEdit,canManageAccess,widgetsEnabled,profileEnabled:widgetsEnabled,viewer:{name:user.name??'',email:user.email,profilePictureUrl:user.profilePictureUrl}}
+      return {presentation:JSON.parse(record.body),revision:record.revision,canEdit,canManageAccess,widgetsEnabled,profileEnabled:widgetsEnabled,viewer:{id:user.id,name:user.name??'',email:user.email,profilePictureUrl:user.profilePictureUrl}}
     }
     if(request.method==='GET') return json(await read())
     if(request.method!=='PUT') return json({error:'method_not_allowed'},405)
@@ -324,7 +332,7 @@ export async function handle(request,env,ctx) {
     return json({version:current?.generated_at??seed.generatedAt})
   }
   if(url.pathname==='/api/snapshot' && request.method==='GET') {
-    const current=await env.DB.prepare('SELECT body,generated_at FROM snapshots WHERE id=1').first()
+    const current=await env.DB.prepare("SELECT json_remove(body,'$.githubHistory') AS body,generated_at FROM snapshots WHERE id=1").first()
     if(current) return new Response(current.body,{headers:{'content-type':'application/json','cache-control':'private, no-store','x-egm-snapshot-version':current.generated_at}})
     return json(seed)
   }
@@ -335,7 +343,9 @@ export async function handle(request,env,ctx) {
   if(!/\.[a-z0-9]+$/i.test(url.pathname)) assetUrl.pathname='/index.html'
   const asset=await env.ASSETS.fetch(new Request(assetUrl,{method:request.method}))
   const headers=new Headers(asset.headers)
-  headers.set('cache-control',asset.ok&&hashedAsset.test(url.pathname)?'private, max-age=31536000, immutable':'private, no-store')
+  const extension=hashedAsset.exec(url.pathname)?.[1]
+  const cacheable=asset.ok&&extension&&assetTypes[extension].includes(headers.get('content-type')?.split(';')[0].trim())
+  headers.set('cache-control',cacheable?'private, max-age=31536000, immutable':'private, no-store')
   headers.set('x-content-type-options','nosniff')
   headers.set('x-frame-options','DENY')
   headers.set('referrer-policy','same-origin')

@@ -3250,12 +3250,12 @@
           "title": "Introducing the Elephant-Goldfish Model plugin: scaling design-driven AI software development | Google Open Source Blog",
           "author": null,
           "published": null,
-          "status": "verified",
-          "reason": "project_name_or_domain_in_scraped_body",
+          "status": "unverified",
+          "reason": "project_not_matched_in_body",
           "firstAttemptAt": "2026-10-28T07:19:44.775Z",
           "lastAttemptAt": "2026-10-28T07:19:44.775Z",
           "attempts": 1,
-          "contentExcerpt": "elephant-goldfish-model-plugin.html#)",
+          "contentExcerpt": null,
           "excerptSourceUrl": "https://opensource.googleblog.com/2026/10/introducing-elephant-goldfish-model-plugin.html",
           "themes": [],
           "provider": "Firecrawl",
@@ -3415,8 +3415,8 @@
           "dailyAttempts": 5,
           "urlsAttempted": 0,
           "totalAttempts": 5,
-          "verified": 4,
-          "unverified": 1,
+          "verified": 3,
+          "unverified": 2,
           "inaccessible": 0,
           "lifetimeLimit": 35,
           "perRunLimit": 5,
@@ -3874,6 +3874,567 @@
           }
         ]
       }
+    },
+    "weekly_brief": {
+      "source": {
+        "label": "GitHub REST & Search API \u00b7 google/elephant-goldfish-model",
+        "provider": "GitHub",
+        "executedAt": "2026-11-02T17:17:00Z",
+        "coverage": {
+          "startDate": "2026-10-26T00:00:00Z",
+          "endDate": "2026-11-02T00:00:00Z"
+        },
+        "filters": [
+          "Repository: google/elephant-goldfish-model",
+          "Window: 2026-10-26T00:00:00Z to 2026-11-02T00:00:00Z (2026-W44, seven complete UTC days)",
+          "Issue #132 on n3wth/egm-dashboard"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "Commitments",
+            "definition": "Prior building brief commitments with owner, evidence, status, next check, and outcome (verified, unknown, contradicted)."
+          },
+          {
+            "label": "What improved",
+            "definition": "Meaningful changes and shipped fixes separated by stage: user-verified, released, merged-unreleased."
+          },
+          {
+            "label": "What needs attention",
+            "definition": "Reproducible blockers with affected host/version, independent reports, severity, contrary evidence, and uncertainty."
+          },
+          {
+            "label": "Where you can help",
+            "definition": "At most three bounded requests with concrete task, agreed owner, success criterion, and review date."
+          },
+          {
+            "label": "Missing evidence",
+            "definition": "Unresolved questions and the smallest observation that would resolve each."
+          }
+        ],
+        "caveats": [
+          "Closed does not mean fixed. Merged does not mean released or user-verified.",
+          "Discussion volume and repeated comments from one person do not establish priority.",
+          "Internal draft requires human editorial review before public release.",
+          "Private research notes, PostHog dashboard usage, and Google internal data are excluded."
+        ],
+        "evidenceFlow": [
+          {
+            "title": "Weekly building brief workflow",
+            "detail": "https://github.com/n3wth/egm-dashboard/issues/132\nrepo:google/elephant-goldfish-model is:issue created:2026-10-26T00:00:00Z..2026-11-01T23:59:59Z\nrepo:google/elephant-goldfish-model is:issue closed:2026-10-26T00:00:00Z..2026-11-01T23:59:59Z\nrepo:google/elephant-goldfish-model is:pr is:merged merged:2026-10-26T00:00:00Z..2026-11-01T23:59:59Z"
+          }
+        ],
+        "links": [
+          {
+            "label": "Review issue #132 (2026-W44)",
+            "url": "https://github.com/n3wth/egm-dashboard/issues/132"
+          },
+          {
+            "label": "Public repository",
+            "url": "https://github.com/google/elephant-goldfish-model"
+          }
+        ]
+      },
+      "metadata": {
+        "isoWeek": "2026-W44",
+        "windowStart": "2026-10-26T00:00:00Z",
+        "windowEnd": "2026-11-02T00:00:00Z",
+        "latestRelease": "v0.1.0",
+        "latestReleasePublishedAt": "2026-10-27T07:46:34Z",
+        "reviewIssueUrl": "https://github.com/n3wth/egm-dashboard/issues/132",
+        "reviewIssueNumber": 132,
+        "headline": "Release v0.1.0 lags main by 24 in-window merged PRs; first-time users hit slash-command and strict-validator blockers already fixed or tracked on main.",
+        "implication": "Cutting a patch release (v0.1.1) and resolving stage-1 plugin packaging (#272) unblocks Antigravity and Claude Code evaluators without adding product telemetry."
+      },
+      "rows": [
+        {
+          "section": "commitments",
+          "id": "commit-w44-1",
+          "action": "Ship v0.1.0 initial public release with core /egm workflow and Goldfish review orchestration",
+          "owner": "Maintainers (@n3wth)",
+          "evidence": "Release v0.1.0 (PR #127)",
+          "url": "https://github.com/google/elephant-goldfish-model/releases/tag/v0.1.0",
+          "status": "Shipped",
+          "nextCheck": "2026-11-09",
+          "outcome": "verified"
+        },
+        {
+          "section": "commitments",
+          "id": "commit-w44-2",
+          "action": "Document /egm: colon-prefixed slash commands and Antigravity 1.4.10+ requirement",
+          "owner": "Maintainers (@n3wth)",
+          "evidence": "PR #208, PR #230, PR #257 (for #196, #220, #254)",
+          "url": "https://github.com/google/elephant-goldfish-model/pull/257",
+          "status": "Merged on main (unreleased)",
+          "nextCheck": "2026-11-09",
+          "outcome": "unknown"
+        },
+        {
+          "section": "commitments",
+          "id": "commit-w44-3",
+          "action": "Pass agy plugin validate --strict on Linux x86_64 (agy 1.4.11-1.4.12)",
+          "owner": "Maintainers (@n3wth)",
+          "evidence": "Issue #272 (@BrianV1981 + maintainer reproduction)",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/272",
+          "status": "Open blocker",
+          "nextCheck": "2026-11-09",
+          "outcome": "contradicted"
+        },
+        {
+          "section": "commitments",
+          "id": "commit-w44-4",
+          "action": "Automate weekly building brief evidence collection and private maintainer review issue",
+          "owner": "Maintainers (@n3wth)",
+          "evidence": "Dashboard PR #134, Review Issue #132",
+          "url": "https://github.com/n3wth/egm-dashboard/issues/132",
+          "status": "Active (2026-W44)",
+          "nextCheck": "2026-11-09",
+          "outcome": "verified"
+        },
+        {
+          "section": "improved",
+          "id": "imp-1",
+          "title": "Render brainstorm lenses table with valid GFM pipes",
+          "stage": "user-verified",
+          "pr": 194,
+          "issue": 193,
+          "release": "v0.1.0",
+          "url": "https://github.com/google/elephant-goldfish-model/pull/194",
+          "evidence": "Verified by reporter @timfee on 2026-10-28T23:54:57Z"
+        },
+        {
+          "section": "improved",
+          "id": "imp-2",
+          "title": "Resolve Claude Code 2.1.312 plugin manifest key rejection",
+          "stage": "user-verified",
+          "pr": 218,
+          "issue": 274,
+          "release": null,
+          "url": "https://github.com/google/elephant-goldfish-model/issues/274",
+          "evidence": "Verified resolved on Claude Code 2.1.316 on 2026-11-02T23:05:31Z"
+        },
+        {
+          "section": "improved",
+          "id": "imp-3",
+          "title": "Core /egm workflow skills and 9-persona Goldfish review orchestration",
+          "stage": "released",
+          "pr": 127,
+          "issue": null,
+          "release": "v0.1.0",
+          "url": "https://github.com/google/elephant-goldfish-model/releases/tag/v0.1.0",
+          "evidence": "17 merged PRs in v0.1.0 cutline; user outcome unverified"
+        },
+        {
+          "section": "improved",
+          "id": "imp-4",
+          "title": "Antigravity skill compatibility and Gemini CLI installation docs",
+          "stage": "released",
+          "pr": 148,
+          "issue": null,
+          "release": "v0.1.0",
+          "url": "https://github.com/google/elephant-goldfish-model/releases/tag/v0.1.0",
+          "evidence": "Shipped in v0.1.0 (PR #148, #157, #162); user outcome unverified"
+        },
+        {
+          "section": "improved",
+          "id": "imp-5",
+          "title": "Workspace isolation and path traversal guardrails",
+          "stage": "released",
+          "pr": 166,
+          "issue": null,
+          "release": "v0.1.0",
+          "url": "https://github.com/google/elephant-goldfish-model/releases/tag/v0.1.0",
+          "evidence": "Shipped in v0.1.0 (PR #166, #183); user outcome unverified"
+        },
+        {
+          "section": "improved",
+          "id": "imp-6",
+          "title": "Slash command /egm: namespace docs and Antigravity 1.4.10+ troubleshooting",
+          "stage": "merged-unreleased",
+          "pr": 257,
+          "issue": 196,
+          "release": null,
+          "url": "https://github.com/google/elephant-goldfish-model/pull/257",
+          "evidence": "Merged on main (PR #208, #230, #257 for #196, #220, #254); unreleased"
+        },
+        {
+          "section": "improved",
+          "id": "imp-7",
+          "title": "Antigravity home directory installation and installer path consistency",
+          "stage": "merged-unreleased",
+          "pr": 212,
+          "issue": 211,
+          "release": null,
+          "url": "https://github.com/google/elephant-goldfish-model/pull/212",
+          "evidence": "Merged on main (PR #212, #219, #221 for #211, #215); unreleased"
+        },
+        {
+          "section": "improved",
+          "id": "imp-8",
+          "title": "Codex installer support, marketplace schema sync, and post-window Claude/security hardening",
+          "stage": "merged-unreleased",
+          "pr": 241,
+          "issue": null,
+          "release": null,
+          "url": "https://github.com/google/elephant-goldfish-model/pull/241",
+          "evidence": "PR #218, #226, #241 in window + PR #244, #264-#268 post-window on main; unreleased"
+        },
+        {
+          "section": "attention",
+          "id": "att-1",
+          "title": "agy plugin validate --strict fails on root AGENTS.md and missing plugin.json logo",
+          "severity": "high",
+          "affectedHost": "Antigravity 1.4.11-1.4.12",
+          "affectedVersion": "Linux x86_64",
+          "independentReports": 2,
+          "commentCount": 2,
+          "contraryEvidence": "Non-strict validator passes; runtime skills load when installed manually",
+          "uncertainty": "Moving AGENTS.md into rules/ leaks EGM contributor rules into user workspaces; requires staged build",
+          "nextAction": "Prototype stage-1 allowlisted plugin build in scripts/build-plugin.sh",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/272"
+        },
+        {
+          "section": "attention",
+          "id": "att-2",
+          "title": "Unprefixed /egm-* slash commands fail discovery when disable-model-invocation is true",
+          "severity": "high",
+          "affectedHost": "Antigravity <= 1.4.8",
+          "affectedVersion": "macOS & Linux",
+          "independentReports": 4,
+          "commentCount": 11,
+          "contraryEvidence": "Antigravity 1.4.10+ auto-completes colon-prefixed /egm:brainstorm",
+          "uncertainty": "Docs fixed on main (#208, #230, #257) but v0.1.0 release archive still shows legacy invocation",
+          "nextAction": "Cut v0.1.1 release and verify /egm: autocomplete on Antigravity 1.4.10+",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/196"
+        },
+        {
+          "section": "attention",
+          "id": "att-3",
+          "title": "Claude Code child isolation verifier rejects structured SubagentHandback",
+          "severity": "medium",
+          "affectedHost": "Claude Code 2.1.x",
+          "affectedVersion": "macOS & Linux",
+          "independentReports": 1,
+          "commentCount": 6,
+          "contraryEvidence": "Relaxation fix merged to main post-window in PR #244",
+          "uncertainty": "No independent user has verified PR #244 end-to-end on Claude Code 2.1.316+",
+          "nextAction": "Request voluntary retest of main on Claude Code 2.1.316+",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/238"
+        },
+        {
+          "section": "attention",
+          "id": "att-4",
+          "title": "Bootstrap script test execution and non-Claude harness read-only reviewer enforcement",
+          "severity": "medium",
+          "affectedHost": "All POSIX shells",
+          "affectedVersion": "Gemini CLI & Codex harnesses",
+          "independentReports": 1,
+          "commentCount": 4,
+          "contraryEvidence": "Hardening PRs #264-#268 merged to main post-window on 2026-11-03",
+          "uncertainty": "Fixes are on main but not yet in a tagged release",
+          "nextAction": "Include #264-#268 in next tagged release and verify release attestation",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/261"
+        },
+        {
+          "section": "help",
+          "id": "help-1",
+          "task": "Retest /egm child isolation handback on Claude Code 2.1.316+ from main (#238 / PR #244)",
+          "owner": "Unassigned (volunteer requested)",
+          "successCriterion": "Complete one full /egm cycle on main with zero isolation false positives and post CLI version on #238",
+          "reviewDate": "2026-11-09",
+          "status": "proposal",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/238"
+        },
+        {
+          "section": "help",
+          "id": "help-2",
+          "task": "Verify /egm:brainstorm and /egm:specify autocomplete on Antigravity 1.4.10+ (#196 / #254)",
+          "owner": "Unassigned (volunteer requested)",
+          "successCriterion": "Confirm colon-prefixed commands resolve on macOS and Linux in a fresh workspace and comment on #196",
+          "reviewDate": "2026-11-09",
+          "status": "proposal",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/196"
+        },
+        {
+          "section": "help",
+          "id": "help-3",
+          "task": "Prototype staged plugin packaging passing agy plugin validate --strict (#272)",
+          "owner": "Unassigned (volunteer requested)",
+          "successCriterion": "agy plugin validate --strict exits 0 on packaged artifact without exposing contributor AGENTS.md in rules/",
+          "reviewDate": "2026-11-09",
+          "status": "proposal",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/272"
+        },
+        {
+          "section": "missing_evidence",
+          "id": "miss-1",
+          "unresolvedQuestion": "Do new evaluators complete a full first workflow without maintainer assistance?",
+          "smallestObservation": "5 voluntary opted-in first-workflow records capturing intended task, environment, last successful step, and outcome."
+        },
+        {
+          "section": "missing_evidence",
+          "id": "miss-2",
+          "unresolvedQuestion": "Does main resolve the install and slash-command friction reported against v0.1.0?",
+          "smallestObservation": "Tag v0.1.1 from main and collect voluntary retest outcomes on #196, #238, and #272."
+        },
+        {
+          "section": "missing_evidence",
+          "id": "miss-3",
+          "unresolvedQuestion": "What is the median time-to-first-maintainer-response on substantive community issues?",
+          "smallestObservation": "Collect first non-author comment timestamps via GitHub issue timeline API in weekly collector."
+        },
+        {
+          "section": "public_draft",
+          "id": "pub-1",
+          "title": "EGM Weekly Building Brief \u00b7 2026-W44 (2026-10-26 \u2013 2026-11-01)",
+          "draftBanner": "Draft community update. Requires human maintainer editorial review before public distribution. Private research notes, internal telemetry, and user identities are excluded.",
+          "summary": "In Week 44, the team shipped release v0.1.0 and merged 24 follow-up PRs on main. Key improvements include user-verified brainstorm lens markdown rendering (#194) and Claude Code 2.1.316 manifest compatibility (#274). Attention is focused on strict plugin validation (#272) and /egm: slash-command discoverability (#196).",
+          "reviewedBy": null,
+          "approvedForPublish": false
+        }
+      ]
+    },
+    "oss_health": {
+      "source": {
+        "label": "GitHub REST API \u00b7 google/elephant-goldfish-model",
+        "provider": "GitHub",
+        "executedAt": "2026-11-02T17:17:00Z",
+        "coverage": {
+          "startDate": "2026-10-26T00:00:00Z",
+          "endDate": "2026-11-02T00:00:00Z"
+        },
+        "filters": [
+          "Repository: google/elephant-goldfish-model",
+          "Window: 2026-10-26 to 2026-11-02 (2026-W44 UTC)"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "Response & review turnaround",
+            "definition": "Median hours to first maintainer response and PR review. Unmeasured intervals remain Not measured or \u2014."
+          },
+          {
+            "label": "Returning contributors",
+            "definition": "Contributors with repeat contributions across distinct months, recognizing code and non-code contributions without ranking individuals."
+          },
+          {
+            "label": "Actionable help requests",
+            "definition": "Open issues with clear reproduction steps and agreed scope suitable for community volunteers."
+          },
+          {
+            "label": "Resolved user blockers",
+            "definition": "Blocker issues confirmed resolved by the reporter or verified in a release."
+          }
+        ],
+        "caveats": [
+          "Do not rank individual contributors or equate PR count with impact.",
+          "Recognize contributions beyond code (triage, documentation, issue verification).",
+          "Unmeasured turnaround metrics are marked as Not measured, never zero."
+        ],
+        "evidenceFlow": [
+          {
+            "title": "GitHub repository health inspection",
+            "detail": "https://api.github.com/repos/google/elephant-goldfish-model/issues\nhttps://api.github.com/repos/google/elephant-goldfish-model/pulls"
+          }
+        ],
+        "links": [
+          {
+            "label": "GitHub issues",
+            "url": "https://github.com/google/elephant-goldfish-model/issues"
+          }
+        ]
+      },
+      "metrics": {
+        "openIssues": 40,
+        "openPRs": 20,
+        "nonDraftOpenPRs": 20,
+        "oldestOpenPrDays": 4,
+        "mergedPRs": 41,
+        "medianPrTurnaroundHours": 1.8,
+        "firstResponseDelayHours": null,
+        "latestRelease": "v0.1.0",
+        "latestReleasePublishedAt": "2026-10-27T07:46:34Z",
+        "releasedMergedPRs": 17,
+        "unreleasedMergedPRs": 24,
+        "returningContributors": 5,
+        "independentIssueReporters": 20,
+        "actionableHelpRequests": 3,
+        "resolvedUserBlockers": 2,
+        "closedSpamOrBlankIssues": 15,
+        "closedSubstantiveIssues": 8
+      },
+      "rows": [
+        {
+          "metric": "first_response_time",
+          "label": "Median first maintainer response",
+          "value": null,
+          "displayValue": "Not measured",
+          "unit": "hours",
+          "note": "First-response latency requires timeline event collection not currently automated."
+        },
+        {
+          "metric": "pr_review_turnaround",
+          "label": "Median PR turnaround to merge",
+          "value": 1.8,
+          "displayValue": "1.8 hours",
+          "unit": "hours",
+          "note": "41 merged PRs in window; median turnaround 1.8 hours from creation to merge."
+        },
+        {
+          "metric": "merged_prs_distribution",
+          "label": "Merged PR release state",
+          "value": 41,
+          "displayValue": "41 PRs (17 released, 24 on main)",
+          "unit": "PRs",
+          "note": "17 merged PRs included in v0.1.0; 24 in-window PRs merged on main are unreleased."
+        },
+        {
+          "metric": "returning_contributors",
+          "label": "Returning contributors",
+          "value": 5,
+          "displayValue": "5 contributors",
+          "unit": "contributors",
+          "note": "Active across multiple periods. Individual contributors are never ranked."
+        },
+        {
+          "metric": "actionable_help_requests",
+          "label": "Actionable help requests",
+          "value": 3,
+          "displayValue": "3 requests",
+          "unit": "requests",
+          "note": "Concrete volunteer requests with bounded task and verification criteria."
+        },
+        {
+          "metric": "resolved_user_blockers",
+          "label": "Resolved user blockers",
+          "value": 2,
+          "displayValue": "2 blockers",
+          "unit": "blockers",
+          "note": "Issue #193 (verified by @timfee) and Issue #274 (verified on Claude Code 2.1.316)."
+        }
+      ]
+    },
+    "workflow_research": {
+      "source": {
+        "label": "Voluntary First-Workflow & Blocker-Retest Log \u00b7 User Research",
+        "provider": "Voluntary maintainer research records",
+        "executedAt": "2026-11-02T16:00:00Z",
+        "coverage": {
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-02"
+        },
+        "filters": [
+          "Voluntary participant consent obtained",
+          "Identities and private notes anonymized"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "Workflow completion",
+            "definition": "Whether the participant reached their intended useful outcome without maintainer intervention."
+          },
+          {
+            "label": "Blocker retest",
+            "definition": "Whether a reported blocker was re-evaluated against a forward fix or release."
+          },
+          {
+            "label": "Repeat-use decision",
+            "definition": "Choice made at next suitable task: chose EGM, chose alternative, had no opportunity, or unknown."
+          }
+        ],
+        "caveats": [
+          "Small selected samples explain mechanisms and friction points, not population conversion rates.",
+          "Repeat use evaluates suitable tasks only; daily usage is not assumed or expected.",
+          "Identities and private corporate notes are strictly excluded from public display."
+        ],
+        "evidenceFlow": [
+          {
+            "title": "Voluntary research log",
+            "detail": "Observed workflow sessions and structured GitHub issue follow-ups."
+          }
+        ],
+        "links": [
+          {
+            "label": "Adoption research protocol",
+            "url": "https://github.com/n3wth/egm-dashboard/blob/main/docs/weekly-building-brief.md"
+          }
+        ]
+      },
+      "metrics": {
+        "firstWorkflowSessions": null,
+        "verifiedBlockerRetests": 2,
+        "pendingBlockerRetests": 2,
+        "repeatUseRecorded": null
+      },
+      "rows": [
+        {
+          "id": "wf-1",
+          "intendedTask": "Brainstorm lenses table rendering in markdown viewer (#193)",
+          "environment": "Markdown viewer / v0.1.0 (PR #194)",
+          "version": "v0.1.0",
+          "lastSuccessfulStep": "Fixed missing leading/trailing GFM pipes",
+          "helpRequired": "Maintainer PR #194",
+          "outcome": "completed",
+          "voluntaryRetest": "verified_by_reporter",
+          "retestDetail": "Verified by @timfee (2026-10-28)",
+          "repeatUse": "unknown",
+          "observedDate": "2026-10-28",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/193"
+        },
+        {
+          "id": "wf-2",
+          "intendedTask": "Load EGM plugin manifest in Claude Code CLI (#274)",
+          "environment": "Claude Code 2.1.312 -> 2.1.316",
+          "version": "v0.1.0",
+          "lastSuccessfulStep": "Upgraded CLI to 2.1.316",
+          "helpRequired": "Upstream CLI upgrade",
+          "outcome": "completed",
+          "voluntaryRetest": "verified_by_maintainer",
+          "retestDetail": "Verified on 2.1.316 (2026-11-02)",
+          "repeatUse": "unknown",
+          "observedDate": "2026-11-02",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/274"
+        },
+        {
+          "id": "wf-3",
+          "intendedTask": "Run agy plugin validate --strict on repository root (#272)",
+          "environment": "Antigravity 1.4.11-1.4.12",
+          "version": "Linux x86_64",
+          "lastSuccessfulStep": "Plugin manifest discovered; strict check rejected root AGENTS.md",
+          "helpRequired": "Open blocker (needs staged build)",
+          "outcome": "blocked",
+          "voluntaryRetest": "pending_fix",
+          "retestDetail": "Pending fix",
+          "repeatUse": "unknown",
+          "observedDate": "2026-11-02",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/272"
+        },
+        {
+          "id": "wf-4",
+          "intendedTask": "Invoke /egm-brainstorm slash command in chat (#196, #220, #254)",
+          "environment": "Antigravity 1.4.8-1.4.10",
+          "version": "macOS & Linux, v0.1.0",
+          "lastSuccessfulStep": "Installed skills; unprefixed /egm-* hidden by disable-model-invocation",
+          "helpRequired": "Use /egm: colon prefix on agy 1.4.10+ (PR #257)",
+          "outcome": "blocked",
+          "voluntaryRetest": "pending_release",
+          "retestDetail": "Pending v0.1.1 retest",
+          "repeatUse": "unknown",
+          "observedDate": "2026-10-31",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/196"
+        },
+        {
+          "id": "wf-5",
+          "intendedTask": "Complete /egm subagent handback cycle (#237, #238)",
+          "environment": "Claude Code 2.1.x",
+          "version": "macOS & Linux",
+          "lastSuccessfulStep": "Child agent returned structured SubagentHandback",
+          "helpRequired": "PR #244 merged on main",
+          "outcome": "blocked",
+          "voluntaryRetest": "pending_retest",
+          "retestDetail": "Pending retest on main",
+          "repeatUse": "unknown",
+          "observedDate": "2026-10-30",
+          "url": "https://github.com/google/elephant-goldfish-model/issues/238"
+        }
+      ]
     }
   },
   "id": "dashboard:92f69d5e-0c66-4fc5-be7d-2e5465004e2f"

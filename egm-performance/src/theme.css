@@ -51,18 +51,22 @@
   --mark-radius: 8;
   --card-shadow: 0 4px 12px rgb(0 0 0 / 1%);
   --shadow: 0 8px 16px -4px rgb(0 0 0 / 12%);
-  /* Ask answer scale: shared by every Ask primitive so new answer types inherit spacing and type. */
-  --ask-space-1: 4px;
-  --ask-space-2: 8px;
-  --ask-space-3: 12px;
-  --ask-space-4: 16px;
-  --ask-space-5: 24px;
+  /* Dashboard-specific steps extend the shared foundation type scale. */
+  --egm-text-caption: 11px;
+  --egm-text-label: 13px;
+  --egm-text-metric: 32px;
+  /* Ask uses the same foundation scale as dashboard content. */
+  --ask-space-1: var(--space-1);
+  --ask-space-2: var(--space-2);
+  --ask-space-3: var(--space-3);
+  --ask-space-4: var(--space-4);
+  --ask-space-5: var(--space-6);
   --ask-space-6: 32px;
-  --ask-text-caption: 11px;
-  --ask-text-meta: 12px;
-  --ask-text-body: 14px;
-  --ask-text-heading: 16px;
-  --ask-text-title: 18px;
+  --ask-text-caption: var(--egm-text-caption);
+  --ask-text-meta: var(--text-xs-size);
+  --ask-text-body: var(--text-sm-size);
+  --ask-text-heading: var(--text-md-size);
+  --ask-text-title: var(--text-lg-size);
   --ask-text-metric: 22px;
   --ask-leading-body: 1.6;
   --ask-leading-heading: 1.3;

@@ -198,7 +198,8 @@ export function DataAppShell({
   children,
 }) {
   const build = dataAppBuildState(snapshot);
-  const canEdit = ownerCanEdit && !build.active;
+  // Dashboard presentation is read-only; owner access still enables Ask and account tools.
+  const canEdit = false;
   const reportSurface = snapshot.surface === "report";
   useInputModality();
   const surfaceNoun = reportSurface ? "report" : "dashboard";
@@ -227,6 +228,7 @@ export function DataAppShell({
   const sourceSidebarRef = useRef(null);
   const chartEditorRef = useRef(null);
   const [mode, setMode] = useState("view");
+  useEffect(() => { if (!canEdit) setMode("view"); }, [canEdit]);
   useEffect(() => {
     if (!hosted || mode !== "view" || !onSnapshotChange
       || document.querySelector('meta[name="data-app-snapshot-storage"]')?.content !== "external-v1") return;
@@ -1158,7 +1160,8 @@ export function DataAppShell({
               getActionHref={actionHref}
               onOpenThemes={() => setThemesOpen(true)}
               published={hosted}
-              canEdit={ownerCanEdit}
+              canEdit={canEdit}
+              canRefresh={ownerCanEdit}
               verification={verification}
               pendingVerification={pendingVerification}
               onVerificationReminderError={setActionStatus}
@@ -1208,6 +1211,8 @@ export function DataAppShell({
             {chartExport && <ChartExportDialog {...chartExport} resolveColor={resolveColor} onClose={() => setChartExport(null)} />}
 
             <main
+              id="data-app-main"
+              tabIndex={-1}
               inert={editSession?.saving || undefined}
               ref={editingRoot}
               className={`page${snapshot.surface === "report" ? " report-page" : ""}`}

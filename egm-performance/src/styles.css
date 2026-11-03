@@ -873,9 +873,10 @@
   --data-card-background: var(--background);
 }
 .dashboard-component[data-component-variant="card"] {
+  --data-card-inset: 16px;
   --data-card-menu-inline-offset: 0px;
   --card-surface: var(--data-card-background, var(--surface));
-  padding: 16px;
+  padding: var(--data-card-inset);
   border: 1px solid var(--card-surface-border, var(--border));
   border-radius: var(--data-card-radius, var(--card-radius));
   background: var(--card-surface);
@@ -2067,6 +2068,14 @@ main[data-data-app-content="report"] .report-recommendations > p {
   background: var(--surface-raised);
 }
 .table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
+/* Bleed the row surface to the card border while keeping cell text aligned with its heading. */
+.dashboard-component[data-component-variant="card"] > .table-wrap {
+  width: calc(100% + 2 * var(--data-card-inset));
+  max-width: calc(100% + 2 * var(--data-card-inset));
+  margin-inline: calc(-1 * var(--data-card-inset));
+}
+.dashboard-component[data-component-variant="card"] > .table-wrap > .table :is(th, td):first-child { padding-inline-start: var(--data-card-inset); }
+.dashboard-component[data-component-variant="card"] > .table-wrap > .table :is(th, td):last-child { padding-inline-end: var(--data-card-inset); }
 .table-wrap[data-overflow-start="false"][data-overflow-end="true"] {
   mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 22px), transparent 100%);
 }

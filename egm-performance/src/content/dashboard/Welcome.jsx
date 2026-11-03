@@ -1,21 +1,18 @@
-import React, { useState } from 'react'
+import React, { useRef,useState } from 'react'
 import {Button, Icon} from '../../data-app-public.jsx'
 import {PageLink} from './PageLink.jsx'
 import {navbarIcon} from './navbar-icons.mjs'
 import {pages} from './pages.mjs'
-import {dismissWelcome, welcomeDismissed} from './welcome.mjs'
+import {dismissWelcome} from './welcome.mjs'
 
 const storage = () => { try { return globalThis.localStorage } catch { return undefined } }
 
 export function Welcome() {
-  const [open,setOpen]=useState(()=>!welcomeDismissed(storage()))
-  if(!open)return null
-  const close=()=>{dismissWelcome(storage());setOpen(false)}
-  return <section className="egm-welcome" aria-labelledby="egm-welcome-title">
-    <div className="egm-welcome-header">
-      <h2 id="egm-welcome-title">New here? How to read this dashboard</h2>
-      <Button variant="ghost" className="egm-welcome-close" aria-label="Dismiss introduction" onClick={close}><Icon name="close" size={16}/></Button>
-    </div>
+  const summary=useRef(null)
+  const [open,setOpen]=useState(false)
+  const close=()=>{dismissWelcome(storage());setOpen(false);summary.current?.focus()}
+  return <details className="egm-welcome" open={open} onToggle={event=>setOpen(event.currentTarget.open)}>
+    <summary ref={summary}>How to read this dashboard</summary>
     <p className="egm-welcome-lede">It tracks how people find, try and talk about EGM, using GitHub traffic for the google/elephant-goldfish-model repo, egm.dev referrals, the issue queue and public mentions.</p>
     <ul className="egm-welcome-notes">
       <li><strong>Two-week totals.</strong> GitHub keeps only 14 days of traffic, so headline views, visitors and clones cover that window. The daily charts keep every day collected since Oct 13; pick a date range on the chart. Stars, issues and PRs are current totals.</li>
@@ -29,5 +26,5 @@ export function Welcome() {
       </PageLink>)}
     </div>
     <Button className="egm-welcome-done" onClick={close}>Got it</Button>
-  </section>
+  </details>
 }

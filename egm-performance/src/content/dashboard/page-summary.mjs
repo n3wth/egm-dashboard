@@ -1,8 +1,10 @@
 import {percentage} from './percentage.mjs'
 import {reportingRange} from './overview-summary.mjs'
 import {channelViews} from './referrer-channels.mjs'
+import {videoCoverage} from './video-coverage.mjs'
 const valid=value=>Number.isFinite(value)&&value>=0
 const n=value=>value.toLocaleString('en-US')
+const compact=value=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value).toLowerCase()
 const sum=(rows,field)=>rows.length&&rows.every(row=>valid(row[field]))?rows.reduce((total,row)=>total+row[field],0):null
 export function pageSummary(page,queries={}) {
   const rows=id=>queries[id]?.rows??[]
@@ -41,12 +43,53 @@ export function pageSummary(page,queries={}) {
   if(page==='mentions') {
     const videos=rows('youtube_videos')
     const measured=videos.filter(row=>valid(row.views)).sort((a,b)=>b.views-a.views)
-    if(measured.length)add(`The most-viewed YouTube video has ${n(measured[0].views)} views; a view count is available for ${n(measured.length)} of ${n(videos.length)} discovered videos.`,'youtube_videos')
+    if(measured.length)add(`The most-viewed measured YouTube video has ${n(measured[0].views)} views; view counts are available for ${n(measured.length)} of ${n(videoCoverage(queries).discovered)} discovered videos.`,...videoCoverage(queries).queryIds)
     const social=rows('mentions').filter(row=>row.kind==='Social').length
     if(queries.mentions&&social)add(`${n(social)} social posts are recorded in the primary discovery collection.`,'mentions')
     else if(!measured.length&&queries.mentions)add(`${n(new Set(rows('mentions').map(row=>row.url).filter(Boolean)).size)} source links are recorded in the primary discovery collection.`,'mentions')
   }
   if(!sentences.length)return null
   const kept=sentences.slice(0,2)
-  return {sentences:kept,queryIds:[...ids],headline:kept[0],facts:kept.slice(1),range:reportingRange(queries)}
+  let headline=kept[0],facts=kept.slice(1)
+  if(page==='acquisition') {
+    const top=channelViews(rows('referrers'))[0],total=sum(rows('referrers'),'count')
+    if(top){headline=`${top.source} leads recorded referrals.`;facts=[`${compact(top.count)} referral views`]}
+    if(total!==null&&reach?.views>0)facts.push(`Top ten referrers account for ${percentage(total/reach.views)} of repo views; the rest is unattributed.`)
+  }
+  if(page==='adoption') {
+    headline='First use and retention are still unmeasured.'
+    facts=[`${compact(reach.clones)} clone operations${valid(reach.cloners)?` from ${compact(reach.cloners)} unique cloners`:''} in the traffic window.`,'Clones measure code access, including repeat and automated activity.']
+  }
+  if(page==='website') {
+    headline=valid(web?.referralViews)?web.referralViews>0?`egm.dev sent ${compact(web.referralViews)} views to the repo.`:'No egm.dev referrals were reported in this window.':web?'egm.dev referral counts are unknown.':'egm.dev appears in recorded referrals.'
+    facts=valid(web?.referralViews)?[`${valid(web?.referralVisitors)?`${compact(web.referralVisitors)} visitors · `:''}${compact(web.referralViews)} referral views`]:[]
+    const rank=rows('website_contribution')[0]?.rank
+    if(valid(rank)&&rank>0)facts.push(`#${n(rank)} among reported referrers`)
+  }
+  if(page==='development') {
+    const parts=[]
+    if(valid(queue?.openIssues))parts.push(`${compact(queue.openIssues)} issues`)
+    if(valid(queue?.openPRs))parts.push(`${compact(queue.openPRs)} pull requests`)
+    const merged=sum(rows('activity'),'mergedPRs')
+    headline=parts.length?`The current queue has ${parts.join(' and ')}.`:merged===0?'No pull requests were merged in the reported window.':'Pull requests were merged in the reported activity window.'
+    facts=merged!==null?[`${compact(merged)} PRs merged in the reported two-week activity window.`]:[]
+  }
+  if(page==='research') {
+    const verified=rows('research_evidence').filter(row=>row.status==='verified').length
+    headline=rows('research_evidence').length?verified?'Checked pages confirm EGM references.':'No checked page has a verified EGM reference.':'Research leads are ready for review.'
+    facts=rows('research_evidence').length?[`${compact(verified)} verified ${verified===1?'page':'pages'}`]:[]
+    if(rows('exa_research').length)facts.push(`${compact(rows('exa_research').length)} indexed leads to review, separate from verified evidence.`)
+    else if(rows('peers').length)facts.push(`${compact(rows('peers').filter(row=>row.repo!=='google/elephant-goldfish-model').length)} comparable repos tracked`)
+  }
+  if(page==='mentions') {
+    const videos=rows('youtube_videos'),measured=videos.filter(row=>valid(row.views)).sort((a,b)=>b.views-a.views)
+    if(measured.length){headline=`The leading measured video has ${new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:0}).format(measured[0].views).toLowerCase()} views.`;facts=[`${n(measured.length)} videos measured · ${n(videoCoverage(queries).discovered)} discovered`]}
+    else {headline='Recorded mentions are ready to review.';facts=[]}
+    const social=rows('mentions').filter(row=>row.kind==='Social').length
+    if(social)facts.push(`${compact(social)} social posts in the primary discovery collection`)
+    else if(!measured.length&&queries.mentions)facts.push(`${compact(new Set(rows('mentions').map(row=>row.url).filter(Boolean)).size)} source links in the primary discovery collection`)
+  }
+  const notes=[...new Set([...kept,...facts.slice(1)])]
+  if(page==='development')notes.push('Open issues and pull requests are current queue sizes, not totals for the activity reporting window.')
+  return {sentences:kept,queryIds:[...ids],headline,facts:facts.slice(0,1),notes,range:['research','mentions'].includes(page)?null:reportingRange(queries)}
 }

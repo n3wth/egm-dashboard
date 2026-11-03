@@ -1,5 +1,5 @@
-// Paid collection ends at env.REFRESH_UNTIL in wrangler.jsonc. That is the only
-// end date. Extending collection is a one-line change there.
+// Independent-provider collection ends at REFRESH_UNTIL. Only GitHub may
+// continue under the explicit GITHUB_COLLECTION_ENABLED switch.
 export function collectionWindow(env, time = Date.now()) {
   const until = Date.parse(env?.REFRESH_UNTIL)
   return {
@@ -7,6 +7,10 @@ export function collectionWindow(env, time = Date.now()) {
     open: Number.isFinite(until) && time < until,
     endsAt: Number.isFinite(until) ? new Date(until).toISOString() : null
   }
+}
+
+export function githubCollectionEnabled(env, time = Date.now()) {
+  return env?.GITHUB_COLLECTION_ENABLED === 'true' || collectionWindow(env, time).open
 }
 
 // These intervals are the cadence already in effect: GitHub on the 30-minute
@@ -107,16 +111,17 @@ const labels = {
   webPerformance: 'PageSpeed and CrUX'
 }
 
-export function collectionSources({ queries = {}, state = {}, skips = {}, checkedAt, windowOpen }) {
+export function collectionSources({ queries = {}, state = {}, skips = {}, checkedAt, windowOpen, githubEnabled = windowOpen, endsAt = null, githubEndsAt = endsAt }) {
   return Object.keys(labels).map(id => {
     const queryName = id === 'github' ? 'traffic' : id === 'webPerformance' ? 'web_pagespeed_status' : statusQuery[id]
     const row = queries[queryName]?.rows?.[0] ?? {}
     const source = id === 'github' ? queries.traffic?.source : null
     const status = state[id] ?? 'unknown'
-    const reason = windowOpen ? skips[id] ?? row.reason ?? (row.status === 'unconfigured' ? 'unconfigured' : null) ?? (status === 'failed' ? 'failed' : null) : 'collection_window_ended'
+    const open = id === 'github' ? githubEnabled : windowOpen
+    const reason = open ? skips[id] ?? row.reason ?? (row.status === 'unconfigured' ? 'unconfigured' : null) ?? (status === 'failed' ? 'failed' : null) : 'collection_window_ended'
     const lastSuccessAt = id === 'github'
       ? row.lastSuccessAt ?? source?.executedAt ?? (status === 'refreshed' ? checkedAt : null)
       : observedSuccess(queries, id, row)
-    return { id, label: labels[id], status, reason, lastSuccessAt }
+    return { id, label: labels[id], status, reason, lastSuccessAt, collectionEndsAt: id === 'github' ? githubEndsAt : endsAt }
   })
 }

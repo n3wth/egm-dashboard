@@ -3,6 +3,7 @@ import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { ControlIcon as Icon } from "./ControlIcon.jsx";
 import { dropdownModel } from "./dropdown-model.js";
 import { useTouchReleaseTrigger } from "./touch-release-trigger.js";
+import { TruncatedText } from "./ui.jsx";
 
 export function Select({
   label,
@@ -54,13 +55,9 @@ export function Select({
     <span className={multiple ? "custom-select-host" : "custom-select-host has-native-picker"}>
     <Dropdown.Root modal={modal} open={open} onOpenChange={setOpen}>
       <Dropdown.Trigger className={`${triggerClassName} select-trigger`} aria-label={label} aria-describedby={describedBy} disabled={disabled}
-        {...release}
-        onPointerEnter={event => {
-          const valueLabel = event.currentTarget.querySelector(".select-value");
-          event.currentTarget.title = valueLabel?.scrollWidth > valueLabel?.clientWidth ? valueLabel.textContent : "";
-        }}>
+        {...release}>
         {showLabel && <span className="filter-label">{label}</span>}
-        <span className="select-value">{renderChoice && !multiple ? renderChoice(value) : displayedValue}</span>
+        <TruncatedText className="select-value" focusOnParent>{renderChoice && !multiple ? renderChoice(value) : displayedValue}</TruncatedText>
         <Icon name="chevronDown" className="chevron" />
       </Dropdown.Trigger>
       <Dropdown.Portal container={portalContainer}>

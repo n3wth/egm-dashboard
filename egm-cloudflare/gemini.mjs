@@ -2,12 +2,12 @@
 export const GEMINI_MODEL='gemini-flash-lite-latest'
 const endpoint=(model,stream)=>`https://generativelanguage.googleapis.com/v1beta/models/${model}:${stream?'streamGenerateContent?alt=sse':'generateContent'}`
 
-function body(messages,max_tokens,temperature) {
+function body(messages,max_tokens,temperature,json) {
   const system=messages.filter(message=>message.role==='system').map(message=>message.content).join('\n\n')
   return JSON.stringify({
     ...(system?{systemInstruction:{parts:[{text:system}]}}:{}),
     contents:messages.filter(message=>message.role!=='system').map(message=>({role:message.role==='assistant'?'model':'user',parts:[{text:String(message.content)}]})),
-    generationConfig:{maxOutputTokens:max_tokens,temperature},
+    generationConfig:{maxOutputTokens:max_tokens,temperature,...(json?{responseMimeType:'application/json'}:{})},
   })
 }
 
@@ -49,8 +49,8 @@ function toResponseStream(source,hooks={}) {
 export function geminiRunner(env,fetcher=fetch) {
   if(!env.GEMINI_API_KEY)return null
   return {
-    async run(model,{messages,max_tokens,temperature,stream,onUsage,onFirstText,onFinishReason}) {
-      const response=await fetcher(endpoint(model,stream),{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body:body(messages,max_tokens,temperature)})
+    async run(model,{messages,max_tokens,temperature,stream,json,onUsage,onFirstText,onFinishReason}) {
+      const response=await fetcher(endpoint(model,stream),{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body:body(messages,max_tokens,temperature,json)})
       if(!response.ok||(stream&&!response.body)){await response.body?.cancel().catch(()=>{});throw Error('provider_failed')}
       if(stream)return toResponseStream(response.body,{onUsage,onFirstText,onFinishReason})
       const payload=await response.json()

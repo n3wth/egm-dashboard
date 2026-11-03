@@ -25,6 +25,8 @@ test('a provider inside its current interval or monthly cap does not run', () =>
   const recent = { traffic: { source: { executedAt: new Date(now - 60 * 1000).toISOString() } } }
   const fresh = monthBudget(null, now)
   assert.equal(planCollection('github', recent, fresh, now), 'schedule')
+  assert.equal(monthlyCallCaps.github,1488)
+  assert.equal(planCollection('github',{},monthBudget({month:'2026-09',calls:{github:1488}},now),now),'run')
 })
 
 test('source rows keep the last success and name a closed window', () => {

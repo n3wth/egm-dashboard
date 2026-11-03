@@ -1,7 +1,12 @@
 import {percentage} from './percentage.mjs'
 import {isSearchVideo} from './referrer-channels.mjs'
+import {starWeeklyChange,observedStarChange} from './weekly-change.mjs'
+import {observedStarGrowth} from './star-growth.mjs'
+import {formatObservedAt} from './collection-status.mjs'
 const count=value=>Number.isFinite(value)&&value>=0
 const number=value=>value.toLocaleString('en-US')
+const compact=value=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value).toLowerCase()
+const targetDistance=value=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:0}).format(value).toLowerCase()
 const shortDate=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
 const monthDay=value=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
 const dayOnly=value=>new Intl.DateTimeFormat('en-US',{day:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'))
@@ -13,48 +18,113 @@ export function reportingRangeLabel(dates=[]) {
   return `${monthDay(start)} – ${endLabel}`
 }
 export function reportingRange(queries={}) {
-  const label=reportingRangeLabel((queries.traffic?.rows??[]).map(row=>row.date))
-  return label?{label,note:'UTC'}:null
+  const label=pacificReportingRangeLabel((queries.traffic?.rows??[]).map(row=>row.date))
+  return label?{label,note:'Pacific Time'}:null
+}
+export function trafficCoverageNote(queries={}) {
+  const query=queries.traffic
+  const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value
+  const dates=(query?.rows??[]).map(row=>row.date).filter(validDate).sort()
+  const end=dates.at(-1),observedAt=query?.source?.executedAt
+  const observedDay=typeof observedAt==='string'?observedAt.slice(0,10):null
+  const collected=formatObservedAt(observedAt)
+  if(!end||!validDate(observedDay)||!collected||end>=observedDay)return null
+  return `Traffic available through ${shortDate(end)} (UTC source day). Collected ${collected}; newer days were not included in GitHub’s response.`
+}
+export function pacificReportingRangeLabel(dates=[]) {
+  const days=dates.filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date??'')&&Number.isFinite(Date.parse(date))).sort()
+  if(days.length<2)return null
+  const format=value=>new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',timeZoneName:'short'}).format(new Date(value))
+  return `${format(days[0]+'T00:00:00Z')} – ${format(Date.parse(days.at(-1)+'T00:00:00Z')+86400000)}`
 }
 export function overviewSummary(queries={}) {
   const reach=queries.reach?.rows?.[0]
-  const traffic=[...(queries.traffic?.rows??[])].filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date??'')).sort((a,b)=>a.date.localeCompare(b.date))
+  const traffic=[...(queries.traffic?.rows??[])].sort((a,b)=>String(a.date).localeCompare(String(b.date)))
   const refs=queries.referrers?.rows??[]
   const ids=new Set()
   const sentences=[]
-  const facts=[]
   let headline=null
   const stars=count(reach?.stars)?`EGM has ${number(reach.stars)} recorded stars`:null
-  if(stars)ids.add('reach')
-  const total=traffic.length&&traffic.every(row=>count(row.views))?traffic.reduce((sum,row)=>sum+row.views,0):null
+  if(stars) {
+    ids.add('reach')
+  }
+  const history=queries.star_history
+  const staleHistory=(history?.source?.caveats??[]).some(note=>note.startsWith('Star history is stale:'))
+  const weekly=!staleHistory&&starWeeklyChange(history?.rows??[],history?.source?.executedAt)
+  const observations=queries.star_observations
+  const observedWeekly=staleHistory&&observedStarChange(observations?.rows??[],observations?.source?.executedAt)
+  const observedRows=staleHistory?observedStarGrowth(observations?.rows??[],observations?.source?.executedAt).daily.filter(row=>Number.isFinite(row.stars)):[]
+  if(weekly) {
+    headline=`${number(weekly.current)} new stars ${shortDate(weekly.mid)}–${shortDate(weekly.end)}, versus ${number(weekly.previous)} the prior week.`
+    sentences.push(`${headline} These are complete Pacific-date weeks reconstructed from current stargazers; removed stars are unavailable.`)
+    ids.add('star_history')
+  } else if(observedWeekly) {
+    headline=`${number(observedWeekly.current)} net stars across the latest seven daily-snapshot intervals, versus ${number(observedWeekly.previous)} in the preceding seven.`
+    sentences.push(`${headline} These are changes between actual observation times, not exact midnight-to-midnight gains.`)
+    ids.add('star_observations')
+  } else if(stars&&observedRows.length>=2) {
+    const first=observedRows[0],last=observedRows.at(-1)
+    headline=`${stars}; ${number(last.stars-first.stars)} net change between samples dated ${shortDate(first.date)}–${shortDate(last.date)}.`
+    sentences.push(`${headline} Daily-snapshot history is still building; missing dates are not filled.`)
+    ids.add('star_observations')
+  } else if(stars) {
+    headline=staleHistory?`${stars}; weekly star momentum is unavailable.`:`${stars}.`
+    sentences.push(headline)
+    if(staleHistory)ids.add('star_history')
+  }
+  const completeTraffic=traffic.length&&traffic.every((row,index)=>/^\d{4}-\d{2}-\d{2}$/.test(row.date??'')&&Number.isFinite(Date.parse(row.date))&&count(row.views)&&(index===0||Date.parse(row.date)-Date.parse(traffic[index-1].date)===86400000))
+  const total=completeTraffic?traffic.reduce((sum,row)=>sum+row.views,0):null
   if(total>0&&traffic.length>=3) {
     const recentDays=traffic.slice(-3)
     const recent=recentDays.reduce((sum,row)=>sum+row.views,0)
-    // An even spread over the window would put 3/N of the views in the last three days; stating that baseline lets the reader judge the share.
-    const even=percentage(3/traffic.length)
-    sentences.push(`${stars?stars+'; ':''}${percentage(recent/total)} of the ${number(total)} repo views between ${shortDate(traffic[0].date)} and ${shortDate(traffic.at(-1).date)} (UTC) arrived in the last three days, ${shortDate(recentDays[0].date)}–${shortDate(recentDays.at(-1).date)}; an even spread would be ${even}.`)
-    headline=`${percentage(recent/total)} of ${number(total)} repo views arrived in the last 3 days.`
-    facts.push(`vs ${even} if evenly spread`)
-    if(count(reach?.stars))facts.push(`${number(reach.stars)} recorded stars`)
+    const trafficText=`${percentage(recent/total)} of ${number(total)} repo views arrived in the last 3 reported UTC days.`
+    sentences.push(`${trafficText} The reported traffic window is ${shortDate(traffic[0].date)}–${shortDate(traffic.at(-1).date)}.`)
+    headline??=trafficText
     ids.add('traffic')
-  } else if(stars||count(reach?.views)) {
-    sentences.push(`${stars??'The snapshot records'}${count(reach?.views)?`${stars?' and ':' '}${number(reach.views)} repo views in GitHub’s two-week traffic window`:''}.`)
+  } else if(count(reach?.views)) {
+    const trafficText=`GitHub recorded ${number(reach.views)} repo views in its two-week traffic window.`
+    sentences.push(trafficText)
+    headline??=trafficText
     ids.add('reach')
   }
   if(refs.length&&refs.every(row=>count(row.count))) {
     const totalReferrals=refs.reduce((sum,row)=>sum+row.count,0)
     const searchVideo=refs.filter(row=>isSearchVideo(row.referrer)).reduce((sum,row)=>sum+row.count,0)
     if(totalReferrals>0&&searchVideo>0) {
-      const attributed=`Google + YouTube = ${percentage(searchVideo/totalReferrals)} of attributed views`
       sentences.push(`Google and YouTube sent ${percentage(searchVideo/totalReferrals)} of the views GitHub attributes to its top ten referrers${reach?.views>0?` (${percentage(searchVideo/reach.views)} of all repo views)`:''}.`)
-      if(facts.length<3)facts.push(attributed)
       ids.add('referrers');if(reach?.views>0)ids.add('reach')
     }
   }
-  if(sentences.length<2) {
+  if(!sentences.length) {
     const video=(queries.youtube_videos?.rows??[]).filter(row=>count(row.views)).sort((a,b)=>b.views-a.views)[0]
     if(video){sentences.push(`The most-viewed YouTube video about EGM has ${number(video.views)} views.`);ids.add('youtube_videos')}
   }
   if(!sentences.length)return null
-  return {sentences:sentences.slice(0,2),queryIds:[...ids],headline:headline??sentences[0],facts:facts.slice(0,3),range:reportingRange(queries)}
+  let displayHeadline=headline??sentences[0]
+  const displayFacts=[]
+  if(weekly) {
+    displayHeadline=`Star growth ${weekly.current>weekly.previous?'accelerated':weekly.current<weekly.previous?'slowed':'held steady'} in the latest complete week.`
+    displayFacts.push(`${compact(weekly.current)} new stars vs ${compact(weekly.previous)} the prior week · ${shortDate(weekly.mid)}–${shortDate(weekly.end)} Pacific`)
+  } else if(observedWeekly) {
+    displayHeadline=observedWeekly.current<0?'The latest sampled week lost stars.':observedWeekly.current===0?'Net stars held flat in the latest sampled week.':`Net star gains ${observedWeekly.current>observedWeekly.previous?'increased':observedWeekly.current<observedWeekly.previous?'slowed':'held steady'} across sampled weeks.`
+    displayFacts.push(`${compact(observedWeekly.current)} net stars vs ${compact(observedWeekly.previous)} across the prior seven sampling intervals.`)
+  } else if(stars&&observedRows.length>=2) {
+    const first=observedRows[0],last=observedRows.at(-1),change=last.stars-first.stars
+    const days=(Date.parse(last.observedAt)-Date.parse(first.observedAt))/86400000
+    const period=Number.isFinite(days)&&days>0?days<1?'in under a day':days>=5&&days<7?'in under a week':`over ${Math.ceil(days)} days`:`from ${shortDate(first.date)} to ${shortDate(last.date)}`
+    displayHeadline=change===0?`EGM’s star count held steady ${period}.`:`EGM ${change>0?'added':'lost'} ${compact(Math.abs(change))} stars ${period}.`
+    displayFacts.push(`${compact(reach.stars)} total stars`)
+  } else if(stars) {
+    displayHeadline=staleHistory?'Weekly star momentum is not available yet.':`EGM has ${reach.stars>=1000?'about ':''}${compact(reach.stars)} recorded stars.`
+    if(staleHistory)displayFacts.push(`${compact(reach.stars)} recorded stars`)
+  }
+  if(stars)displayFacts.push(reach.stars>=300000?'Team target of 200k–300k stars reached.':reach.stars>=200000?`200k target reached · about ${targetDistance(300000-reach.stars)} stars to 300k`:`About ${targetDistance(200000-reach.stars)} stars to the 200k team target`)
+  if(displayFacts.length<2&&total>0&&traffic.length>=3)displayFacts.push(`${compact(total)} repo views · ${percentage(traffic.slice(-3).reduce((sum,row)=>sum+row.views,0)/total)} in the last three reported UTC days`)
+  else if(displayFacts.length<2&&count(reach?.views))displayFacts.push(`${compact(reach.views)} repo views in the reporting window`)
+  if(!stars) {
+    if(total>0&&traffic.length>=3)displayHeadline=`GitHub recorded ${compact(total)} repo views.`
+    else if(count(reach?.views))displayHeadline=`GitHub recorded ${compact(reach.views)} repo views.`
+    else {const video=(queries.youtube_videos?.rows??[]).filter(row=>count(row.views)).sort((a,b)=>b.views-a.views)[0];if(video)displayHeadline=`The leading recorded video has ${compact(video.views)} views.`}
+  }
+  return {sentences,queryIds:[...ids],headline:displayHeadline,facts:stars&&observedRows.length>=2&&!observedWeekly?[displayFacts.join(' · ')]:displayFacts.slice(0,1),notes:[...sentences,...displayFacts.slice(1)],range:reportingRange(queries)}
 }

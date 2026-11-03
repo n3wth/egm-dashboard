@@ -25,6 +25,22 @@ test('owner-only endpoint rejects other identities and cross-origin writes witho
   assert.equal((await manageAccess(request({id:'pending',decision:'approved'},'https://evil.example'),env,owner)).status,403)
   assert.equal(env.db.prepare('SELECT status FROM users').get().status,'pending')
 })
+test('only administrators receive activity and analytics outages preserve user management',async()=>{
+  const env={...environment(),POSTHOG_HOST:'https://us.i.posthog.com',POSTHOG_PROJECT_ID:'223560',POSTHOG_QUERY_KEY:'secret'}
+  env.db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?,?)').run('user_ABC','Test','test@example.org','approved','2026-10-28',null,null)
+  const read=new Request(env.APP_URL+'/api/access')
+  assert.equal((await manageAccess(read,env,null,()=>assert.fail('unauthorized provider read'))).status,403)
+  const lastSeen=new Date().toISOString()
+  const response=await manageAccess(read,env,owner,async()=>Response.json({results:[['user_ABC',lastSeen,3,1,0]]}))
+  assert.equal(response.headers.get('cache-control'),'private, no-store')
+  const result=await response.json()
+  assert.deepEqual(result.users.find(user=>user.id==='user_ABC').activity,{lastSeen,pageViews:3,activeDays:1,questions:0})
+  assert.equal(result.activity.status,'available')
+  const failed=await (await manageAccess(read,{...env},owner,async()=>{throw Error('offline')})).json()
+  assert.equal(failed.users.length,2)
+  assert.equal(failed.activity.status,'unavailable')
+  assert.equal(JSON.stringify(failed).includes('secret'),false)
+})
 test('pending approval is audited once, cannot be repeated or mutate owner; invite is only a share URL',async()=>{
   const env=environment()
   const list=await (await manageAccess(new Request(env.APP_URL+'/api/access'),env,owner)).json()

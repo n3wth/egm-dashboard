@@ -1,18 +1,25 @@
 import {percentage} from './percentage.mjs'
 import {isSearchVideo} from './referrer-channels.mjs'
 import React,{useState} from 'react'
-import {DataComponent,DataTable,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
-import {researchProposal} from './research-insights.js'
+import {Button,DataComponent,DataTable,Hint,Icon,MenuItem,Section,Tooltip,useDataApp} from '../../data-app-public.jsx'
+import {SavedAnalysis} from './SavedAnalysis.jsx'
+import {savedAnalysis} from './saved-analysis.mjs'
 import {backlinkPages} from './backlink-pages.js'
 import {PageSummary} from './PageSummary.jsx'
 import {EmptyState} from './DataStates.jsx'
 import {safeExternalUrl,mostViewedDoc,validCrawlDate} from './research-mentions.mjs'
 import {pathLabel} from './repo-paths.mjs'
+import {formatObservedAt} from './collection-status.mjs'
 
 const link=(url,label,className)=>{const href=safeExternalUrl(url);return href?<a className={className} href={href} target="_blank" rel="noreferrer">{label}</a>:<span>{label||'Source unavailable'}</span>}
 const repoLink=(value,row)=>link(row.url,value,'egm-research-repo')
 const wrappedText=value=><span className="egm-research-description">{value??'—'}</span>
 const plainExcerpt=value=>String(value??'').replace(/^\s*#{1,6}\s+/,'')
+function CollectedAt({query}) {
+  const value=query?.source?.executedAt
+  const collected=typeof value==='string'&&value.trim()?formatObservedAt(value):null
+  return <p className="egm-note">{collected?<>Collected <time dateTime={value}>{collected}</time></>:'Collection time unavailable'}</p>
+}
 export function ResearchExcerpt({evidence}) {
   return <blockquote className="egm-research-excerpt" aria-label="Search excerpt"><span className="egm-research-excerpt-label">Search excerpt</span><p className="egm-research-excerpt-text">{plainExcerpt(evidence)}</p></blockquote>
 }
@@ -25,12 +32,12 @@ const focusText=value=>{
   if(!value) return '—'
   const first=String(value).trim().match(/^.*?[.!?](?=\s|$)/)?.[0]??String(value).trim()
   const concise=first.length>140?first.slice(0,137).replace(/\s+\S*$/,'')+'…':first
-  return <span className="egm-research-description" title={value}>{concise}</span>
+  return <Hint className="egm-research-description" title={value}>{concise}</Hint>
 }
 const yesNo=value=>value?'Found':'Not matched'
 const hostnameOf=value=>{try{return new URL(value).hostname}catch{return String(value??'')}}
-const readmeMatch=value=><span className="egm-research-match" role="img" aria-label={value?'Matched in README':'Not matched in README'} title={value?'Matched in README':'Not matched in README'}>{value?<Icon name="check" size={16}/>:<span aria-hidden="true">−</span>}</span>
-const observedGrowth=(value,row)=>value==null?<span title={`Monitoring baseline${row.baselineAt?`: ${row.baselineAt}`:''}`} aria-label="Monitoring baseline">—</span>:`${value>=0?'+':''}${value.toLocaleString('en-US')}`
+const readmeMatch=value=><Hint className="egm-research-match" role="img" aria-label={value?'Matched in README':'Not matched in README'} title={value?'Matched in README':'Not matched in README'}>{value?<Icon name="check" size={16}/>:<span aria-hidden="true">−</span>}</Hint>
+const observedGrowth=(value,row)=>value==null?<Hint title={`Monitoring baseline${row.baselineAt?`: ${row.baselineAt}`:''}`} aria-label="Monitoring baseline">—</Hint>:`${value>=0?'+':''}${value.toLocaleString('en-US')}`
 const starCount=value=>typeof value==='number'?(Math.abs(value)>=1000?`${(value/1000).toFixed(1)}K`:value.toLocaleString('en-US')):'—'
 const seoLabels={domain:'Domain',keyword:'Keyword',position:'Position',search_volume:'Search volume',traffic:'Estimated traffic',organic_keywords:'Organic keywords',organic_traffic:'Estimated organic traffic',organic_cost:'Estimated organic traffic value',adwords_keywords:'Paid keywords',adwords_traffic:'Estimated paid traffic',backlinks:'Backlinks',total:'Total',referring_domains:'Referring domains',referring_ips:'Referring IPs',common_keywords:'Shared keywords',competition_level:'Competition level',url:'URL'}
 const seoColumn=field=>({field,label:seoLabels[field]??field.replaceAll('_',' ').replace(/^./,s=>s.toUpperCase()),...(['keyword','url','domain'].includes(field)?{renderCell:wrappedText}:{})})
@@ -49,6 +56,7 @@ function SearchVisibility({queries}) {
   const unavailableCopy=status?.reason==='no_api_units'?'The connected Semrush account has no MCP API units. Activate MCP access on the trial account, then reconnect Semrush with that account.':status?.status==='expired'?'The configured Semrush collection window has ended. Previously collected evidence remains available below.':'Semrush has not returned a successful collection. Its current status and collection details are available in Sources.'
   return <Section title="Search visibility" id="research-semrush">
     {reports.map(([id,title])=>{const sourceRows=queries[id].rows;const isBacklinks=id==='seo_backlinks'&&sourceRows.length===1;const rows=isBacklinks?Object.entries(sourceRows[0]).map(([field,value])=>({metric:backlinkLabels[field]??field,value})):id==='seo_top_backlinks'?backlinkPages(sourceRows):sourceRows;return <DataComponent key={id} id={`research-${id.replaceAll('_','-')}`} queryId={id} title={title} kind="table" variant="card" displayRows={rows} sourceRows={sourceRows}>
+      <CollectedAt query={queries[id]}/>
       {status?.reportStates?.[id]==='no_data'?<p className="egm-copy">Semrush returned no matching records for egm.dev with these report parameters. This does not establish zero traffic, keywords, or competitors.</p>:<DataTable rows={rows} label={`Semrush ${title.toLowerCase()}`} searchable={rows.length>8&&!isBacklinks} columns={isBacklinks?[{field:'metric',label:'Measure'},{field:'value',label:'Value'}]:seoColumns(id,rows)} />}
     </DataComponent>})}
     {statusQuery&&<DataComponent id="research-semrush-status" queryId="semrush_status" queryIds={coverageIds} title="Semrush coverage" kind="custom" variant="card" displayRows={statusQuery.rows} sourceRowsByQuery={coverageRows}>
@@ -69,10 +77,12 @@ function DiscussionSignals({queries}) {
   const sourceRowsByQuery={research_evidence:rows,...(statusQuery?{research_status:statusQuery.rows}: {})}
   return <Section title="Verified discussion signals" id="research-discussion">
     <DataComponent id="research-discussion-evidence" queryId="research_evidence" queryIds={queryIds} title="Source checks and experiment proposals" kind="custom" variant="card" displayRows={rows} sourceRowsByQuery={sourceRowsByQuery}>
+      <CollectedAt query={query}/>
+      <p className="egm-note">Reference checks use saved page prose. A project name appearing only in a link does not verify the page or its claims.</p>
       <div className="egm-discussion-list" data-reviewed-rows>{verified.map(row=>{const signal=row.themes?.[0];const quote=signal?.quote?.trim().split(/\s+/).slice(0,24).join(' ');return <article key={row.url}>
         <h3>{link(row.url,row.title||hostnameOf(row.url))}</h3>
         <button type="button" className="egm-signal-status history-tooltip-trigger" aria-label="Verified reference. A reference to EGM was found in the retrieved page. This does not verify every claim."><Icon name="check" size={14}/> Verified reference<Tooltip>A reference to EGM was found in the retrieved page. This does not verify every claim.</Tooltip></button>
-        {quote&&<><p className="egm-signal-quote"><q>{quote}{signal.quote.trim().split(/\s+/).length>24?'…':''}</q></p><p>Suggested test: {researchProposal(signal.theme)}</p></>}
+        {quote&&<p className="egm-signal-quote"><q>{quote}{signal.quote.trim().split(/\s+/).length>24?'…':''}</q></p>}
       </article>})}</div>
       {unchecked.length>0&&<details className="egm-unverified-sources"><summary>{unchecked.length} unverified {unchecked.length===1?'source':'sources'}</summary>{unchecked.map(row=><p key={row.url}>{link(row.url,row.title||row.url)} · {row.status==='inaccessible'?'Could not retrieve':'Project reference not confirmed'}</p>)}</details>}
       {['stale','unavailable','failed','error'].includes(statusQuery?.rows?.[0]?.status)&&<p className="egm-note">Collection: {statusQuery.rows[0].status}.</p>}
@@ -97,10 +107,11 @@ function ResearchCandidates({queries}) {
     return (text.toLowerCase().match(/\b(the|and|of|to|for|with|is|in|how|what|why|using|agent|workflow|review|model|code|design|software|skills|google|elephant|goldfish)\b/g)??[]).length>=2
   }
   const selected=rows.filter(row=>(language==='all'||isEnglish(row))&&`${row.title??''} ${row.evidence??''} ${row.domain??''} ${(row.queryAngles??[]).join(' ')}`.toLowerCase().includes(search.toLowerCase().trim()))
-  const controls=<div className="egm-research-controls">{searchOpen&&<input id="research-leads-search" autoFocus type="search" value={search} onChange={event=>setSearch(event.target.value)} aria-label="Search research leads" placeholder="Search leads"/>}<button type="button" aria-label={searchOpen?'Close research search':'Search research leads'} aria-expanded={searchOpen} aria-controls={searchOpen?'research-leads-search':undefined} onClick={()=>{setSearchOpen(!searchOpen);if(searchOpen)setSearch('')}}><Icon name={searchOpen?'close':'search'} size={16}/></button></div>
+  const controls=<div className="egm-research-controls">{searchOpen&&<input className="egm-field egm-field--compact" id="research-leads-search" autoFocus type="search" value={search} onChange={event=>setSearch(event.target.value)} aria-label="Search research leads" placeholder="Search leads"/>}<Button variant="ghost" className="egm-icon-button" aria-label={searchOpen?'Close research search':'Search research leads'} aria-expanded={searchOpen} aria-controls={searchOpen?'research-leads-search':undefined} onClick={()=>{setSearchOpen(!searchOpen);if(searchOpen)setSearch('')}}><Icon name={searchOpen?'close':'search'} size={16}/></Button></div>
   const languageActions=<><MenuItem role="menuitemradio" aria-checked={language==='english'} leading={<span className="egm-filter-check">{language==='english'&&<Icon name="check" size={16}/>}</span>} onSelect={()=>setLanguage('english')}>English only{estimated?' (estimated)':''}</MenuItem><MenuItem role="menuitemradio" aria-checked={language==='all'} leading={<span className="egm-filter-check">{language==='all'&&<Icon name="check" size={16}/>}</span>} onSelect={()=>setLanguage('all')}>All languages</MenuItem></>
   return <Section title="Research leads" id="research-candidates">
     <DataComponent id="research-candidate-table" queryId="exa_research" queryIds={queryIds} title="Discussion, tutorial, and workflow candidates" kind="custom" variant="card" className="egm-research-candidates" headerControls={controls} additionalActions={languageActions} displayRows={selected} sourceRowsByQuery={sourceRowsByQuery}>
+      <CollectedAt query={query}/>
       <div className="egm-research-leads" data-reviewed-rows>{selected.map(row=><article key={row.url}><div><h3>{link(row.url,row.title)}</h3><p className="egm-note egm-research-angles">{(row.queryAngles??[]).map(angle=>{const item=angle==='Friction and discussions'?['Discussion','chatBubble']:angle==='Tutorials and first run'?['Tutorial','monitor']:angle==='Comparable workflow candidates'?['Workflow','textDocument']:[angle,'link'];return <span key={angle}><Icon name={item[1]} size={14}/>{item[0]}</span>})}</p></div><ResearchExcerpt evidence={row.evidence}/></article>)}</div>
       {!selected.length&&<p className="egm-note">No leads match these filters.</p>}
       <ResearchLeadStatus selected={selected.length} total={rows.length} language={language} estimated={estimated}/>
@@ -111,7 +122,7 @@ function ResearchCandidates({queries}) {
 export function Research() {
   const {queries}=useDataApp()
   const peers=queries.peers?.rows??[],emerging=queries.emerging?.rows??[]
-  if(!peers.length) return <><PageSummary page="research" queries={queries}/><p className="egm-note">Repo research has not completed its first source collection.</p><DiscussionSignals queries={queries}/><ResearchCandidates queries={queries}/><SearchVisibility queries={queries}/></>
+  if(!peers.length) return <><PageSummary page="research" queries={queries}/><p className="egm-note">Repo research has not completed its first source collection.</p>{savedAnalysis(queries,'research_opportunities')&&<SavedAnalysis id="research_opportunities" queries={queries}/>}<DiscussionSignals queries={queries}/><ResearchCandidates queries={queries}/><SearchVisibility queries={queries}/></>
   const egm=peers.find(r=>r.repo==='google/elephant-goldfish-model')
   const alternatives=peers.filter(r=>r!==egm)
   const media=alternatives.filter(r=>r.demo).length
@@ -133,21 +144,23 @@ export function Research() {
   const recommendationIcons={'First-run discovery':'arrowUpRight','Show the workflow':'monitor','Channel concentration':'link','Follow observed content interest':'textDocument'}
   return <>
     <PageSummary page="research" queries={queries}/>
-    <Section id="research-peers" spacing="none">
+    <Section title="Gaps and experiments" id="research-opportunities" spacing="none">
+      <SavedAnalysis id="research_opportunities" queries={queries} fallback={<DataComponent id="research-opportunity-list" queryId="peers" queryIds={opportunityQueryIds} title="Opportunities to test" kind="custom" variant="card" displayRows={suggestions} sourceRowsByQuery={opportunitySourceRows}>
+        <div className="egm-opportunities">{!suggestions.length&&<EmptyState title="No experiments to suggest yet">Suggestions appear once peer, referral, or page data is collected.</EmptyState>}{suggestions.map(item=><div key={item.title}><h3 className="egm-recommendation-title"><Icon name={recommendationIcons[item.title]} size={20}/>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} {safeExternalUrl(item.source)&&<Hint as="a" className="egm-evidence-link" href={safeExternalUrl(item.source)} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></Hint>}</p></div>)}</div>
+      </DataComponent>}/>
+    </Section>
+    <Section id="research-peers">
       <DataComponent id="research-peer-table" queryId="peers" title="Reach and first-run discovery" kind="table" variant="card" displayRows={peers} sourceRows={peers}>
+        <CollectedAt query={queries.peers}/>
         <DataTable rows={peers} searchable={false} label="Comparable repo signals" columns={[{field:'repo',label:'Repo',renderCell:repoLink},{field:'stars',label:'Stars',renderCell:starCount},{field:'observedDelta',label:'Since monitoring',renderCell:observedGrowth},{field:'quickStart',label:'Quick start',renderCell:readmeMatch},{field:'demo',label:'Demo',renderCell:readmeMatch}]} />
         <p className="egm-note">Growth since monitoring began.</p>
-      </DataComponent>
-    </Section>
-    <Section title="Gaps and experiments" id="research-opportunities">
-      <DataComponent id="research-opportunity-list" queryId="peers" queryIds={opportunityQueryIds} title="Opportunities to test" kind="custom" variant="card" displayRows={suggestions} sourceRowsByQuery={opportunitySourceRows}>
-        <div className="egm-opportunities">{!suggestions.length&&<EmptyState title="No experiments to suggest yet">Suggestions appear once peer, referral, or page data is collected.</EmptyState>}{suggestions.map(item=><div key={item.title}><h3 className="egm-recommendation-title"><Icon name={recommendationIcons[item.title]} size={20}/>{item.title}</h3><p className="egm-action">{item.action}</p><p className="egm-action-evidence">{item.evidence} {safeExternalUrl(item.source)&&<a className="egm-evidence-link" href={safeExternalUrl(item.source)} target="_blank" rel="noreferrer" aria-label={`View evidence for ${item.title}`} title={`View evidence for ${item.title}`}><Icon name="arrowUpRight" size={14}/></a>}</p></div>)}</div>
       </DataComponent>
     </Section>
     <DiscussionSignals queries={queries}/>
     <ResearchCandidates queries={queries}/>
     <Section title="Newly popular agent repos" id="research-discovery">
       <DataComponent id="research-emerging-table" queryId="emerging" title="Created in the last 30 days" kind="table" variant="card" displayRows={emerging} sourceRows={emerging}>
+        <CollectedAt query={queries.emerging}/>
         {!emerging.length?<EmptyState title="No new repos found">No agent repos over 100 stars were created in the last 30 days, or the search has not run yet.</EmptyState>:<DataTable rows={emerging} searchable={false} label="Newly popular agent repos" columns={[{field:'repo',label:'Repo',renderCell:repoLink},{field:'stars',label:'Stars',renderCell:starCount},{field:'created',label:'Created',renderCell:createdDate},{field:'description',label:'Focus',renderCell:focusText}]} />}
         <p className="egm-note">GitHub search for agent-related descriptions, over 100 stars, created in the last 30 days. Ranked by current total stars. This is discovery, not GitHub Trending or proof of virality.</p>
       </DataComponent>

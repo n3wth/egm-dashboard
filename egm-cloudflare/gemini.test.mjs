@@ -7,6 +7,14 @@ const sse=events=>new Response(events.map(event=>'data: '+JSON.stringify(event)+
 const read=async stream=>{let text='';const reader=stream.getReader();const decoder=new TextDecoder();for(;;){const {done,value}=await reader.read();if(done)return text;text+=decoder.decode(value)}}
 
 test('no key means no runner',()=>assert.equal(geminiRunner({}),null))
+test('daily analysis may request JSON without changing ordinary Ask generation',async()=>{
+  const configs=[]
+  const runner=geminiRunner({GEMINI_API_KEY:'k'},async(url,init)=>{configs.push(JSON.parse(init.body).generationConfig);return Response.json({candidates:[{content:{parts:[{text:'{}'}]}}]})})
+  await runner.run(GEMINI_MODEL,{messages,max_tokens:4096,temperature:0.1,stream:false,json:true})
+  await runner.run(GEMINI_MODEL,{messages,max_tokens:2048,temperature:0.1,stream:false})
+  assert.equal(configs[0].responseMimeType,'application/json')
+  assert.equal(Object.hasOwn(configs[1],'responseMimeType'),false)
+})
 test('maps messages, sends the key in a header and returns the answer text',async()=>{
   let seen
   const runner=geminiRunner({GEMINI_API_KEY:'k'},async(url,init)=>{seen={url,init};return Response.json({candidates:[{content:{parts:[{text:'Hello '},{text:'there'},{thought:true,text:'hidden'}]}}]})})

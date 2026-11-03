@@ -37,6 +37,7 @@ import { BarFamilyRenderer } from "./BarFamilyRenderer.jsx";
 import { ComponentState } from "./ChartState.jsx";
 import { getChartSpecError } from "./chart-spec-validation.js";
 import { NumericXAxis, NumericYAxis } from "./NumericAxes.jsx";
+import { zeroAnchoredDomain } from './numeric-axis-scale.mjs';
 import { captureChartHoverCard } from "./ChartMark.jsx";
 import { ChartFrame } from "./ChartFrame.jsx";
 import { ChartTooltip, PointerChartTooltip } from "./ChartTooltip.jsx";
@@ -220,10 +221,6 @@ function IsolatedLineDot({ indexes, index, cx, cy, stroke, fill, strokeWidth, st
 }
 
 const dateValue = isTemporalCategory;
-
-function zeroAnchoredDomain([minimum, maximum]) {
-  return [Math.min(0, minimum), Math.max(0, maximum)];
-}
 
 // Defined only for release-time inline targets. Source builds and full dashboards
 // retain every branch; inline bundles share these exact implementations.
@@ -656,7 +653,7 @@ function StandardChartRenderer({
     <ValueYAxis
       type={horizontal ? "category" : "number"}
       dataKey={horizontal ? x : undefined}
-      {...(horizontal ? {} : { percent: primaryAxisPercent, ticks: benchmarkDomain ? undefined : primaryPercentTicks, currency: spec.currency })}
+      {...(horizontal ? {} : { percent: primaryAxisPercent, ticks: benchmarkDomain ? undefined : primaryPercentTicks, currency: spec.currency, allowDecimals: Boolean(primaryAxisPercent) || spec.valueDecimals !== 0 })}
       percentDigits={spec.axisPercentDigits}
       tickCount={benchmarkDomain ? 6 : spec.yTickCount ?? 5}
       domain={!horizontal ? benchmarkDomain ?? valueDomain : undefined}
@@ -695,6 +692,7 @@ function StandardChartRenderer({
         width: yAxisPosition === "right" || fixedAxisWidths ? secondaryNumericAxisWidth : "auto" })}
     currency={spec.currency}
     percent={axisUnit(rightFields)}
+    allowDecimals={Boolean(axisUnit(rightFields)) || spec.valueDecimals !== 0}
     percentDigits={spec.axisPercentDigits}
     ticks={secondaryBenchmarkDomain ? undefined : secondaryPercentTicks}
     domain={secondaryBenchmarkDomain ?? valueDomain}
@@ -736,7 +734,7 @@ function StandardChartRenderer({
       {...(temporalValues.length ? { values:temporalValues, continuous:continuousTime, banded:barFields.length > 0 || ["bar","stackedBar","stackedBar100"].includes(type) } : {})}
       type={horizontal || quantitativeXAxis ? "number" : "category"}
       dataKey={horizontal ? undefined : continuousTime ? row => Date.parse(row[x]) : x}
-      {...(horizontal ? { percent: primaryAxisPercent, currency: spec.currency } : quantitativeXAxis ? { allowDecimals: !integerXAxis } : {})}
+      {...(horizontal ? { percent: primaryAxisPercent, currency: spec.currency, allowDecimals: Boolean(primaryAxisPercent) || spec.valueDecimals !== 0 } : quantitativeXAxis ? { allowDecimals: !integerXAxis } : {})}
       percentDigits={horizontal ? spec.axisPercentDigits : undefined}
       tickCount={horizontal && benchmarkDomain ? 6 : horizontal && !proportional ? 4 : undefined}
       domain={quantitativeXAxis ? numericXDomain : horizontal ? benchmarkDomain ?? valueDomain : undefined}

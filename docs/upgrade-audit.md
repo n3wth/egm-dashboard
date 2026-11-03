@@ -72,7 +72,9 @@ Done in the second round:
 
 Still open:
 
+- **Reduce first-load code.** Static content-hashed chunks now support private repeat-visit caching after authentication. First visits still load all modules. Lazy loading would need a recovery path for missing old chunks during deployment before it can safely reduce that initial transfer.
 - **Lazy-load the Ask panel, WorkOS widgets and editing tools.** Chunks are all static imports today: a deploy removes the previous chunks, so a lazy chunk could 404 in a tab opened before the deploy. Lazy loading needs a reload-on-missing-chunk fallback first. Replace the full `@radix-ui/react-icons` import with the icons in use.
 - **A Feedback link on the error screen** once the Feedback flow can open without loaded data.
 - **Labelled tabs on wide screens, or a scroll cue on mobile** in the topbar (protected chrome).
 - **Fix the dev-only deep-link redirect** caused by StrictMode double registration in `registerDashboardTabs` (protected shell).
+- **Longer chart ranges.** Daily traffic and overlapping query observations are now retained in normalized D1 archive tables without expiry. The dashboard still shows current-window queries; a bounded historical read and range control would expose older retained dates without sending the entire archive to each viewer.

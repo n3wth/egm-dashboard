@@ -1,3 +1,4 @@
+import { Hint } from './NavTooltip.jsx'
 import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 
@@ -1053,7 +1054,7 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
           )}
           <footer>
             {discardVisible && (
-              <button
+              <Hint as="button"
                 type="button"
                 className="dashboard-ask-discard"
                 onClick={discardComposer}
@@ -1061,7 +1062,7 @@ export function DashboardAskProvider({ canEdit = false, enabled, explorationEnab
                 title="Discard question"
               >
                 <Icon name="trash" size={16} />
-              </button>
+              </Hint>
             )}
             <button type="submit"
               className="dashboard-ask-submit"

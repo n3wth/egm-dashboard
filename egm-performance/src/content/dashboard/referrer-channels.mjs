@@ -3,8 +3,11 @@ const channels={Google:'Google','google.com':'Google','youtube.com':'YouTube','m
 const searchVideo=new Set(['Google','YouTube'])
 
 export function channelOf(referrer) {
-  const key=String(referrer??'')
-  return channels[key]??channels[key.toLowerCase()]??key
+  const key=String(referrer??'').trim()
+  const normalized=key.toLowerCase().replace(/^www\./,'')
+  if(['t.co','x.com','twitter.com','x'].includes(normalized))return 'X'
+  if(['trendshift.io','trendshift'].includes(normalized))return 'Trendshift'
+  return channels[key]??channels[normalized]??key
 }
 
 export const isSearchVideo=referrer=>searchVideo.has(channelOf(referrer))

@@ -1,3 +1,4 @@
+import { Hint } from '../../data-app-public.jsx'
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
@@ -23,7 +24,7 @@ export function AskCompletion({status}) { return <span role="status" className="
 function ObservedAt({value,dateOnly=false,bare=false}) {
   if(typeof value!=='string'||!Number.isFinite(Date.parse(value)))return null
   const options={month:'short',day:'numeric',...(dateOnly?{timeZone:'America/Los_Angeles'}:{hour:'numeric',minute:'2-digit'})}
-  return <time dateTime={value} title={value}>{bare?'':' · '}{dateOnly?new Date(value).toLocaleDateString('en-US',options):new Date(value).toLocaleString('en-US',options)}</time>
+  return <Hint as="time" dateTime={value} title={value}>{bare?'':' · '}{dateOnly?new Date(value).toLocaleDateString('en-US',options):new Date(value).toLocaleString('en-US',options)}</Hint>
 }
 
 // Ask primitives: every answer type composes these instead of adding one-off markup.
@@ -47,15 +48,15 @@ const stepIcon={active:<Icon name="spinner" size={14} className="egm-spin"/>,don
 export const messageSteps=message=>(message?.parts??[]).filter(part=>part.type==='data-step').map(part=>part.data)
 
 // AI Elements chain-of-thought: open while running, collapses when done, a user toggle wins.
-function Trace({steps,running}) {
+export function Trace({steps,running,outcome='complete'}) {
   const [choice,setChoice]=useState(null)
   const open=choice??running
-  const shown=running?steps:steps.map(step=>step.status==='active'?{...step,status:'done'}:step)
+  const shown=running?steps:steps.map(step=>step.status==='active'?{...step,status:outcome==='complete'?'done':'skipped'}:step)
   return <div className="egm-trace" data-open={open}>
-    <button type="button" className="egm-trace-trigger" aria-expanded={open} onClick={()=>setChoice(!open)}><Mark working={running} decorative/><span role="status">{running?<Shimmer>Thinking</Shimmer>:`Done in ${shown.length} step${shown.length===1?'':'s'}`}</span><Icon name="chevronRight" size={14}/></button>
+    <button type="button" className="egm-trace-trigger" aria-expanded={open} onClick={()=>setChoice(!open)}><Mark working={running} decorative/><span role="status">{running?<Shimmer>Thinking</Shimmer>:outcome==='complete'?`Done in ${shown.length} step${shown.length===1?'':'s'}`:outcome==='stopped'?'Stopped':'Interrupted'}</span><Icon name="chevronRight" size={14}/></button>
     {open&&<ol className="egm-trace-steps">
       {!shown.length&&running&&<li><span className="egm-trace-icon">{stepIcon.active}</span><Shimmer>Reading dashboard data…</Shimmer></li>}
-      {shown.map(step=><li key={step.id} data-status={step.status}><span className="egm-trace-icon">{stepIcon[step.status]}</span>{step.status==='active'?<Shimmer>{step.label}</Shimmer>:step.label}{step.detail&&<span className="egm-trace-detail">{step.detail}</span>}</li>)}
+      {shown.map(step=><li key={step.id} data-status={step.status}><span className="egm-trace-icon">{stepIcon[step.status]}</span><span className="egm-trace-text">{step.status==='active'?<Shimmer>{step.label}</Shimmer>:step.label}{step.detail&&<span className="egm-trace-detail">{step.detail}</span>}</span></li>)}
     </ol>}
   </div>
 }
@@ -75,17 +76,18 @@ export function AnswerCard({card,index,turnId}) {
 }
 
 const statusNote=(status,stopped)=>stopped?'Stopped.':status==='submitted'?'Reading dashboard data…':status==='streaming'?'Generating…':status==='error'?'':''
-const resultLabel=result=>result.toolStatus?.status==='live'?'GitHub checked live':result.toolStatus?.status==='unavailable'?'Live check unavailable. Saved data shown.':'Saved dashboard data'
+const resultLabel=result=>result.toolStatus?.status==='live'?'Repository totals checked live':result.toolStatus?.status==='unavailable'?'Live repository check unavailable. Saved data shown.':'Saved dashboard data'
 export function AskError({message,onRetry}) {
   const text=message||'Could not reach Ask. Try again.'
   return <div className="egm-ask-error" role="alert"><p>{text}</p>{askNeedsSignIn(text)?<button type="button" onClick={()=>location.reload()}>Sign in again</button>:askRetryable(text)&&<button type="button" onClick={onRetry}>Retry</button>}</div>
 }
 const coarsePointer=()=>typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches
 
-function CopyButton({text}) {
+export function CopyButton({text}) {
   const [copied,setCopied]=useState(false)
+  const [failed,setFailed]=useState(false)
   useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),1500);return ()=>clearTimeout(timer)},[copied])
-  return <button type="button" onClick={()=>navigator.clipboard?.writeText(text).then(()=>setCopied(true),()=>{})} aria-label={copied?'Copied':'Copy answer'} title={copied?'Copied':'Copy answer'}><Icon name={copied?'check':'copy'} size={16}/></button>
+  return <><Hint as="button" type="button" onClick={async()=>{setFailed(false);try{await navigator.clipboard.writeText(text);setCopied(true)}catch{setCopied(false);setFailed(true)}}} aria-label={copied?'Copied':'Copy answer'} title={copied?'Copied':'Copy answer'}><Icon name={copied?'check':'copy'} size={16}/></Hint><span className={failed?'egm-copy-error':'egm-ask-live'} role="status">{failed?'Could not copy. Select the answer to copy it manually.':copied?'Answer copied.':''}</span></>
 }
 
 function SourceRow({source,index,messageId}) {
@@ -154,7 +156,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   useEffect(()=>{
     if(!open||!hosts)return
     const outside=event=>{if(event.target.closest?.('[role="menu"],[role="dialog"],.source-sidebar'))return;if(!hosts.headerHost.contains(event.target)&&!hosts.bodyHost.contains(event.target)&&shouldDismissAsk(busy))onClose()}
-    const escape=event=>{if(event.key==='Escape'){event.preventDefault();stop();onClose()}}
+    const escape=event=>{if(event.key==='Escape'&&!event.defaultPrevented&&!event.target.closest?.('[role="menu"],[role="dialog"],.source-sidebar')&&!document.querySelector('.source-sidebar-layer:not(.is-closing)')){event.preventDefault();stop();onClose()}}
     const scroll=()=>{const at=nearBottom();followBottom.current=at;setAtBottom(at)}
     document.addEventListener('pointerdown',outside)
     document.addEventListener('keydown',escape)
@@ -175,7 +177,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   if(!open||!hosts)return null
   const submit=event=>{event.preventDefault();send(question)}
   const keyDown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing&&!coarsePointer()){event.preventDefault();send(question)}}
-  const action=busy?<button type="button" onClick={stop} aria-label="Stop generating" title="Stop generating"><Icon name="stop" size={18}/></button>:<button type="submit" aria-label="Send question" disabled={!question.trim()}><Icon name="sendUp" size={18}/></button>
+  const action=busy?<Hint as="button" type="button" onClick={stop} aria-label="Stop generating" title="Stop generating"><Icon name="stop" size={18}/></Hint>:<button type="submit" aria-label="Send question" disabled={!question.trim()}><Icon name="sendUp" size={18}/></button>
   const inline=<form className="egm-ask-inline" onSubmit={submit}>
     <Icon name="gemini" size={16}/><input ref={input} aria-label="Ask Gemini" value={question} onChange={event=>setQuestion(event.target.value)} maxLength={1200} placeholder="Ask about EGM…" enterKeyHint="send" required/>
     {action}<button type="button" aria-label="Close Ask Gemini" onClick={close}><Icon name="cross" size={16}/></button>
@@ -187,7 +189,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
   const lastAssistantId=latest?.role==='assistant'?latest.id:null
   const starters=!question.trim()&&<AskStarters tabId={tabIdFromLocation(location.pathname,location.search)} onPick={starter=>{trackAskStarter(starter.id);send(starter.question)}}/>
   return <>
-    {createPortal(messages.length?<button className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask Gemini" title="Close Ask Gemini"><Icon name="gemini" size={18}/></button>:<>{inline}{starters}</>,hosts.headerHost)}
+    {createPortal(messages.length?<Hint as="button" className="egm-ask-active-toggle" type="button" onClick={close} aria-label="Close Ask Gemini" title="Close Ask Gemini"><Icon name="gemini" size={18}/></Hint>:<>{inline}{starters}</>,hosts.headerHost)}
     {messages.length>0&&createPortal(<section className="egm-ask-conversation" aria-label="Ask Gemini conversation">
       <div className="egm-ask-toolbar"><button className="egm-ask-new" type="button" onClick={()=>{stop();setStopped(new Set());setMessages([])}}><Icon name="plus" size={16}/>New chat</button></div>
       <span className="egm-ask-live" aria-live="polite">{statusNote(status,latest&&stopped.has(latest.id))}{status==='ready'&&latestResult?' Answer complete.':''}</span>
@@ -201,11 +203,11 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
           // A stream that failed before any content leaves an empty reply; the error card below explains it.
           if(!streaming&&!text&&!steps.length&&!result&&!stopped.has(message.id))return null
           return <div className="egm-ask-assistant" key={message.id} aria-busy={streaming}>
-            {(steps.length>0||streaming)?<><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={steps} running={streaming&&!result}/></>:<span className="egm-chat-speaker"><Mark/></span>}
+            {(steps.length>0||streaming)?<><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={steps} running={streaming&&!result} outcome={stopped.has(message.id)?'stopped':result?'complete':'interrupted'}/></>:<span className="egm-chat-speaker"><Mark/></span>}
             {text&&<AnswerBody text={text} result={result} messageId={message.id} streaming={streaming}/>}
             {stopped.has(message.id)&&<p className="egm-note">Stopped. {text?'Partial response.':'No response generated.'}</p>}
             {typeof result?.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
-            {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={result?.coverageNote?`${text}\n\n${result.coverageNote}`:text}/>{message.id===lastAssistantId&&!busy&&<button type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></button>}</div>}
+            {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={result?.coverageNote?`${text}\n\n${result.coverageNote}`:text}/>{message.id===lastAssistantId&&!busy&&<Hint as="button" type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></Hint>}</div>}
             {result&&<SourceList sources={result.sources} messageId={message.id}/>}
           </div>
         })())}

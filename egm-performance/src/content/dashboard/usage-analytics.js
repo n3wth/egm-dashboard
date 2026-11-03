@@ -4,7 +4,35 @@ import { starterIds } from './ask-starters.mjs'
 
 const sections = new Set(['reach', 'acquisition', 'adoption', 'website', 'development', 'research', 'mentions'])
 let initialized = false
+let identified = false
+let logoutBound = false
 let lastSection
+
+function bindLogout() {
+  if (logoutBound || typeof document === 'undefined') return
+  logoutBound = true
+  document.addEventListener('submit', event => {
+    const form = event.target
+    const action = form?.getAttribute?.('action') ?? ''
+    if (action === '/auth/logout' || action.endsWith('/auth/logout')) posthog.reset()
+  }, true)
+}
+
+async function identifySignedInUser() {
+  if (identified) return
+  identified = true
+  try {
+    const response = await fetch('/api/presentation', { credentials: 'same-origin' })
+    if (!response.ok) return
+    const data = await response.json()
+    const viewer = data?.viewer
+    if (!/^user_[A-Za-z0-9]+$/.test(viewer?.id ?? '')) return
+    const properties = {}
+    if (typeof viewer.email === 'string' && viewer.email) properties.email = viewer.email
+    if (typeof viewer.name === 'string' && viewer.name) properties.name = viewer.name
+    posthog.identify(viewer.id, properties)
+  } catch { identified = false }
+}
 
 function initialize() {
   const token = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN
@@ -15,8 +43,8 @@ function initialize() {
       api_host: host,
       defaults: '2026-08-30',
       autocapture: false,
-      capture_pageview: false,
-      capture_pageleave: false,
+      capture_pageview: 'history_change',
+      capture_pageleave: true,
       disable_session_recording: true,
       disable_surveys: true,
       disable_web_experiments: true,
@@ -25,8 +53,15 @@ function initialize() {
       before_send: filterUsageEvent,
     })
     initialized = true
+    bindLogout()
+    identifySignedInUser()
   }
   return true
+}
+
+export function resetUsageIdentity() {
+  if (!initialize()) return
+  posthog.reset()
 }
 
 export function trackDashboardSection(section) {
