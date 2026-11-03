@@ -178,6 +178,7 @@ function AcrossEgm({queries}) {
       <article className="egm-highlight egm-highlight-experiment">
         <h3>Suggested experiment</h3>
         {analysis?<AnalysisText analysis={analysis}/>:<>{experiment?<><div className="egm-experiment-plan"><div><h4>{experiment.category==='first-use'?'Find the first-use blocker':experiment.category==='docs'?'Test the path through the docs':'Test one distribution channel'}</h4><p className="egm-highlight-value">{experiment.action}</p><p className="egm-highlight-success"><strong>Measure</strong>{experiment.success}</p></div><div className="egm-experiment-basis"><h4>Why this test</h4><ul className="egm-experiment-evidence">{experiment.evidence.map(item=><li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}</ul><details className="egm-highlight-rule"><summary>How this is picked</summary><AnalysisLabel/><p>{experiment.rule}</p></details></div></div></>:<p className="egm-highlight-value">No specific first-use, documentation, or recorded-channel evidence supports an experiment yet.</p>}</>}
+        <PageLink className="egm-highlight-link" page="development">Review weekly building brief <Icon name="arrowUpRight" size={14}/></PageLink>
       </article>
     </div>
   </DataComponent>
@@ -278,7 +279,6 @@ function TabPage({activeTabId}) {
       {metric('adoption-clones','reach','Clone operations',reach.clones,`Times the repo was copied with Git over ${window}, including repeat copies and automated tools. This does not measure installs or active users.`)}
     </Section>
     <Section id="adoption-depth-heading" title="Code access and package downloads">
-      {clonePlot('adoption-clone-history')}
       {downloadsTable('adoption-release-downloads')}
     </Section>
   </>

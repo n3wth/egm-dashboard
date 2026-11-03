@@ -344,6 +344,13 @@ export async function handle(request,env,ctx) {
               if(!parsed.queries[key]) {
                 parsed.queries[key]=value
                 merged=true
+              } else if(key==='weekly_brief' || key==='workflow_research') {
+                const seedAt=Date.parse(value?.source?.executedAt)
+                const parsedAt=Date.parse(parsed.queries[key]?.source?.executedAt)
+                if(Number.isFinite(seedAt) && Number.isFinite(parsedAt) && seedAt>parsedAt) {
+                  parsed.queries[key]=value
+                  merged=true
+                }
               }
             }
             if(parsed.queries.star_history?.rows && seed.queries.star_history?.rows && parsed.queries.star_history.rows.length<seed.queries.star_history.rows.length) {

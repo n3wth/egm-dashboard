@@ -14,10 +14,35 @@ export function formatUnknownValue(value, fallback = UNKNOWN_PLACEHOLDER) {
   return value
 }
 
+const utcShortDate = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'UTC',
+  month: 'short',
+  day: 'numeric'
+})
+const utcFullDate = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'UTC',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric'
+})
+
+export function formatBriefWindowLabel(startIso, endIso) {
+  const start = Date.parse(startIso)
+  const end = Date.parse(endIso)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 'Oct 26 – Nov 2, 2026 (UTC)'
+  return `${utcShortDate.format(new Date(start))} – ${utcFullDate.format(new Date(end))} (UTC)`
+}
+
+export function formatReviewIssueLabel(url) {
+  const match = typeof url === 'string' ? url.match(/\/issues\/(\d+)(?:$|[?#])/) : null
+  return match ? `Issue #${match[1]}` : 'Review issue'
+}
+
 export function weeklyBriefViewModel(queries = {}) {
   const briefQuery = queries.weekly_brief?.rows?.length ? queries.weekly_brief : (seed?.queries?.weekly_brief ?? {})
   const rows = Array.isArray(briefQuery.rows) ? briefQuery.rows : []
   const metadata = briefQuery.metadata ?? {}
+  const ossMetrics = (queries.oss_health?.metrics ?? seed?.queries?.oss_health?.metrics) ?? {}
 
   const commitments = rows
     .filter(row => row.section === 'commitments')
@@ -69,15 +94,22 @@ export function weeklyBriefViewModel(queries = {}) {
   // Ensure public draft has no private PostHog or internal attributes
   const { privateNotes, posthogTelemetry, internalReviewer, ...sanitizedPublicDraft } = rawPublicDraft
 
+  const windowStart = metadata.windowStart || '2026-10-26T00:00:00Z'
+  const windowEnd = metadata.windowEnd || '2026-11-02T00:00:00Z'
+  const reviewIssueUrl = metadata.reviewIssueUrl || 'https://github.com/n3wth/egm-dashboard/issues/132'
+  const latestRelease = metadata.latestRelease || ossMetrics.latestRelease || 'v0.1.0'
+
   return {
     source: briefQuery.source ?? null,
     isoWeek: metadata.isoWeek || '2026-W44',
-    windowStart: metadata.windowStart || '2026-10-26T00:00:00Z',
-    windowEnd: metadata.windowEnd || '2026-11-02T00:00:00Z',
-    latestRelease: metadata.latestRelease || 'v0.1.0',
+    windowStart,
+    windowEnd,
+    windowLabel: metadata.windowLabel || formatBriefWindowLabel(windowStart, windowEnd),
+    latestRelease,
     headline: metadata.headline || '',
     implication: metadata.implication || '',
-    reviewIssueUrl: metadata.reviewIssueUrl || 'https://github.com/n3wth/egm-dashboard/issues/132',
+    reviewIssueUrl,
+    reviewIssueLabel: formatReviewIssueLabel(reviewIssueUrl),
     commitments,
     improved,
     improvedByStage: {
@@ -166,6 +198,7 @@ export function workflowResearchViewModel(queries = {}) {
     rows,
     metrics: {
       firstWorkflowSessions: metrics.firstWorkflowSessions ?? null,
+      recordedWorkflowRows: rows.length,
       verifiedBlockerRetests: metrics.verifiedBlockerRetests ?? 2,
       pendingBlockerRetests: metrics.pendingBlockerRetests ?? 2,
       repeatUseRecorded: metrics.repeatUseRecorded ?? null
