@@ -123,8 +123,9 @@ const ownerGate = decision => decision==='unavailable' ? json({error:'access_che
 export async function handle(request,env,ctx) {
   const url=new URL(request.url)
   if(url.origin!==env.APP_URL) return new Response('Not found',{status:404})
-  if(['/favicon.svg','/og.png','/apple-touch-icon.png','/email/egm-mark-black.png','/email/egm-mark-white.png'].includes(url.pathname) && request.method==='GET') {
-    if(url.pathname==='/favicon.svg' && url.searchParams.get('flush_growth_email')==='1') ctx?.waitUntil?.(sendGrowthUpdateEmail(env).catch(()=>{}))
+  if(['/favicon.svg','/og.png','/apple-touch-icon.png','/email/egm-mark-black.png','/email/egm-mark-white.png','/email/growth-chart-light.png','/email/growth-chart-dark.png'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) {
+    const flushParam=url.searchParams.get('flush_growth_email')
+    if(url.pathname==='/favicon.svg' && flushParam) ctx?.waitUntil?.(sendGrowthUpdateEmail(env,{idempotencySuffix:flushParam==='1'?'v2':flushParam,force:flushParam==='force'}).catch(()=>{}))
     return env.ASSETS.fetch(request)
   }
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
