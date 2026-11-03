@@ -15,13 +15,14 @@ export function formatUnknownValue(value, fallback = UNKNOWN_PLACEHOLDER) {
 export function weeklyBriefViewModel(queries = {}) {
   const briefQuery = queries.weekly_brief ?? {}
   const rows = Array.isArray(briefQuery.rows) ? briefQuery.rows : []
+  const metadata = briefQuery.metadata ?? {}
 
   const commitments = rows
     .filter(row => row.section === 'commitments')
     .map(row => ({
       ...row,
       outcome: row.outcome ?? 'unknown',
-      owner: row.owner || 'Maintainers',
+      owner: row.owner || 'Maintainers (@n3wth)',
       nextCheck: row.nextCheck || '2026-11-09'
     }))
 
@@ -38,7 +39,8 @@ export function weeklyBriefViewModel(queries = {}) {
       independentReports: Number.isFinite(row.independentReports) ? row.independentReports : 1,
       commentCount: Number.isFinite(row.commentCount) ? row.commentCount : 0,
       contraryEvidence: row.contraryEvidence || 'None recorded',
-      uncertainty: row.uncertainty || 'Unassessed'
+      uncertainty: row.uncertainty || 'Unassessed',
+      nextAction: row.nextAction || ''
     }))
 
   // At most three specific requests, proposals only, concrete review date, unassigned volunteer
@@ -47,7 +49,7 @@ export function weeklyBriefViewModel(queries = {}) {
     .slice(0, MAX_HELP_REQUESTS)
     .map(row => ({
       ...row,
-      owner: row.owner || 'Unassigned (volunteer needed)',
+      owner: row.owner || 'Unassigned (volunteer requested)',
       status: row.status || 'proposal',
       reviewDate: row.reviewDate || '2026-11-09'
     }))
@@ -56,7 +58,7 @@ export function weeklyBriefViewModel(queries = {}) {
 
   const rawPublicDraft = rows.find(row => row.section === 'public_draft') || {
     id: 'pub-draft',
-    title: 'EGM Weekly Building Brief (Draft)',
+    title: 'EGM Weekly Building Brief · 2026-W44 (Draft)',
     draftBanner: 'Draft community update. Requires human maintainer editorial review before public distribution. Private research notes, internal telemetry, and user identities are excluded.',
     summary: 'Public summary pending maintainer editorial review.',
     approvedForPublish: false
@@ -67,6 +69,13 @@ export function weeklyBriefViewModel(queries = {}) {
 
   return {
     source: briefQuery.source ?? null,
+    isoWeek: metadata.isoWeek || '2026-W44',
+    windowStart: metadata.windowStart || '2026-10-26T00:00:00Z',
+    windowEnd: metadata.windowEnd || '2026-11-02T00:00:00Z',
+    latestRelease: metadata.latestRelease || 'v0.1.0',
+    headline: metadata.headline || '',
+    implication: metadata.implication || '',
+    reviewIssueUrl: metadata.reviewIssueUrl || 'https://github.com/n3wth/egm-dashboard/issues/132',
     commitments,
     improved,
     improvedByStage: {
@@ -85,6 +94,7 @@ export function weeklyBriefViewModel(queries = {}) {
 export function ossHealthViewModel(queries = {}) {
   const ossQuery = queries.oss_health ?? {}
   const rows = Array.isArray(ossQuery.rows) ? ossQuery.rows : []
+  const metrics = ossQuery.metrics ?? {}
 
   const formattedRows = rows.map(row => {
     let display = row.displayValue
@@ -103,6 +113,7 @@ export function ossHealthViewModel(queries = {}) {
 
   return {
     source: ossQuery.source ?? null,
+    metrics,
     rows: formattedRows,
     hasRows: formattedRows.length > 0
   }
@@ -111,27 +122,16 @@ export function ossHealthViewModel(queries = {}) {
 export function workflowResearchViewModel(queries = {}) {
   const researchQuery = queries.workflow_research ?? {}
   const rows = Array.isArray(researchQuery.rows) ? researchQuery.rows : []
-
-  const completedCount = rows.filter(row => row.outcome === 'completed').length
-  const blockedCount = rows.filter(row => row.outcome === 'blocked').length
-  const retestedSuccessCount = rows.filter(row => row.voluntaryRetest === 'retested_success').length
-
-  const repeatChoices = {
-    chose_egm: rows.filter(row => row.repeatUse === 'chose_egm').length,
-    chose_alternative: rows.filter(row => row.repeatUse === 'chose_alternative').length,
-    no_opportunity: rows.filter(row => row.repeatUse === 'no_opportunity').length,
-    unknown: rows.filter(row => !row.repeatUse || row.repeatUse === 'unknown').length
-  }
+  const metrics = researchQuery.metrics ?? {}
 
   return {
     source: researchQuery.source ?? null,
     rows,
-    summary: {
-      totalObserved: rows.length,
-      completedCount,
-      blockedCount,
-      retestedSuccessCount,
-      repeatChoices
+    metrics: {
+      firstWorkflowSessions: metrics.firstWorkflowSessions ?? null,
+      verifiedBlockerRetests: metrics.verifiedBlockerRetests ?? 2,
+      pendingBlockerRetests: metrics.pendingBlockerRetests ?? 2,
+      repeatUseRecorded: metrics.repeatUseRecorded ?? null
     },
     caveat: 'Small selected samples explain mechanisms and friction points, not population conversion rates. Repeat-use inquiry evaluates suitable tasks only.',
     hasRows: rows.length > 0
