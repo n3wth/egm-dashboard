@@ -4,7 +4,9 @@
 .egm-manage-users h3,.egm-manage-users p{margin:0}
 .egm-manage-users h3{font-size: var(--text-sm-size);font-weight:600;line-height:1.4}
 .egm-manage-users p,.egm-manage-users li span,.egm-manage-section-heading span{color:var(--secondary);font-size: var(--egm-text-label);line-height:1.55}
-.egm-invite-panel{display:grid;gap: var(--space-3);padding:0 0 20px;border-bottom:1px solid var(--border)}
+.egm-invite-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;padding:0 0 20px;border-bottom:1px solid var(--border)}
+.egm-invite-panel>form,.egm-invite-panel>p,.egm-invite-panel>.egm-manage-message,.egm-invite-created{grid-column:1/-1}
+.egm-invite-panel>form{margin:0}
 .egm-invite-panel h3+p{margin-top:4px;max-width:48ch}
 .egm-expiry-control{display:flex;align-items:center;gap: var(--space-2);color:var(--secondary);font-size: var(--egm-text-label)}
 .egm-expiry-trigger{min-width:104px;justify-content:space-between;gap:12px}
@@ -13,7 +15,13 @@
 .egm-invite-created label{display:grid;gap:7px;min-width:0;color:var(--text);font-size: var(--egm-text-label);font-weight:500}
 .egm-invite-email,.egm-invite-created{display:grid;grid-template-columns:minmax(0,1fr) auto;gap: var(--space-2);align-items:center}
 .egm-invite-email input,.egm-invite-created input{width:100%}
-.egm-invite-options{display:flex;align-items:center;justify-content:space-between;gap: var(--space-3);flex-wrap:wrap}
+.egm-invite-options{display:contents}
+.egm-invite-options>.egm-expiry-control{grid-row:1;grid-column:2;display:grid;gap:4px;font-size:var(--text-xs-size)}
+.egm-invite-options>.button{grid-column:1/-1;justify-self:start;display:inline-flex;align-items:center;gap:8px}
+.egm-invitation-history{margin-top:12px;color:var(--secondary);font-size:var(--text-xs-size)}
+.egm-invitation-history summary{cursor:pointer;padding:8px 0}
+.egm-invitation-history summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.egm-manage-users .egm-invitation-history li{padding-block:8px}
 .egm-invite-created{padding:14px;border:1px solid var(--border-strong);border-radius: var(--control-radius);background:var(--surface)}
 .egm-invite-created button{align-self:end}
 .egm-invite-created p{grid-column:1 / -1}
@@ -46,3 +54,4 @@
 .egm-manage-users .egm-manage-message p{min-width:0;color:var(--text);overflow-wrap:anywhere}
 .egm-manage-users .egm-empty{padding:20px 8px}
 @media(max-width:480px){.egm-manage-users .egm-field{min-height:44px}.egm-manage-users .egm-invite-options .button{min-height:44px}}
+@media(max-width:480px){.egm-invite-panel{grid-template-columns:minmax(0,1fr)}.egm-invite-options>.egm-expiry-control{grid-column:1;grid-row:2;display:flex;justify-content:space-between}.egm-invite-panel>form{grid-row:3}}
