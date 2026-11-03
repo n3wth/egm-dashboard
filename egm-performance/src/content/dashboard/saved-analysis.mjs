@@ -22,6 +22,7 @@ export function savedAnalysis(queries,id,now=Date.now()) {
 export function analysisSummary(summary,queries,id,now) {
   const analysis=savedAnalysis(queries,id,now)
   if(!analysis)return summary?{...summary,analysis:null}:null
+  if(analysis.stale)return summary?{...summary,analysis:null,previousAnalysis:analysis,notes:[...(summary.notes??summary.sentences??[]),'An earlier saved interpretation is not used here because its observations changed or it is no longer current.']}:null
   const notes=[...(summary?.notes??summary?.sentences??[]),`Proposed next step: ${analysis.nextStep}`,...analysis.unknowns.map(text=>`Unknown: ${text}`),`Saved Gemini interpretation generated ${analysis.generatedLabel}. Confidence: ${analysis.confidence}; this is not a calibrated probability.`,...(analysis.newerSources?['The cited source observations have changed since this analysis was generated.']:[])]
   return {...summary,headline:analysis.headline,facts:[analysis.summary],notes,queryIds:['daily_analysis',...analysis.evidenceQueryIds],analysis}
 }

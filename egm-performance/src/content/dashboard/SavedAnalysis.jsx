@@ -13,7 +13,7 @@ export function AnalysisText({analysis}) {
 
 export function SavedAnalysis({id,queries,fallback}) {
   const analysis=savedAnalysis(queries,id)
-  if(!analysis)return <><AnalysisLabel/>{fallback}</>
+  if(!analysis||analysis.stale)return <><AnalysisLabel analysis={analysis}/>{fallback??<p className="egm-note">A current interpretation is not available yet.</p>}</>
   const queryIds=['daily_analysis',...analysis.evidenceQueryIds]
   return <DataComponent id={`saved-analysis-${id.replaceAll('_','-')}`} title="Daily interpretation" queryId="daily_analysis" queryIds={queryIds} sourceRowsByQuery={Object.fromEntries(queryIds.map(queryId=>[queryId,queries[queryId]?.rows??[]]))} displayRows={[analysis]} kind="custom" variant="card">
     <h3>{analysis.headline}</h3>

@@ -131,7 +131,8 @@ function useVideoGrid(available) {
   return videoGrid(available,width)
 }
 function AcrossEgm({queries}) {
-  const analysis=savedAnalysis(queries,'overview_experiment')
+  const saved=savedAnalysis(queries,'overview_experiment')
+  const analysis=saved&&!saved.stale?saved:null
   const ids=[...['referrers','paths','youtube_videos','research_evidence','issue_queue'].filter(id=>queries[id]),...(analysis?['daily_analysis',...analysis.evidenceQueryIds]:[])]
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
   const rankedVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views)
@@ -172,7 +173,7 @@ function DashboardTab() {
   const {activeTabId} = useDashboardTabs(tabs)
   useEffect(() => { trackDashboardSection(activeTabId) }, [activeTabId])
   const summary=analysisSummary(activeTabId==='reach'?overviewSummary(queries):pageSummary(activeTabId,queries),queries,activeTabId==='reach'?'overview':activeTabId)
-  return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol><details className="egm-analysis-method"><summary>Analysis method</summary><AnalysisLabel analysis={summary.analysis}/>{summary.analysis?.unknowns.length>0&&<p>Unknown: {summary.analysis.unknowns.join(' ')}</p>}</details></section>}<SiteFooter generatedAt={snapshot?.generatedAt} refreshStatus={snapshot?.refreshStatus} summary={summary}/></>
+  return <><TabPage activeTabId={activeTabId}/>{summary&&<section id="page-notes" className="egm-page-notes" aria-labelledby="page-notes-heading"><h2 id="page-notes-heading">Notes</h2><ol>{summary.notes?.map((note,index)=><li key={index}>{note}</li>)}{summary.range&&<li>Reporting period: {summary.range.label} {summary.range.note}. {trafficCoverageNote(queries)}</li>}</ol><details className="egm-analysis-method"><summary>Analysis method</summary><AnalysisLabel analysis={summary.analysis??summary.previousAnalysis}/>{summary.analysis?.unknowns.length>0&&<p>Unknown: {summary.analysis.unknowns.join(' ')}</p>}</details></section>}<SiteFooter generatedAt={snapshot?.generatedAt} refreshStatus={snapshot?.refreshStatus}/></>
 }
 function TabPage({activeTabId}) {
   const {queries} = useDataApp()

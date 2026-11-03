@@ -31,7 +31,7 @@ test('saved interpretation uses original evidence and distinguishes computed fal
     assert.doesNotMatch(opportunity,/Calculated proposal/)
     snapshot.queries.daily_analysis_status={rows:[{status:'cached',inputFingerprint:'updated-without-a-new-source-timestamp'}]}
     const stale=render(React.createElement(OverviewSummary,{queries:snapshot.queries}))
-    assert.match(stale,/Based on earlier observations/)
-    assert.match(stale,/Attention does not establish activation/,'a stale label does not discard the last valid interpretation')
+    assert.doesNotMatch(stale,/Attention does not establish activation/,'old interpretations cannot replace current calculated headlines')
+    assert.doesNotMatch(stale,/Observe a new user following the existing first workflow/,'old proposed actions are not presented as current')
   } finally {await server.close()}
 })

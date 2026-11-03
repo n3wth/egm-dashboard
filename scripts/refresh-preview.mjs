@@ -11,6 +11,11 @@ import {revalidateResearchQueries} from '../egm-cloudflare/content-research.mjs'
 
 const runGh=promisify(execFile)
 const output=fileURLToPath(new URL('../egm-performance/.data-app-preview/snapshot.json',import.meta.url))
+const githubIds=['reach','traffic','referrers','paths','maintenance','maintenance_history','activity','issue_queue','downloads','website','website_contribution','website_referral_history','star_history','star_observations']
+
+export function mergePreviewQueries(previous,current) {
+  return {...previous,...Object.fromEntries(githubIds.filter(id=>current[id]).map(id=>[id,current[id]]))}
+}
 
 export async function githubRequest(url,init={},run=runGh) {
   const parsed=new URL(url)
@@ -29,6 +34,8 @@ export async function refreshPreview() {
   if(previous.id!==seed.id||!previous.queries)throw Error('Existing preview snapshot does not match this dashboard')
   const result=await refreshSnapshot({GITHUB_TOKEN:'authenticated-by-gh-cli',REFRESH_UNTIL:new Date(Date.now()+30*60000).toISOString()},githubRequest,async()=>({}),{persist:false,previousSnapshot:previous})
   if(result.status!=='refreshed'||!result.snapshot?.queries)throw Error('Preview snapshot was not refreshed')
+  result.snapshot.queries=mergePreviewQueries(previous.queries,result.snapshot.queries)
+  result.snapshot.refreshStatus=previous.refreshStatus
   result.snapshot.queries=revalidateResearchQueries(result.snapshot.queries)
   await mkdir(dirname(output),{recursive:true})
   const temporary=join(dirname(output),`snapshot-${process.pid}.tmp`)
