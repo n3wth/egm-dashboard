@@ -4,7 +4,7 @@ import {savedAnalysis} from './saved-analysis.mjs'
 import './saved-analysis.css'
 
 export function AnalysisLabel({analysis}) {
-  return <p className="egm-note">{analysis?<>Saved Gemini analysis · <time dateTime={analysis.generatedAt}>{analysis.generatedLabel}</time>{analysis.stale?' · Based on earlier observations':''}</>:'Based on recorded source evidence. No saved AI interpretation is included in this snapshot.'}</p>
+  return <p className="egm-note">{analysis?<>Saved Gemini analysis · <time dateTime={analysis.generatedAt}>{analysis.generatedLabel}</time>{analysis.stale?' · Based on earlier observations':''}</>:'Based on recorded source evidence. No current saved AI interpretation is available.'}</p>
 }
 
 export function AnalysisText({analysis}) {
