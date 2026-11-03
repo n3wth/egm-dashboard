@@ -29,6 +29,11 @@ test('source changes, a different Pacific date and failed generation identify sa
   const changed=queries();changed.traffic.source.executedAt='2026-11-02T19:30:00Z'
   assert.equal(savedAnalysis(changed,'overview',now).newerSources,true)
   assert.equal(savedAnalysis(changed,'overview',now).stale,true)
+  const fallback={headline:'Current calculated result',facts:['Updated values'],queryIds:['traffic']}
+  const current=analysisSummary(fallback,changed,'overview',now)
+  assert.equal(current.headline,fallback.headline)
+  assert.equal(current.analysis,null)
+  assert.equal(current.previousAnalysis.stale,true)
   assert.equal(savedAnalysis(queries(),'overview',now+86400000).stale,true)
   const failed=queries();failed.daily_analysis_status={rows:[{status:'stale',reason:'generation_failed'}]}
   assert.equal(savedAnalysis(failed,'overview',now).stale,true)

@@ -8,7 +8,7 @@ export const analysisSections={
   website:['website','website_contribution','web_pagespeed','web_crux'],
   development:['maintenance','maintenance_history','activity','issue_queue'],
   research:['peers','research_evidence','exa_research','emerging','seo_backlinks'],
-  mentions:['youtube_videos','mentions','mention_engagement'],
+  mentions:['youtube_videos','mentions','mention_engagement','exa_mentions','tavily_mentions','parallel_mentions'],
   overview_experiment:['issue_queue','research_evidence','referrers','paths'],
   research_opportunities:['peers','referrers','paths','research_evidence']
 }
@@ -75,7 +75,10 @@ export async function collectDailyAnalysis(env,request,snapshot,{now=Date.now,le
   const reserved=await env.DB.prepare("INSERT INTO daily_analysis_runs(day,lease_id,attempted_at,input_fingerprint,status) SELECT ?,?,?,?,'started' WHERE EXISTS(SELECT 1 FROM refresh_control WHERE id=1 AND lease_id=? AND lease_until>?) AND (SELECT count(*) FROM daily_analysis_runs WHERE substr(attempted_at,1,7)=?)<31 ON CONFLICT(day) DO NOTHING RETURNING day").bind(day,leaseId,new Date(started).toISOString(),inputFingerprint,leaseId,started,month).first()
   if(!reserved){
     const used=await env.DB.prepare('SELECT count(*) AS count FROM daily_analysis_runs WHERE substr(attempted_at,1,7)=?').bind(month).first()
-    return result(query?'cached':'unavailable',used.count>=31?'monthly_cap':query?.source.inputFingerprint===inputFingerprint?'daily_cache':'daily_attempt_already_reserved')
+    const attempt=await env.DB.prepare('SELECT status,body FROM daily_analysis_runs WHERE day=?').bind(day).first()
+    let failure=null
+    if(attempt?.status==='failed')try {failure=JSON.parse(attempt.body)?.failureReason}catch{}
+    return result(query?'cached':'unavailable',used.count>=31?'monthly_cap':attempt?.status==='failed'?failure??'generation_failed':query?.source.inputFingerprint===inputFingerprint?'daily_cache':'daily_attempt_already_reserved')
   }
   try {
     let finishReason=null
@@ -89,8 +92,9 @@ export async function collectDailyAnalysis(env,request,snapshot,{now=Date.now,le
     if(!saved)return result('unavailable','lease_lost',true)
     query=candidate
     return result('available',null,true)
-  }catch {
-    await env.DB.prepare("UPDATE daily_analysis_runs SET status='failed' WHERE day=? AND lease_id=? AND status='started'").bind(day,leaseId).run()
-    return result(query?'stale':'unavailable','generation_failed',true)
+  }catch(error) {
+    const reason=['provider_failed','invalid_analysis','incomplete_analysis'].includes(error?.message)?error.message:error instanceof SyntaxError?'invalid_analysis':'generation_failed'
+    await env.DB.prepare("UPDATE daily_analysis_runs SET status='failed',body=? WHERE day=? AND lease_id=? AND status='started'").bind(JSON.stringify({failureReason:reason}),day,leaseId).run()
+    return result(query?'stale':'unavailable',reason,true)
   }
 }

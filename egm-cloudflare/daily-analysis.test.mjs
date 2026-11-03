@@ -112,6 +112,7 @@ test('a failed or invalid response preserves the last valid analysis without sam
   const good=await f.run();f.advance(86400000);fail=true
   const failed=await f.run(),cached=await f.run()
   assert.equal(failed.status,'stale');assert.equal(failed.reason,'generation_failed')
+  assert.equal(cached.reason,'generation_failed')
   assert.deepEqual(failed.query,good.query);assert.deepEqual(cached.query,good.query)
   assert.doesNotMatch(JSON.stringify(failed),/provider secret|quota detail/)
   assert.equal(f.calls,2)
@@ -141,7 +142,8 @@ test('daily analysis continues after source expiry only under its own explicit s
 test('model truncation and invalid JSON fail closed and cannot become saved commentary',async()=>{
   for(const infer of [async()=>({response:'```json\n{}\n```'}),async(model,options)=>{options.onFinishReason('MAX_TOKENS');return {response:JSON.stringify(response())}}]) {
     const f=fixture(infer),result=await f.run()
-    assert.equal(result.query,null);assert.equal(result.reason,'generation_failed')
+    assert.equal(result.query,null);assert.ok(['invalid_analysis','incomplete_analysis'].includes(result.reason))
+    assert.equal((await f.run()).reason,result.reason,'safe diagnostics survive subsequent refreshes')
     assert.equal((await f.run()).attempted,false);assert.equal(f.calls,1)
   }
 })
