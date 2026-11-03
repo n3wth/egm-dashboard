@@ -346,6 +346,20 @@ export async function handle(request,env,ctx) {
                 merged=true
               }
             }
+            if(parsed.queries.star_history?.rows && seed.queries.star_history?.rows && parsed.queries.star_history.rows.length<seed.queries.star_history.rows.length) {
+              const byDate=new Map(seed.queries.star_history.rows.map(row=>[row.date,row]))
+              for(const row of parsed.queries.star_history.rows) if(row?.date && !byDate.has(row.date)) byDate.set(row.date,row)
+              parsed.queries.star_history={
+                ...parsed.queries.star_history,
+                rows:[...byDate.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date))),
+                source:{
+                  ...parsed.queries.star_history.source,
+                  executedAt:seed.queries.star_history.source.executedAt,
+                  coverage:seed.queries.star_history.source.coverage
+                }
+              }
+              merged=true
+            }
           }
           if(merged) body=JSON.stringify(parsed)
         }

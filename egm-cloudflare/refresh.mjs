@@ -71,6 +71,16 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   if(stars) set('star_history',starsByDay.history)
   else {
     data.queries.star_history=structuredClone(previousQueries.star_history??data.queries.star_history)
+    if(data.queries.star_history?.rows?.[0]?.date===seed.queries.star_history?.rows?.[0]?.date && data.queries.star_history.rows.length<seed.queries.star_history.rows.length) {
+      const byDate=new Map(seed.queries.star_history.rows.map(row=>[row.date,row]))
+      for(const row of data.queries.star_history.rows) if(row?.date && !byDate.has(row.date)) byDate.set(row.date,row)
+      data.queries.star_history.rows=[...byDate.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date)))
+      data.queries.star_history.source={
+        ...data.queries.star_history.source,
+        executedAt:seed.queries.star_history.source.executedAt,
+        coverage:seed.queries.star_history.source.coverage
+      }
+    }
     const caveat=staleStarCaveat(repo.stargazers_count)
     data.queries.star_history.source.caveats=[...new Set([...(data.queries.star_history.source.caveats??[]).filter(text=>!text.startsWith('Star history is stale:')),caveat])]
   }

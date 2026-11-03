@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {starGrowth,observedStarGrowth,hasObservedDailyChange} from './star-growth.mjs'
+import {starGrowth,observedStarGrowth,bridgedObservedStarGrowth,hasObservedDailyChange} from './star-growth.mjs'
 
 test('excludes the partial day from complete growth',()=>{
   const rows=[0,0,0,3,8,12].map((stars,index)=>({date:`2026-10-${20+index}`,stars}))
@@ -80,4 +80,24 @@ test('daily observations become usable before a full weekly comparison exists',(
   assert.equal(hasObservedDailyChange(rows.slice(1),rows[1].observedAt),false)
   assert.equal(hasObservedDailyChange([{...rows[0],date:'2026-10-31',observedAt:'2026-11-01T06:30:00Z'},rows[1]],rows[1].observedAt),false)
   assert.equal(hasObservedDailyChange([...rows,{date:'2026-11-04',stars:120,observedAt:'2026-11-04T19:00:00Z'}],'2026-11-04T19:00:00Z'),false)
+})
+
+test('bridged observed star growth fills prior complete days from reconstructed history and bridges boundary net change',()=>{
+  const historyRows=[
+    {date:'2026-10-30',stars:6678,newStars:510},
+    {date:'2026-10-31',stars:8050,newStars:1372},
+    {date:'2026-11-01',stars:9513,newStars:1463}
+  ]
+  const observedRows=[
+    {date:'2026-11-02',stars:10838,observedAt:'2026-11-03T07:30:00Z'},
+    {date:'2026-11-03',stars:10879,observedAt:'2026-11-03T09:00:00Z'}
+  ]
+  const result=bridgedObservedStarGrowth(observedRows,'2026-11-03T09:00:00Z',historyRows,'2026-11-02T08:00:00Z')
+  assert.deepEqual(result.daily.map(row=>[row.date,row.netStars,row.partialNetStars]),[
+    ['2026-10-30',null,null],
+    ['2026-10-31',1372,null],
+    ['2026-11-01',1463,null],
+    ['2026-11-02',1325,null],
+    ['2026-11-03',null,41]
+  ])
 })
