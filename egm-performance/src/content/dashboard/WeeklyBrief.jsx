@@ -133,9 +133,7 @@ export function WeeklyBriefSection({ queries = {} }) {
                   <tbody>
                     {brief.commitments.map(item => (
                       <tr key={item.id}>
-                        <td>
-                          <strong>{item.action}</strong>
-                        </td>
+                        <td>{item.action}</td>
                         <td>{item.owner}</td>
                         <td>
                           {safeExternalUrl(item.url) ? (
@@ -490,15 +488,7 @@ export function WorkflowResearchSection({ queries = {} }) {
               <tbody>
                 {research.rows.map(row => (
                   <tr key={row.id}>
-                    <td>
-                      {safeExternalUrl(row.url) ? (
-                        <a href={safeExternalUrl(row.url)} target="_blank" rel="noreferrer">
-                          <strong>{row.intendedTask}</strong>
-                        </a>
-                      ) : (
-                        <strong>{row.intendedTask}</strong>
-                      )}
-                    </td>
+                    <td>{safeExternalUrl(row.url) ? <a href={safeExternalUrl(row.url)} target="_blank" rel="noreferrer">{row.intendedTask}</a> : row.intendedTask}</td>
                     <td>{row.environment} ({row.version})</td>
                     <td>{row.lastSuccessfulStep}</td>
                     <td>
