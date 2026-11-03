@@ -99,3 +99,66 @@ test('bounded or failed stargazer collection preserves dated history while traff
     assert.equal(writes,0)
   }
 })
+
+test('refresh populates oss_health if query exists, keeps firstResponseDelayHours null, and preserves previous weekly_brief and workflow_research', async () => {
+  const names = { '': 'repo', '/traffic/views': 'views', '/traffic/clones': 'clones', '/traffic/popular/referrers': 'referrers', '/traffic/popular/paths': 'paths', '/issues': 'issues', '/pulls': 'pulls', '/releases': 'releases', '/pages': 'pages', '/commits': 'commits' }
+  const env = { REFRESH_UNTIL: '2099-01-01', GITHUB_TOKEN: 'test', DB: { prepare() { return { async first() { return null }, bind() { return { async run() {} } } } } } }
+
+  const mockWeeklyBrief = { rows: [{ week: '2026-W44', status: 'reviewed' }], source: { executedAt: '2026-11-02T10:00:00Z' } }
+  const mockWorkflowResearch = { rows: [{ task: 'first-workflow', outcome: 'verified' }], source: { executedAt: '2026-11-02T10:00:00Z' } }
+  const prevSnapshot = {
+    queries: {
+      weekly_brief: mockWeeklyBrief,
+      workflow_research: mockWorkflowResearch
+    }
+  }
+
+  const request = async url => {
+    const u = new URL(url), path = u.pathname.replace('/repos/google/elephant-goldfish-model', '')
+    const page = Number(u.searchParams.get('page') ?? 1)
+    if (path === '/stargazers') return Response.json([])
+    let data = await load(names[path])
+    if (['issues', 'pulls', 'releases', 'commits'].includes(names[path])) data = data.slice((page - 1) * 100, page * 100)
+    return Response.json(data)
+  }
+
+  // Inject oss_health template in seed clone
+  const origSeedQueries = { ...seed.queries }
+  seed.queries.oss_health = {
+    rows: [],
+    source: {
+      label: 'GitHub OSS health',
+      provider: 'GitHub',
+      executedAt: '',
+      coverage: { type: 'point-in-time', asOf: '' },
+      metricDefinitions: [],
+      caveats: [],
+      links: [],
+      evidenceFlow: []
+    }
+  }
+
+  try {
+    const result = await refreshSnapshot(env, request, async () => ({}), { persist: false, previousSnapshot: prevSnapshot })
+    const snapshot = result.snapshot
+    assert.equal(result.status, 'refreshed')
+    assert.ok(snapshot.queries.oss_health)
+    const health = snapshot.queries.oss_health.rows[0]
+    assert.ok(health)
+    assert.equal(health.firstResponseDelayHours, null, 'firstResponseDelayHours must be null/unknown from list endpoints')
+    assert.ok(typeof health.openIssues === 'number')
+    assert.ok(typeof health.openPRs === 'number')
+    assert.ok(typeof health.mergedPRs === 'number')
+    assert.ok(typeof health.returningContributors === 'number')
+    assert.ok(typeof health.independentIssueReporters === 'number')
+    assert.equal(snapshot.queries.oss_health.source.executedAt, snapshot.generatedAt)
+    assert.deepEqual(snapshot.queries.oss_health.source.coverage, { type: 'point-in-time', asOf: snapshot.generatedAt })
+    assert.ok(snapshot.queries.oss_health.source.links.some(l => l.label === 'GitHub releases'))
+
+    // Check preservation of weekly_brief and workflow_research
+    assert.deepEqual(snapshot.queries.weekly_brief, mockWeeklyBrief, 'preserves reviewed weekly_brief')
+    assert.deepEqual(snapshot.queries.workflow_research, mockWorkflowResearch, 'preserves reviewed workflow_research')
+  } finally {
+    delete seed.queries.oss_health
+  }
+})
