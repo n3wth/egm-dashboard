@@ -285,7 +285,7 @@
 .dashboard-logo-link { display: inline-flex; align-items: center; justify-content: flex-start; width: var(--nav-control, 36px); height: var(--nav-control, 36px); }
 .dashboard-logo-link svg { width: 28px; height: 20px; }
 .dashboard-reporting-period { display: inline-flex; align-items: center; margin-top: 0; color: var(--secondary); font-size: var(--nav-meta-size, 13px); font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; }
-.dashboard-reporting-period time { font-size: inherit; font-weight: inherit; font-variant-numeric: inherit; line-height: 1; }
+.dashboard-reporting-period time { display: inline-flex; align-items: center; gap: 6px; font-size: inherit; font-weight: inherit; font-variant-numeric: inherit; line-height: 1; }
 .egm-icon-tabs[role="tablist"] { display: inline-flex; align-items: center; gap: var(--nav-gap, 4px); height: var(--nav-control, 36px); padding-left: 0; }
 .egm-icon-tabs[role="tablist"] .dashboard-tab { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; box-sizing: border-box; width: var(--nav-control, 36px); height: var(--nav-control, 36px); min-width: var(--nav-control, 36px); min-height: var(--nav-control, 36px); padding: 0; border-radius: var(--radius-md); }
 .egm-icon-tabs .dashboard-tab-item { display: inline-flex; align-items: center; height: var(--nav-control, 36px); }
