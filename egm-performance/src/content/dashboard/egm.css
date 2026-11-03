@@ -2,8 +2,8 @@
 @font-face { font-family: 'Suisse Intl'; src: url('/fonts/SuisseIntl-Book.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Suisse Intl'; src: url('/fonts/SuisseIntl-Medium.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Suisse Intl'; src: url('/fonts/SuisseIntl-Semibold.woff2') format('woff2'); font-weight: 600; font-style: normal; font-display: swap; }
-@font-face { font-family: 'Suisse Intl'; src: url('/fonts/SuisseIntl-Bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
 :root { --font-sans: 'Suisse Intl', system-ui, sans-serif; --font-sans-default: 'Suisse Intl', system-ui, sans-serif; }
+:where(strong, b) { font-weight: 500; }
 .egm-chart-home { margin: 0 0 8px; color: var(--text); font-size: var(--egm-text-label); line-height: 1.5; }
 .egm-overview-next { display: inline-flex; align-items: center; gap: 5px; color: var(--secondary); font-size: var(--egm-text-label); line-height: 1.4; text-decoration: none; }
 .egm-overview-next:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
@@ -333,6 +333,7 @@
 .egm-thumb-missing { display: grid; place-items: center; width: 100%; aspect-ratio: 16/9; box-sizing: border-box; border-radius: var(--radius-md); background: var(--border); color: var(--secondary); font-size: var(--text-xs-size); text-align: center; }
 
 /* Weekly Building Brief, OSS Health & Workflow Research */
+.egm-weekly-brief-container :is(h3, h4, strong, b), .egm-oss-health-section :is(h3, h4, strong, b), .egm-workflow-research-section :is(h3, h4, strong, b) { font-weight: 500; }
 .egm-weekly-brief-container {
   display: flex;
   flex-direction: column;
@@ -340,20 +341,46 @@
   margin-bottom: 24px;
 }
 
-.egm-brief-table {
+:is(.egm-brief-table, .egm-workflow-table) {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--text-sm-size, 13px);
   margin-bottom: 12px;
 }
-.egm-brief-table th, .egm-brief-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+:is(.egm-brief-table, .egm-workflow-table) th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--secondary);
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
   text-align: left;
 }
-.egm-brief-table th {
+:is(.egm-brief-table, .egm-workflow-table) td {
+  font-size: 14px;
+  font-weight: 400;
   color: var(--secondary);
-  font-weight: 500;
+  padding: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  text-align: left;
+  vertical-align: top;
+}
+:is(.egm-brief-table, .egm-workflow-table) td:first-child {
+  color: var(--text);
+  font-weight: 400;
+  padding-inline-start: 0;
+}
+:is(.egm-brief-table, .egm-workflow-table) th:first-child {
+  padding-inline-start: 0;
+}
+:is(.egm-brief-table, .egm-workflow-table) :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+:is(.egm-brief-table, .egm-workflow-table) td a {
+  color: var(--text);
+  font-weight: 400;
+  text-decoration: none;
+}
+:is(.egm-brief-table, .egm-workflow-table) td a:hover {
+  text-decoration: underline;
 }
 
 .egm-badge {
@@ -392,7 +419,7 @@
   padding: 2px 8px;
   border-radius: var(--radius-md, 6px);
   font-size: var(--text-xs-size, 11px);
-  font-weight: 600;
+  font-weight: 500;
 }
 .stage-user-verified { background: color-mix(in srgb, #10b981 15%, transparent); color: #059669; }
 .stage-released { background: color-mix(in srgb, #3b82f6 15%, transparent); color: #2563eb; }
@@ -429,9 +456,9 @@
 .egm-severity-badge {
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-size: var(--text-xs-size, 12px);
+  font-weight: 500;
+  text-transform: capitalize;
 }
 .severity-high { background: color-mix(in srgb, #ef4444 15%, transparent); color: #dc2626; }
 .severity-medium { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #d97706; }
@@ -458,7 +485,7 @@
   margin-bottom: 6px;
   font-size: 11px;
 }
-.egm-help-number { font-weight: 600; color: var(--secondary); }
+.egm-help-number { font-weight: 500; color: var(--secondary); }
 .egm-help-status { background: color-mix(in srgb, #3b82f6 12%, transparent); color: #2563eb; padding: 1px 6px; border-radius: 4px; font-weight: 500; }
 .egm-help-task { margin: 0 0 8px; font-size: var(--text-sm-size, 13px); }
 .egm-help-meta { font-size: 11px; color: var(--secondary); margin: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -496,8 +523,8 @@
   gap: 4px;
 }
 .egm-health-label { font-size: 12px; color: var(--secondary); font-weight: 500; }
-.egm-health-value { font-size: 20px; font-weight: 600; color: var(--text); }
-.egm-health-value.value-unmeasured { color: var(--secondary); font-style: italic; }
+.egm-health-value { font-size: 20px; font-weight: 500; color: var(--text); }
+.egm-health-value.value-unmeasured { color: var(--secondary); }
 .egm-health-note { font-size: 11px; color: var(--secondary); line-height: 1.4; }
 
 .egm-research-summary-bar {
@@ -510,11 +537,9 @@
 }
 .egm-summary-stat { display: flex; flex-direction: column; gap: 2px; }
 .egm-summary-stat .stat-label { font-size: 11px; color: var(--secondary); }
-.egm-summary-stat .stat-value { font-size: 18px; font-weight: 600; color: var(--text); }
+.egm-summary-stat .stat-value { font-size: 18px; font-weight: 500; color: var(--text); }
 
-.egm-workflow-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 12px; }
-.egm-workflow-table th, .egm-workflow-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
-.egm-workflow-table th { color: var(--secondary); font-weight: 500; }
+/* .egm-workflow-table shared with .egm-brief-table above */
 .outcome-completed { background: color-mix(in srgb, #10b981 15%, transparent); color: #059669; }
 .outcome-blocked { background: color-mix(in srgb, #ef4444 15%, transparent); color: #dc2626; }
 .retest-retested_success { background: color-mix(in srgb, #10b981 15%, transparent); color: #059669; }
@@ -567,7 +592,7 @@
   color: var(--chart-1);
   padding: 2px 8px;
   border-radius: var(--radius-md, 6px);
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--text-xs-size, 11px);
 }
 
@@ -605,6 +630,5 @@
 .stat-value.stat-unmeasured {
   color: var(--secondary);
   font-size: 14px;
-  font-style: italic;
   font-weight: 500;
 }

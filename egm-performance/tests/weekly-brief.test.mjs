@@ -305,3 +305,40 @@ test('renders adoption and development tabs without throwing when snapshot lacks
     await server.close()
   }
 })
+
+test('egm.css has no bold Suisse font, no font-weight 700, no italic, and tables have no strong cells', async () => {
+  const css = readFileSync('src/content/dashboard/egm.css', 'utf8')
+  assert.doesNotMatch(css, /SuisseIntl-Bold\.woff2/, 'SuisseIntl-Bold.woff2 must not be referenced in egm.css')
+  assert.doesNotMatch(css, /font-weight:\s*700/, 'font-weight: 700 must not exist in egm.css')
+  assert.doesNotMatch(css, /font-style:\s*italic/, 'font-style: italic must not exist in egm.css')
+
+  const server = await createServer({ server: { middlewareMode: true }, logLevel: 'silent' })
+  try {
+    const { DataAppShell } = await server.ssrLoadModule('/src/DataAppShell.jsx')
+    const { WeeklyBriefSection, WorkflowResearchSection } = await server.ssrLoadModule(
+      '/src/content/dashboard/WeeklyBrief.jsx'
+    )
+    const snapshot = JSON.parse(readFileSync('src/data.json', 'utf8'))
+
+    const briefHtml = renderToStaticMarkup(
+      React.createElement(
+        DataAppShell,
+        { snapshot, hosted: false, persistLocally: false },
+        React.createElement(WeeklyBriefSection, { queries: snapshot.queries })
+      )
+    )
+    // Verify table cells do not wrap content in <strong>
+    assert.doesNotMatch(briefHtml, /<td[^>]*>\s*<strong/, 'WeeklyBriefSection table cells must not contain strong')
+
+    const researchHtml = renderToStaticMarkup(
+      React.createElement(
+        DataAppShell,
+        { snapshot, hosted: false, persistLocally: false },
+        React.createElement(WorkflowResearchSection, { queries: snapshot.queries })
+      )
+    )
+    assert.doesNotMatch(researchHtml, /<td[^>]*>\s*<strong/, 'WorkflowResearchSection table cells must not contain strong')
+  } finally {
+    await server.close()
+  }
+})
