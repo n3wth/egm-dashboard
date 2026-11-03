@@ -50,3 +50,33 @@ export function hasObservedDailyChange(rows,observedAt) {
   const latest=observedStarGrowth(rows,observedAt).daily.at(-1)
   return Number.isFinite(latest?.netStars)||Number.isFinite(latest?.partialNetStars)
 }
+
+export function bridgedObservedStarGrowth(rows,observedAt,historyRows,historyObservedAt) {
+  const observed=observedStarGrowth(rows,observedAt)
+  if(!historyRows?.length)return observed
+  const historyTime=observationTime(historyObservedAt),obsTime=observationTime(observedAt)
+  const effectiveHistoryTime=Number.isFinite(historyTime)&&Number.isFinite(obsTime)?(obsTime>historyTime?observedAt:historyObservedAt):(historyObservedAt??observedAt)
+  const history=starGrowth(historyRows,effectiveHistoryTime)
+  const sampledByDate=new Map(observed.daily.filter(row=>Number.isFinite(row.stars)).map(row=>[row.date,row]))
+  const combined=new Map()
+  for(const row of history.daily) {
+    if(Number.isFinite(row?.stars)&&row.coverage!=='Partial day')combined.set(row.date,{...row,reconstructed:true})
+  }
+  for(const [date,row] of sampledByDate)combined.set(date,row)
+  const sorted=[...combined.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date)))
+  const daily=sorted.flatMap((row,index)=>{
+    const previous=sorted[index-1]
+    const consecutive=previous&&Date.parse(row.date)-Date.parse(previous.date)===86400000&&Number.isFinite(previous.stars)
+    if(!row.reconstructed) {
+      const bridgedNet=row.netStars==null&&row.partialNetStars==null&&row.coverage==='Closed sampling day'&&consecutive?row.stars-previous.stars:row.netStars
+      const sample={...row,netStars:bridgedNet}
+      return previous&&!consecutive?[{date:new Date(Date.parse(previous.date)+86400000).toISOString().slice(0,10),stars:null,netStars:null,partialNetStars:null,coverage:'Not sampled'},sample]:[sample]
+    }
+    const net=Number.isFinite(row.newStars)?row.newStars:(consecutive&&row.stars>=previous.stars?row.stars-previous.stars:null)
+    const sample={date:row.date,stars:row.stars,netStars:net,partialNetStars:null,coverage:row.coverage}
+    return previous&&!consecutive?[{date:new Date(Date.parse(previous.date)+86400000).toISOString().slice(0,10),stars:null,netStars:null,partialNetStars:null,coverage:'Not sampled'},sample]:[sample]
+  })
+  const cutoff=Date.parse(sorted.at(-1)?.date)-13*86400000
+  const recent=daily.filter(row=>Date.parse(row.date)>=cutoff)
+  return {daily,recent,hiddenDays:daily.length-recent.length}
+}

@@ -24,7 +24,7 @@ import {suggestExperiment} from './suggested-experiment.mjs'
 import {videoGrid} from './video-grid.mjs'
 import {PageLink} from './PageLink.jsx'
 import {SiteFooter} from './PageFooter.jsx'
-import {starGrowth,observedStarGrowth,hasObservedDailyChange} from './star-growth.mjs'
+import {starGrowth,observedStarGrowth,bridgedObservedStarGrowth,hasObservedDailyChange} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
 import {trafficRangeSummary} from './traffic-range.mjs'
 import {analysisSummary,savedAnalysis,audienceSentiment} from './saved-analysis.mjs'
@@ -68,7 +68,7 @@ export function StarGrowth({rows,observedAt,stale,observations,reportDates}) {
   const [basis,setBasis]=useState('auto')
   const hasObserved=Boolean(observations?.rows?.length)
   const observed=hasObserved&&(basis==='observed'||(basis==='auto'&&stale&&(!rows.length||hasObservedDailyChange(observations.rows,observations.source?.executedAt))))
-  const growth=observed?observedStarGrowth(observations.rows,observations.source?.executedAt):starGrowth(rows,observedAt)
+  const growth=observed?bridgedObservedStarGrowth(observations.rows,observations.source?.executedAt,rows,observedAt):starGrowth(rows,observedAt)
   const byDate=new Map(growth.daily.map(row=>[row.date,row]))
   const selected=range==='recent'?(reportDates?.length?reportDates.map(date=>byDate.get(date)??{date,stars:null,coverage:'Not available'}):growth.recent):growth.daily
   const displayRows=observed?selected:selected.map((row,index)=>({...row,
@@ -218,7 +218,8 @@ function TabPage({activeTabId}) {
     const observedHistory=id==='stars'&&historyStale&&rows('star_observations').length>0&&(!rows('star_history').length||hasObservedDailyChange(rows('star_observations'),queries.star_observations?.source?.executedAt))
     const historyQuery=queueMetric?'maintenance_history':websiteMetric?'website_referral_history':id==='stars'?(observedHistory?'star_observations':'star_history'):id==='merged-prs'?'activity':'traffic'
     const history=rows(historyQuery)
-    const trendValues=!field?[]:queueMetric?sampledTrendValues(history,field):websiteMetric?dailySnapshotValues(history,field):alignedTrendValues(history,field,reportDates)
+    const starTrendRows=id==='stars'&&observedHistory?bridgedObservedStarGrowth(history,queries.star_observations?.source?.executedAt,rows('star_history'),queries.star_history?.source?.executedAt).daily:history
+    const trendValues=!field?[]:queueMetric?sampledTrendValues(history,field):websiteMetric?dailySnapshotValues(history,field):alignedTrendValues(starTrendRows,field,reportDates)
     const additiveWeekly=['total-views','total-clones','adoption-clones','merged-prs'].includes(id)
     const weekly=additiveWeekly?weeklyChange(history,field):observedHistory?observedStarChange(history,queries.star_observations?.source?.executedAt):id==='stars'&&!historyStale?starWeeklyChange(history,queries.star_history?.source?.executedAt):null
     const weeklyText=weekly?.observed?`${n(weekly.current)} net · ${n(weekly.previous)} prior seven snapshot intervals`:weeklyChangeLabel(weekly,id==='stars'?'new':'')

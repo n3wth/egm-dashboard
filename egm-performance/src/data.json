@@ -1474,16 +1474,46 @@
         },
         {
           "date": "2026-10-27",
-          "newStars": 1725,
-          "stars": 3639
+          "newStars": 1741,
+          "stars": 3655
+        },
+        {
+          "date": "2026-10-28",
+          "newStars": 1404,
+          "stars": 5059
+        },
+        {
+          "date": "2026-10-29",
+          "newStars": 1109,
+          "stars": 6168
+        },
+        {
+          "date": "2026-10-30",
+          "newStars": 510,
+          "stars": 6678
+        },
+        {
+          "date": "2026-10-31",
+          "newStars": 1372,
+          "stars": 8050
+        },
+        {
+          "date": "2026-11-01",
+          "newStars": 1463,
+          "stars": 9513
+        },
+        {
+          "date": "2026-11-02",
+          "newStars": 1325,
+          "stars": 10838
         }
       ],
       "source": {
         "label": "GitHub timestamped current stargazers",
-        "executedAt": "2026-10-28T06:35:51.598Z",
+        "executedAt": "2026-11-03T08:00:00.000Z",
         "coverage": {
           "startDate": "2026-09-13",
-          "endDate": "2026-10-27"
+          "endDate": "2026-11-02"
         },
         "metricDefinitions": [
           {
