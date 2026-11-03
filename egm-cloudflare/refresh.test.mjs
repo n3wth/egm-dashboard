@@ -47,6 +47,9 @@ test('complete refresh reconciles traffic and writes once with fresh provenance'
   assert.deepEqual(saved.queries.maintenance_history.rows.map(({date,observedAt,...row})=>row),saved.queries.maintenance.rows)
   assert.equal(saved.queries.maintenance_history.source.executedAt,saved.generatedAt)
   assert.equal(saved.id,'dashboard:92f69d5e-0c66-4fc5-be7d-2e5465004e2f')
+  // An unreadable saved snapshot falls back to the seeded history, never to an empty one.
+  assert.deepEqual(saved.queries.traffic_history.rows.map(row=>row.date),saved.queries.traffic.rows.map(row=>row.date))
+  assert.equal(saved.queries.traffic_history.source.executedAt,saved.generatedAt)
   const staged=await refreshSnapshot(env,request,async()=>({}),{persist:false})
   assert.equal(writes,1)
   assert.equal(staged.snapshot.queries.reach.source.executedAt,staged.snapshot.generatedAt)
@@ -70,7 +73,7 @@ test('bounded or failed stargazer collection preserves dated history while traff
   const priorHistory=Array.from({length:337},(_,i)=>({observedAt:new Date(Date.parse('2026-10-10T00:00:00Z')+i*1800000).toISOString(),referralViews:i,referralVisitors:i}))
   for(const total of [300000,10001,10000,3500]) {
     let starCalls=0,repoCalls=0,writes=0
-    const env={REFRESH_UNTIL:'2099-01-01',GITHUB_TOKEN:'test',DB:{prepare(){return {async first(){return {body:JSON.stringify({queries:{star_history:oldHistory,website_referral_history:{rows:priorHistory}}})}},bind(){return {async run(){writes++}}}}}}}
+    const env={REFRESH_UNTIL:'2099-01-01',GITHUB_TOKEN:'test',DB:{prepare(){return {async first(){return {body:JSON.stringify({queries:{star_history:oldHistory,website_referral_history:{rows:priorHistory},traffic_history:{rows:[{date:'2026-09-01',views:3,visitors:2,clones:1,cloners:1}]}}})}},bind(){return {async run(){writes++}}}}}}}
     const result=await refreshSnapshot(env,async url=>{
       const u=new URL(url),path=u.pathname.replace('/repos/google/elephant-goldfish-model',''),page=Number(u.searchParams.get('page')??1)
       if(path==='/stargazers'){starCalls++;return new Response('{}',{status:403})}
@@ -96,6 +99,9 @@ test('bounded or failed stargazer collection preserves dated history while traff
     assert.equal(data.queries.website_referral_history.rows.length,336)
     assert.equal(data.queries.website_referral_history.rows.at(-1).observedAt,data.generatedAt)
     assert.match(data.queries.website_referral_history.source.metricDefinitions[0].definition,/not daily traffic/)
+    assert.deepEqual(data.queries.traffic_history.rows.map(row=>row.date).slice(0,2),['2026-09-01','2026-10-13'])
+    assert.equal(data.queries.traffic_history.rows.at(-1).date,data.queries.traffic.rows.at(-1).date)
+    assert.deepEqual(data.queries.traffic_history.source.coverage,{startDate:'2026-09-01',endDate:'2026-10-26'})
     assert.equal(writes,0)
   }
 })

@@ -186,6 +186,156 @@
         }
       ]
     },
+    "traffic_history": {
+      "rows": [
+        {
+          "date": "2026-10-13",
+          "views": 28,
+          "visitors": 3,
+          "clones": 109,
+          "cloners": 3
+        },
+        {
+          "date": "2026-10-14",
+          "views": 6,
+          "visitors": 2,
+          "clones": 8,
+          "cloners": 1
+        },
+        {
+          "date": "2026-10-15",
+          "views": 10,
+          "visitors": 2,
+          "clones": 114,
+          "cloners": 4
+        },
+        {
+          "date": "2026-10-16",
+          "views": 0,
+          "visitors": 0,
+          "clones": 0,
+          "cloners": 0
+        },
+        {
+          "date": "2026-10-17",
+          "views": 6,
+          "visitors": 2,
+          "clones": 3,
+          "cloners": 1
+        },
+        {
+          "date": "2026-10-18",
+          "views": 3,
+          "visitors": 1,
+          "clones": 7,
+          "cloners": 4
+        },
+        {
+          "date": "2026-10-19",
+          "views": 4,
+          "visitors": 2,
+          "clones": 7,
+          "cloners": 2
+        },
+        {
+          "date": "2026-10-20",
+          "views": 88,
+          "visitors": 30,
+          "clones": 19,
+          "cloners": 13
+        },
+        {
+          "date": "2026-10-21",
+          "views": 419,
+          "visitors": 276,
+          "clones": 120,
+          "cloners": 68
+        },
+        {
+          "date": "2026-10-22",
+          "views": 861,
+          "visitors": 647,
+          "clones": 576,
+          "cloners": 175
+        },
+        {
+          "date": "2026-10-23",
+          "views": 1981,
+          "visitors": 1211,
+          "clones": 673,
+          "cloners": 336
+        },
+        {
+          "date": "2026-10-24",
+          "views": 6660,
+          "visitors": 3660,
+          "clones": 1484,
+          "cloners": 451
+        },
+        {
+          "date": "2026-10-25",
+          "views": 7373,
+          "visitors": 3615,
+          "clones": 3244,
+          "cloners": 1565
+        },
+        {
+          "date": "2026-10-26",
+          "views": 11813,
+          "visitors": 5837,
+          "clones": 5195,
+          "cloners": 2699
+        }
+      ],
+      "source": {
+        "label": "GitHub REST API \u00b7 google/elephant-goldfish-model \u00b7 retained daily history",
+        "provider": "GitHub",
+        "executedAt": "2026-10-28T06:35:51.598Z",
+        "coverage": {
+          "startDate": "2026-10-13",
+          "endDate": "2026-10-26"
+        },
+        "filters": [
+          "Repository: google/elephant-goldfish-model",
+          "Daily traffic buckets use UTC"
+        ],
+        "metricDefinitions": [
+          {
+            "label": "Repository views",
+            "definition": "Repository page views in each UTC day. Excludes egm.dev website pageviews."
+          },
+          {
+            "label": "Daily visitors",
+            "definition": "Unique repository visitors within each day. Visitors overlap across days; daily visitors must not be summed to get period visitors."
+          },
+          {
+            "label": "Clones",
+            "definition": "Clone operations, including automation. Not installs, active users, or retained users."
+          },
+          {
+            "label": "Daily unique cloners",
+            "definition": "Unique cloners in each UTC day. Not additive across dates."
+          }
+        ],
+        "caveats": [
+          "GitHub returns only the latest 14 days. Each scheduled refresh adds them to this retained history, so days before collection began are unavailable.",
+          "Each day keeps the largest count observed for each field, because GitHub can truncate the oldest day of its window and the current day is partial.",
+          "Days with no observation stay missing, never zero. History grows only while scheduled collection is enabled; at most 730 days are retained."
+        ],
+        "links": [
+          {
+            "label": "GitHub traffic",
+            "url": "https://github.com/google/elephant-goldfish-model/graphs/traffic"
+          }
+        ],
+        "evidenceFlow": [
+          {
+            "title": "Retained daily traffic",
+            "detail": "GET /repos/google/elephant-goldfish-model/traffic/views and /traffic/clones on each scheduled refresh, merged by UTC date with the previously saved history"
+          }
+        ]
+      }
+    },
     "reach": {
       "rows": [
         {

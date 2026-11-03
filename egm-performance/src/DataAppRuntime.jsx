@@ -52,6 +52,17 @@ export function DataAppRuntime({
   const [queryDataStore, setQueryDataStore] = useState(null);
   const loaded = snapshot !== null;
 
+  const retry = () => {
+    setError(null);
+    setAttempt(value => value + 1);
+  };
+
+  useEffect(() => {
+    if (!error) return undefined;
+    globalThis.addEventListener?.("online", retry);
+    return () => globalThis.removeEventListener?.("online", retry);
+  }, [error]);
+
   useEffect(() => {
     if (attempt > 0 && loaded) document.getElementById("data-app-main")?.focus();
   }, [attempt, loaded]);
@@ -94,7 +105,7 @@ export function DataAppRuntime({
   }, [hosted, attempt]);
 
   if (!snapshot) return error
-    ? <DataAppLoadError onRetry={() => { setError(null); setAttempt(value => value + 1); }} />
+    ? <DataAppLoadError onRetry={retry} />
     : <DataAppLoading />;
   return <ResolvedDataApp
     snapshot={snapshot}
