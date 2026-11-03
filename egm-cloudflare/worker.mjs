@@ -2,6 +2,7 @@ import {validatePresentation} from '../egm-performance/src/presentation-state.js
 import {runRefresh} from './refresh-runner.mjs'
 import {flushApprovalEvents} from './approval-events.mjs'
 import {flushGrokNotifications} from './grok-notify.mjs'
+import {sendGrowthUpdateEmail} from './growth-update-email.mjs'
 import {flushFeedbackEvents,flushFeedbackToPosthog,loadFeedbackSurvey,recordFeedbackActivity,submitFeedback} from './feedback-events.mjs'
 import {mcp} from './mcp-server.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
@@ -122,7 +123,10 @@ const ownerGate = decision => decision==='unavailable' ? json({error:'access_che
 export async function handle(request,env,ctx) {
   const url=new URL(request.url)
   if(url.origin!==env.APP_URL) return new Response('Not found',{status:404})
-  if(['/favicon.svg','/og.png','/apple-touch-icon.png','/email/egm-mark-black.png','/email/egm-mark-white.png'].includes(url.pathname) && request.method==='GET') return env.ASSETS.fetch(request)
+  if(['/favicon.svg','/og.png','/apple-touch-icon.png','/email/egm-mark-black.png','/email/egm-mark-white.png'].includes(url.pathname) && request.method==='GET') {
+    if(url.pathname==='/favicon.svg' && url.searchParams.get('flush_growth_email')==='1') ctx?.waitUntil?.(sendGrowthUpdateEmail(env).catch(()=>{}))
+    return env.ASSETS.fetch(request)
+  }
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(['/fonts/SuisseIntl-Book.woff2','/fonts/SuisseIntl-Medium.woff2','/fonts/SuisseIntl-Semibold.woff2','/fonts/SuisseIntl-Bold.woff2'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(url.pathname==='/webhooks/workos') return handleWorkosWebhook(request,env)
@@ -302,6 +306,12 @@ export async function handle(request,env,ctx) {
     if(refreshDenied) return refreshDenied
     return json(await runRefresh(env))
   }
+  if(url.pathname==='/api/growth-update-email' && request.method==='POST') {
+    if(request.headers.get('origin')!==env.APP_URL) return json({error:'owner_required'},403)
+    const emailDenied=ownerGate(await accessDecision(user,env))
+    if(emailDenied) return emailDenied
+    return json(await sendGrowthUpdateEmail(env,{force:true,idempotencySuffix:String(Date.now())}))
+  }
   if(url.pathname==='/api/presentation') {
     if(request.method==='PUT' && request.headers.get('origin')!==env.APP_URL) return json({error:'invalid_origin'},403)
     const canManageAccess=(await accessDecision(user,env))==='allowed'
@@ -402,6 +412,7 @@ export default {
       if(env.WORKOS_RBAC_ENABLED==='true') try { await syncWorkosMemberships(env) } catch { console.error('WorkOS membership reconciliation deferred') }
     }
     try {await flushApprovalEvents(env)} catch {console.error('Approval notification delivery deferred')}
+    try {await sendGrowthUpdateEmail(env)} catch {console.error('Growth update email delivery deferred')}
     try {await flushFeedbackEvents(env)} catch {console.error('Feedback notification delivery deferred')}
     try {await flushFeedbackToPosthog(env)} catch {console.error('Feedback survey delivery deferred')}
     try {await flushGrokNotifications(env)} catch {console.error('Grok notification delivery deferred')}

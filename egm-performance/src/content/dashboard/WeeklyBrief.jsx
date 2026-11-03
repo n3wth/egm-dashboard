@@ -1,13 +1,31 @@
 import React, { useState } from 'react'
-import { DataComponent, Icon, SegmentedControl } from '../../data-app-public.jsx'
+import { DataComponent, Icon, SegmentedControl, useDataApp } from '../../data-app-public.jsx'
 import { safeExternalUrl } from './research-mentions.mjs'
 import { weeklyBriefViewModel, ossHealthViewModel, workflowResearchViewModel } from './weekly-brief-model.mjs'
 
 export function WeeklyBriefSection({ queries = {} }) {
   const [viewMode, setViewMode] = useState('internal')
+  const [emailStatus, setEmailStatus] = useState(null)
+  const { canManageAccess } = useDataApp()
   const brief = weeklyBriefViewModel(queries)
   const activeQueryId = queries.weekly_brief ? 'weekly_brief' : (queries.maintenance ? 'maintenance' : Object.keys(queries)[0] || 'weekly_brief')
   const sourceRows = queries[activeQueryId]?.rows ?? []
+
+  async function handleSendEmail() {
+    if (emailStatus === 'sending') return
+    setEmailStatus('sending')
+    try {
+      const res = await fetch('/api/growth-update-email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}'
+      })
+      const data = await res.json().catch(() => ({}))
+      setEmailStatus(res.ok && data.status === 'sent' ? 'sent' : 'failed')
+    } catch {
+      setEmailStatus('failed')
+    }
+  }
 
   const viewOptions = [
     { value: 'internal', label: 'Internal brief (draft)' },
@@ -29,6 +47,22 @@ export function WeeklyBriefSection({ queries = {} }) {
             >
               {brief.reviewIssueLabel} <Icon name="arrowUpRight" size={12} />
             </a>
+          )}
+          {canManageAccess && (
+            <button
+              type="button"
+              className="egm-brief-review-link"
+              onClick={handleSendEmail}
+              disabled={emailStatus === 'sending'}
+            >
+              {emailStatus === 'sending'
+                ? 'Sending...'
+                : emailStatus === 'sent'
+                  ? 'Sent to newth@google.com'
+                  : emailStatus === 'failed'
+                    ? 'Retry email'
+                    : 'Email update'}
+            </button>
           )}
         </div>
         <SegmentedControl
