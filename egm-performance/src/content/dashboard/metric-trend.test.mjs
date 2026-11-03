@@ -55,6 +55,7 @@ test('long sampling gaps stay bounded and do not compress calendar spacing',()=>
 
 test('rolling referral trends use the latest real observation each Pacific day and keep missing days blank',()=>{
   const rows=[{observedAt:'2026-11-01T20:00:00Z',views:10},{observedAt:'2026-11-01T21:00:00Z',views:12},{observedAt:'2026-11-03T20:00:00Z',views:16}]
-  assert.deepEqual(dailySnapshotValues(rows,'views').slice(-3),[12,null,16])
+  assert.deepEqual(dailySnapshotValues(rows,'views'),[12,null,16])
+  assert.deepEqual(dailySnapshotValues(rows,'unknown'),[])
   assert.deepEqual(dailySnapshotValues([...rows].reverse(),'views'),dailySnapshotValues(rows,'views'))
 })

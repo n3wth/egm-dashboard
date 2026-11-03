@@ -28,5 +28,7 @@ export function dailySnapshotValues(history,field) {
     const date=format.format(new Date(time)),previous=days.get(date)
     if(!previous||time>Date.parse(previous.observedAt))days.set(date,{...row,date})
   }
-  return sampledTrendValues([...days.values()],field)
+  const values=sampledTrendValues([...days.values()],field)
+  const start=values.findIndex(Number.isFinite),end=values.findLastIndex(Number.isFinite)
+  return start<0?[]:values.slice(start,end+1)
 }
