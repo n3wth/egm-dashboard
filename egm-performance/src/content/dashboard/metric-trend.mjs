@@ -18,3 +18,17 @@ export function sampledTrendValues(history,field) {
   const end=Date.parse(dates.at(-1))
   return alignedTrendValues(history,field,Array.from({length:14},(_,index)=>new Date(end-(13-index)*86400000).toISOString().slice(0,10)))
 }
+
+export function dailySnapshotValues(history,field) {
+  const days=new Map()
+  const format=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'})
+  for(const row of history) {
+    const time=Date.parse(row.observedAt)
+    if(!Number.isFinite(time))continue
+    const date=format.format(new Date(time)),previous=days.get(date)
+    if(!previous||time>Date.parse(previous.observedAt))days.set(date,{...row,date})
+  }
+  const values=sampledTrendValues([...days.values()],field)
+  const start=values.findIndex(Number.isFinite),end=values.findLastIndex(Number.isFinite)
+  return start<0?[]:values.slice(start,end+1)
+}

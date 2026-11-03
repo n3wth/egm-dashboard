@@ -578,6 +578,7 @@ function DataAppOverflowMenu({
   const [viewer,setViewer]=useState(null);
   const [manageUsersOpen,setManageUsersOpen]=useState(false);
   const [accountSecurityOpen,setAccountSecurityOpen]=useState(false);
+  const [accountMenuOpen,setAccountMenuOpen]=useState(false);
   const [failedPhoto,setFailedPhoto]=useState(null);
   const [pendingAccess,setPendingAccess]=useState(false);
   const [accessVersion,setAccessVersion]=useState(0);
@@ -651,7 +652,7 @@ function DataAppOverflowMenu({
       });
   };
   if(published)return <>
-    <NavTooltip label={pendingAccess?'Pending access requests':viewer?.name?`Account: ${viewer.name}`:'Account'}><span className="dashboard-custom-overflow"><Menu label="Account" align="end" contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label={pendingAccess?'Account, pending access requests':'Account'}>{avatar}</button>}>
+    <NavTooltip disabled={accountMenuOpen} label={pendingAccess?'Pending access requests':viewer?.name?`Account: ${viewer.name}`:'Account'}><span className="dashboard-custom-overflow"><Menu label="Account" align="end" onOpenChange={setAccountMenuOpen} contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label={pendingAccess?'Account, pending access requests':'Account'}>{avatar}</button>}>
       <MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>onAction?.('copy-link')}>Copy link</MenuItem>
       <MenuItem icon="palette" className="dashboard-action-menu-item" onSelect={onOpenThemes}>Switch theme</MenuItem>
       {canManageUsers&&<MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Invite</MenuItem>}

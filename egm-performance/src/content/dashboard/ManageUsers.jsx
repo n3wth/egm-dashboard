@@ -16,6 +16,37 @@ function UserAvatar({user}) {
   return <span className="egm-user-avatar" aria-hidden="true">{photo&&!failed?<img src={photo} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:initials}</span>
 }
 
+export function RelativeTime({value}) {
+  const lastSeen=new Date(value)
+  if(!value||!Number.isFinite(lastSeen.getTime()))return null
+  const difference=lastSeen.getTime()-Date.now(),elapsed=Math.abs(difference)
+  const unit=elapsed<3600000?'minute':elapsed<86400000?'hour':'day'
+  const amount=elapsed/({minute:60000,hour:3600000,day:86400000}[unit])
+  const ago=elapsed<60000?'just now':new Intl.RelativeTimeFormat('en',{numeric:'always'}).format(difference>0?Math.ceil(amount):-Math.floor(amount),unit)
+  const exact=lastSeen.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})
+  return <time dateTime={lastSeen.toISOString()} title={exact}>{ago}</time>
+}
+
+export function UserActivity({activity,status}) {
+  if(status!=='available')return <span className="egm-user-activity">Usage unavailable</span>
+  if(!activity)return <span className="egm-user-activity">No recorded activity in 30 days</span>
+  return <span className="egm-user-activity"><span>Last visited <RelativeTime value={activity.lastSeen}/></span><span>{activity.pageViews.toLocaleString()} {activity.pageViews===1?'page view':'page views'} · {activity.activeDays} active {activity.activeDays===1?'day':'days'} · {activity.questions} Ask {activity.questions===1?'question':'questions'}</span></span>
+}
+
+export function Invitations({invitations,busy,onRevoke}) {
+  if(!invitations?.length)return null
+  const active=[],history=[]
+  for(const invitation of invitations) {
+    const expires=Date.parse(invitation.expiresAt)
+    const live=!invitation.redeemedAt&&!invitation.revokedAt&&expires>Date.now()
+    const state=invitation.redeemedAt?'Used':invitation.revokedAt?'Revoked':!live?'Expired':invitation.deliveryState==='unknown'||invitation.deliveryState==='sending'?'Delivery unconfirmed':invitation.deliveryState==='failed'?'Delivery failed':'Pending'
+    const row=<li key={invitation.id}><div><strong>{invitation.email||'Shareable link'}</strong><span>{state} · {live?'Expires ':'Closed '}<RelativeTime value={live?invitation.expiresAt:invitation.redeemedAt||invitation.revokedAt||invitation.expiresAt}/></span></div>{live&&<InvitationRevokeAction invitation={invitation} busy={busy} onRevoke={onRevoke}/>}</li>
+    if(live)active.push(row)
+    else history.push(row)
+  }
+  return <section className="egm-manage-section" aria-label="Invitations">{active.length>0&&<><h3>Pending invitations <span>({active.length})</span></h3><ul aria-label="Pending invitations">{active}</ul></>}{history.length>0&&<details className="egm-invitation-history"><summary>Past invitations ({history.length})</summary><ul aria-label="Past invitations">{history}</ul></details>}</section>
+}
+
 export function UserAccessActions({user,busy,onDecide}) {
   const identity=user.name&&user.email&&user.name!==user.email?`${user.name} (${user.email})`:user.name||user.email||'user'
   const status=user.status??'pending'
@@ -155,15 +186,16 @@ export function ManageUsers({open,onClose,accessVersion}) {
   return <Dialog open={open} onClose={onClose} title="Manage users" className="egm-form-dialog egm-manage-users" initialFocusSelector=".dialog-header" contentRef={setDialogElement}>
     {error&&<div className="egm-manage-message" role="alert"><p>{error}</p>{canRetry&&<Button type="button" disabled={busy} onClick={retryLoad}>{record?'Reload users':'Try again'}</Button>}</div>}
     {!record&&!error&&<p role="status">Loading users…</p>}
-    {record&&<><section className="egm-invite-panel" aria-labelledby="egm-invite-heading"><div><h3 id="egm-invite-heading">Invite someone</h3><p>Invitations grant access after sign-in and can be used once.</p></div>
+    {record&&<><section className="egm-invite-panel" aria-labelledby="egm-invite-heading"><div><h3 id="egm-invite-heading">Invite someone</h3><p>Send an email or share a single-use link.</p></div>
       <form className="egm-invite-email" onSubmit={event=>{event.preventDefault();if(emailAvailable)createInvitation('email')}}><input className="egm-field" aria-label="Email address" type="email" value={email} onChange={event=>setEmail(event.target.value)} placeholder="Email address" autoComplete="email" required /><Button type="submit" variant="primary" disabled={busy||emailAvailable!==true||!email.trim()}>Send invite</Button></form>
-      <div className="egm-invite-options"><div className="egm-expiry-control"><span>Expires</span><Menu label="Invitation expiration" align="start" portalContainer={dialogElement} trigger={<Button type="button" className="egm-expiry-trigger" aria-label={`Invitation expiration: ${expiresInDays} ${expiresInDays===1?'day':'days'}`} disabled={busy}>{expiresInDays} {expiresInDays===1?'day':'days'}<Icon name="chevronDown" size={14}/></Button>}>{[1,7,30].map(days=><MenuItem key={days} role="menuitemradio" aria-checked={days===expiresInDays} onSelect={()=>setExpiresInDays(days)}>{days} {days===1?'day':'days'}{days===expiresInDays&&<Icon name="check" size={16}/>}</MenuItem>)}</Menu></div><Button type="button" disabled={busy||!invitations} onClick={()=>createInvitation('link')}>Create link</Button></div>
+      <div className="egm-invite-options"><div className="egm-expiry-control"><span>Invites expire in</span><Menu label="Invitation expiration" align="start" portalContainer={dialogElement} trigger={<Button type="button" className="egm-expiry-trigger" aria-label={`Invitation expiration: ${expiresInDays} ${expiresInDays===1?'day':'days'}`} disabled={busy}>{expiresInDays} {expiresInDays===1?'day':'days'}<Icon name="chevronDown" size={14}/></Button>}>{[1,7,30].map(days=><MenuItem key={days} role="menuitemradio" aria-checked={days===expiresInDays} onSelect={()=>setExpiresInDays(days)}>{days} {days===1?'day':'days'}{days===expiresInDays&&<Icon name="check" size={16}/>}</MenuItem>)}</Menu></div><Button type="button" variant="ghost" disabled={busy||!invitations} onClick={()=>createInvitation('link')}><Icon name="link" size={16}/>Create invite link</Button></div>
       {emailAvailable===false&&<p>Email invitations are unavailable. You can share a link instead.</p>}
       {notice&&<p className="egm-manage-message" role="status">{notice}</p>}{inviteError&&<div className="egm-manage-message" role="alert"><p>{inviteError}</p>{inviteCanRetry&&<Button type="button" disabled={busy} onClick={retryInvitations}>Reload invitations</Button>}</div>}
       {createdLink&&<div className="egm-invite-created"><label>Invitation link<input className="egm-field" readOnly value={createdLink.url} onFocus={event=>event.target.select()} /></label><CopyInvitationLink copied={copied} onCopy={async()=>{try{await navigator.clipboard.writeText(createdLink.url);setInviteError('');setCopied(true)}catch{setCopied(false);setInviteError('Could not copy the link. Select it to copy manually.')}}}/><p>Expires {date(createdLink.expiresAt)}. Copy it now; it cannot be shown again.</p></div>}
     </section>
     <section className="egm-manage-section" aria-labelledby="egm-users-heading"><div className="egm-manage-section-heading"><h3 id="egm-users-heading">Users <span>({record.users.length})</span></h3>{pending.length>0&&<span>{pending.length} pending</span>}</div>
-    {accessNotice&&<p className="egm-manage-message" role="status">{accessNotice}</p>}{!record.users.length&&<EmptyState title="No users yet">People appear here after they request access or accept an invitation.</EmptyState>}<ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}</div></div>{user.id!==record.ownerId&&['pending','approved','denied'].includes(user.status)?<UserAccessActions user={user} busy={busy} onDecide={decide}/>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
-    {invitations?.length>0&&<section className="egm-manage-section" aria-labelledby="egm-invitations-heading"><h3 id="egm-invitations-heading">Invitations</h3><ul aria-label="Invitations">{invitations.map(invitation=>{const expired=new Date(invitation.expiresAt).getTime()<=Date.now(),active=!invitation.redeemedAt&&!invitation.revokedAt&&!expired;const state=invitation.redeemedAt?'Used':invitation.revokedAt?'Revoked':expired?'Expired':invitation.deliveryState==='unknown'||invitation.deliveryState==='sending'?'Email delivery unconfirmed':invitation.deliveryState==='failed'?'Email delivery failed':'Active';return <li key={invitation.id}><div><strong>{invitation.email||'Shareable link'}</strong><span>{state}{active?` · Expires ${date(invitation.expiresAt)}`:''}</span></div>{active&&<InvitationRevokeAction invitation={invitation} busy={busy} onRevoke={revokeInvitation}/>}</li>})}</ul></section>}</>}
+    <p className="egm-user-activity-note">Recorded dashboard activity, last 30 days. Analytics blockers can leave gaps.</p>
+    {accessNotice&&<p className="egm-manage-message" role="status">{accessNotice}</p>}{!record.users.length&&<EmptyState title="No users yet">People appear here after they request access or accept an invitation.</EmptyState>}<ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}{user.created_at&&<span>Added <RelativeTime value={user.created_at}/></span>}<UserActivity activity={user.activity} status={record.activity?.status}/></div></div>{user.id!==record.ownerId&&['pending','approved','denied'].includes(user.status)?<UserAccessActions user={user} busy={busy} onDecide={decide}/>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
+    <Invitations invitations={invitations} busy={busy} onRevoke={revokeInvitation}/></>}
   </Dialog>
 }

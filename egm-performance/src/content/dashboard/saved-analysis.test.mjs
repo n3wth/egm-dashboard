@@ -1,12 +1,25 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {analysisSummary,savedAnalysis} from './saved-analysis.mjs'
+import {analysisSummary,savedAnalysis,audienceSentiment} from './saved-analysis.mjs'
 
 const now=Date.parse('2026-11-02T20:00:00Z')
 const queries=()=>({
   traffic:{rows:[{date:'2026-10-31',views:2}],source:{executedAt:'2026-11-02T18:00:00Z'}},
   daily_analysis_input_traffic:{rows:[{date:'2026-10-31',views:2}],source:{executedAt:'2026-11-02T18:00:00Z'}},
   daily_analysis:{rows:[{id:'overview',headline:'Attention is visible.',summary:'Successful use remains unmeasured.',nextStep:'Observe the first workflow.',queryIds:['traffic'],unknowns:['Retention is unmeasured.'],confidence:'low'}],source:{model:'gemini-flash-lite-latest',executedAt:'2026-11-02T19:00:00Z',inputSources:[{queryId:'traffic',observedAt:'2026-11-02T18:00:00Z'}]}}
+})
+
+test('audience sentiment requires current comment-backed analysis and counts distinct sampled comments',()=>{
+  const source=queries()
+  source.youtube_comments={rows:[{videoId:'a',comments:[{id:'one',text:'Useful'},{id:'one',text:'Useful'}]},{videoId:'b',comments:[{id:'two',text:'Setup failed'},{id:'empty',text:''}]}],source:{executedAt:'2026-11-02T18:00:00Z'}}
+  assert.deepEqual(audienceSentiment(source,now),{comments:2,videos:2,analysis:null})
+  source.daily_analysis_input_youtube_comments=structuredClone(source.youtube_comments)
+  source.daily_analysis.rows[0]={...source.daily_analysis.rows[0],id:'mentions',queryIds:['youtube_comments']}
+  source.daily_analysis.source.inputSources=[{queryId:'youtube_comments',observedAt:'2026-11-02T18:00:00Z'}]
+  assert.ok(audienceSentiment(source,now).analysis)
+  source.youtube_comments.source.executedAt='2026-11-02T19:30:00Z'
+  assert.equal(audienceSentiment(source,now).analysis,null)
+  assert.deepEqual(audienceSentiment({},now),{comments:0,videos:0,analysis:null})
 })
 
 test('saved interpretation preserves source evidence and explicit unknowns without changing metrics',()=>{
@@ -29,6 +42,11 @@ test('source changes, a different Pacific date and failed generation identify sa
   const changed=queries();changed.traffic.source.executedAt='2026-11-02T19:30:00Z'
   assert.equal(savedAnalysis(changed,'overview',now).newerSources,true)
   assert.equal(savedAnalysis(changed,'overview',now).stale,true)
+  const fallback={headline:'Current calculated result',facts:['Updated values'],queryIds:['traffic']}
+  const current=analysisSummary(fallback,changed,'overview',now)
+  assert.equal(current.headline,fallback.headline)
+  assert.equal(current.analysis,null)
+  assert.equal(current.previousAnalysis.stale,true)
   assert.equal(savedAnalysis(queries(),'overview',now+86400000).stale,true)
   const failed=queries();failed.daily_analysis_status={rows:[{status:'stale',reason:'generation_failed'}]}
   assert.equal(savedAnalysis(failed,'overview',now).stale,true)

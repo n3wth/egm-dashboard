@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {alignedTrendValues,sampledTrendValues,chartDates} from './metric-trend.mjs'
+import {alignedTrendValues,sampledTrendValues,dailySnapshotValues,chartDates} from './metric-trend.mjs'
 import {sparklineSegments} from './sparkline-path.mjs'
 test('chart dates extend through the current Pacific day without inventing values',()=>{
   const dates=chartDates([{date:'2026-10-30'},{date:'2026-10-31'}],Date.parse('2026-11-02T18:00:00Z'))
@@ -51,4 +51,11 @@ test('long sampling gaps stay bounded and do not compress calendar spacing',()=>
   assert.equal(values.length,14)
   assert.deepEqual(values.slice(-3),[0,null,8])
   assert.ok(values.slice(0,-3).every(value=>value===null))
+})
+
+test('rolling referral trends use the latest real observation each Pacific day and keep missing days blank',()=>{
+  const rows=[{observedAt:'2026-11-01T20:00:00Z',views:10},{observedAt:'2026-11-01T21:00:00Z',views:12},{observedAt:'2026-11-03T20:00:00Z',views:16}]
+  assert.deepEqual(dailySnapshotValues(rows,'views'),[12,null,16])
+  assert.deepEqual(dailySnapshotValues(rows,'unknown'),[])
+  assert.deepEqual(dailySnapshotValues([...rows].reverse(),'views'),dailySnapshotValues(rows,'views'))
 })

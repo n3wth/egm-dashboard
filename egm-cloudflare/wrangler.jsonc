@@ -13,6 +13,7 @@
   "d1_databases": [{"binding": "DB", "database_name": "egm-growth-access", "database_id": "4e4bd12f-afcf-4fda-a875-f40afa765f97"}],
   "vars": {
     "APP_URL": "https://egm.n3wth.com",
+    "POSTHOG_PROJECT_ID": "223560",
     "VIDEO_INITIAL_BACKFILL_LIMIT": "10",
     "OWNER_EMAIL": "oliver@newth.ai",
     "APPROVAL_WEBHOOK_HOSTS": "connectors.api.openai.com",

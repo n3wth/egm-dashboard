@@ -12,6 +12,8 @@ Initial history includes the checked-in reviewed data and stored windows. Missin
 
 ## Build and test
 
+Weekly OSS evidence collection and private review issues are documented in [Weekly building brief](docs/weekly-building-brief.md). The schedule drafts a review scaffold; public updates still require human review.
+
 Use Node.js 22.22 or newer and npm.
 
 ```sh

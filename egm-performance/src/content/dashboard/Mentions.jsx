@@ -7,6 +7,7 @@ import {EngagementSignals} from './EngagementSignals.jsx'
 import {PageSummary} from './PageSummary.jsx'
 import {EmptyState} from './DataStates.jsx'
 import {VideoThumbnail} from './VideoThumbnail.jsx'
+import {videoId} from './video-coverage.mjs'
 import {safeExternalUrl,mentionGroup,earliestValidDate,uniqueMentionKey,matchingEngagement} from './research-mentions.mjs'
 
 const mentionLink=(value,row)=>{const href=safeExternalUrl(row.url);return href?<a className="egm-mention-link" href={href} target="_blank" rel="noreferrer nofollow">{value}</a>:<span>{value||'Link unavailable'}</span>}
@@ -23,7 +24,6 @@ function MentionRows({rows,label}) {
   const columns=[{field:'title',label:'Mention',renderCell:mentionTitle},...(rows.some(row=>dateValue(row.firstSeen))?[{field:'firstSeen',label:'First seen',renderCell:value=><ShortDate value={value}/>}]:[])]
   return <div className="egm-mentions-table" data-has-dates={columns.length>1?'true':'false'}><DataTable rows={rows} searchable={rows.length>8} label={label} columns={columns}/></div>
 }
-const videoId=value=>{try{const url=new URL(value);if(!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname))return null;const id=url.hostname==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v')??url.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1];return /^[A-Za-z0-9_-]{11}$/.test(id??'')?id:null}catch{return null}}
 function VideoGallery({rows,queries}) {
   const metadata=queries.youtube_videos?.rows??[]
   const comments=queries.youtube_comments?.rows??[]
@@ -33,7 +33,7 @@ function VideoGallery({rows,queries}) {
   const observedViews=measured.reduce((total,row)=>total+row.views,0)
   const otherVideos=rows.filter(row=>!videoId(row.url))
   return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={[...videos,...otherVideos]} sourceRowsByQuery={{mentions:queries.mentions?.rows??[],...(queries.youtube_videos?{youtube_videos:metadata}:{}),...(queries.youtube_comments?{youtube_comments:comments}:{})}}>
-    {measured.length>=2&&observedViews>0&&<InsightCallout>The most-viewed video accounts for {percentage(measured[0].views/observedViews)} of YouTube view counts across the {measured.length} videos that have one.</InsightCallout>}
+    {measured.length>=2&&observedViews>0&&<InsightCallout>The leading video accounts for {percentage(measured[0].views/observedViews)} of recorded views in this {measured.length}-video measured sample.</InsightCallout>}
     {otherVideos.length>0&&<MentionRows rows={otherVideos} label="Other video mentions"/>}
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
       <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><VideoThumbnail id={row.id} sizes="(max-width: 550px) 100vw, (max-width: 1000px) 50vw, 33vw"/><Hint as="h3" title={row.title}>{row.title}</Hint></a>
