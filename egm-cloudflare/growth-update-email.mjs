@@ -5,8 +5,8 @@ import { GEMINI_MODEL, geminiRunner } from './gemini.mjs'
 export const defaultGrowthRecipient = 'newth@google.com'
 export const repoUrl = 'https://github.com/google/elephant-goldfish-model'
 export const websiteUrl = 'https://egm.dev'
-export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png`
-export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png`
+export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png?v=4`
+export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png?v=4`
 
 const font = `'Suisse Intl',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif`
 
@@ -447,7 +447,7 @@ async function loadCurrentSnapshot(env) {
   return seed
 }
 
-export async function sendGrowthUpdateEmail(env, { recipient = defaultGrowthRecipient, idempotencySuffix = 'v3', force = false, images = [] } = {}, fetcher = fetch) {
+export async function sendGrowthUpdateEmail(env, { recipient = defaultGrowthRecipient, idempotencySuffix = 'v4', force = false, images = [] } = {}, fetcher = fetch) {
   if (!env?.RESEND_API_KEY) return { status: 'missing_api_key' }
   const cleanRecipient = String(recipient).trim().toLowerCase()
   if (cleanRecipient !== defaultGrowthRecipient) return { status: 'recipient_not_allowed' }
