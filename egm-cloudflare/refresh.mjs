@@ -91,8 +91,15 @@ export async function refreshSnapshot(env,request=fetch,research=collectResearch
   data.generatedAt=started
   data.buildStatus='complete'
   Object.assign(data.queries,await research(env,request))
-  data.queries.weekly_brief=structuredClone(previousQueries.weekly_brief ?? seed.queries.weekly_brief)
-  data.queries.workflow_research=structuredClone(previousQueries.workflow_research ?? seed.queries.workflow_research)
+  const pickCuratedQuery=key=>{
+    const prev=previousQueries[key],seeded=seed?.queries?.[key]
+    if(!prev)return seeded
+    if(!seeded||(!prev.metadata&&!prev.metrics))return prev
+    const prevAt=Date.parse(prev?.source?.executedAt),seedAt=Date.parse(seeded?.source?.executedAt)
+    return Number.isFinite(seedAt)&&Number.isFinite(prevAt)&&seedAt>prevAt?seeded:prev
+  }
+  data.queries.weekly_brief=structuredClone(pickCuratedQuery('weekly_brief'))
+  data.queries.workflow_research=structuredClone(pickCuratedQuery('workflow_research'))
   // The multi-source runner stages this result and owns its single final commit.
   if(persist) {
     data.githubHistory=retainGithubHistory(previousSnapshot.githubHistory?previousSnapshot:{...previousSnapshot,githubHistory:retainGithubHistory({},seed)},data)

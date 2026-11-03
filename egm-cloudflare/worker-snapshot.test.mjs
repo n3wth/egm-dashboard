@@ -26,3 +26,27 @@ test('dashboard snapshot omits stored history while preserving current data, ver
     assert.equal((await handle(new Request(env.APP_URL+'/api/snapshot'),env)).status,401)
   } finally { db.close() }
 })
+
+test('dashboard snapshot overrides stale D1 weekly_brief and workflow_research when seed executedAt is newer', async () => {
+  const db = new DatabaseSync(':memory:')
+  try {
+    db.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'))
+    db.prepare("INSERT INTO users VALUES('viewer','viewer@example.org','Viewer',1,'approved','2026-01-01',NULL,NULL)").run()
+    db.prepare("INSERT INTO sessions VALUES('s1','viewer',?)").run(Math.floor(Date.now()/1000)+7*86400)
+    const staleSnapshot={
+      generatedAt:'2026-11-02T08:00:00Z',
+      queries:{
+        weekly_brief:{metadata:{isoWeek:'2026-W43'},rows:[],source:{executedAt:'2026-10-26T00:00:00Z'}},
+        workflow_research:{metrics:{verifiedBlockerRetests:0},rows:[],source:{executedAt:'2026-10-26T00:00:00Z'}}
+      }
+    }
+    db.prepare('INSERT INTO snapshots VALUES(1,?,?)').run(JSON.stringify(staleSnapshot),staleSnapshot.generatedAt)
+    const DB={prepare(sql){return {async first(){return db.prepare(sql).get()??null},bind(...args){return {async first(){return db.prepare(sql).get(...args)??null},async run(){return db.prepare(sql).run(...args)}}}}}}
+    const env={DB,APP_URL:'https://dashboard.example',SESSION_SECRET:'a'.repeat(64)}
+    const token=await seal({sid:'s1'},env.SESSION_SECRET,'session')
+    const response=await handle(new Request(env.APP_URL+'/api/snapshot',{headers:{cookie:'__Host-egm_session='+token}}),env)
+    const payload=await response.json()
+    assert.equal(payload.queries.weekly_brief.metadata.isoWeek,seed.queries.weekly_brief.metadata.isoWeek)
+    assert.equal(payload.queries.workflow_research.rows.length,seed.queries.workflow_research.rows.length)
+  } finally { db.close() }
+})

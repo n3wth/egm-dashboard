@@ -339,6 +339,32 @@ test('egm.css has no bold Suisse font, no font-weight 700, no italic, caps chart
       )
     )
     assert.doesNotMatch(researchHtml, /<td[^>]*>\s*<strong/, 'WorkflowResearchSection table cells must not contain strong')
+    assert.match(researchHtml, /Public friction records<\/span><span class="stat-value">5<\/span>/, 'WorkflowResearchSection displays recorded friction row count instead of duplicate Not measured')
+
+    // Verify dynamic metadata rendering in WeeklyBriefSection
+    const customQueries = {
+      weekly_brief: {
+        ...snapshot.queries.weekly_brief,
+        metadata: {
+          ...snapshot.queries.weekly_brief.metadata,
+          isoWeek: '2026-W45',
+          windowStart: '2026-11-02T00:00:00Z',
+          windowEnd: '2026-11-09T00:00:00Z',
+          latestRelease: 'v0.1.1',
+          reviewIssueUrl: 'https://github.com/n3wth/egm-dashboard/issues/199'
+        }
+      }
+    }
+    const dynamicBriefHtml = renderToStaticMarkup(
+      React.createElement(
+        DataAppShell,
+        { snapshot, hosted: false, persistLocally: false },
+        React.createElement(WeeklyBriefSection, { queries: customQueries })
+      )
+    )
+    assert.match(dynamicBriefHtml, /Nov 2 – Nov 9, 2026 \(UTC\)/, 'Dynamic window dates rendered from metadata')
+    assert.match(dynamicBriefHtml, /Issue #199/, 'Dynamic review issue number rendered from reviewIssueUrl')
+    assert.match(dynamicBriefHtml, /Released \(v0\.1\.1\)/, 'Dynamic release tag rendered from metadata')
   } finally {
     await server.close()
   }

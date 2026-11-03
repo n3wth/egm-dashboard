@@ -19,7 +19,7 @@ export function WeeklyBriefSection({ queries = {} }) {
       <div className="egm-brief-toolbar">
         <div className="egm-brief-toolbar-meta">
           <span className="egm-brief-pill">{brief.isoWeek}</span>
-          <span className="egm-brief-dates">Oct 26 – Nov 2, 2026 (UTC)</span>
+          <span className="egm-brief-dates">{brief.windowLabel}</span>
           {brief.reviewIssueUrl && (
             <a
               href={brief.reviewIssueUrl}
@@ -27,7 +27,7 @@ export function WeeklyBriefSection({ queries = {} }) {
               rel="noreferrer"
               className="egm-brief-review-link"
             >
-              Issue #132 <Icon name="arrowUpRight" size={12} />
+              {brief.reviewIssueLabel} <Icon name="arrowUpRight" size={12} />
             </a>
           )}
         </div>
@@ -52,7 +52,7 @@ export function WeeklyBriefSection({ queries = {} }) {
         </aside>
       )}
 
-      {viewMode === 'public' ? (
+      {viewMode === 'public' && (
         <DataComponent
           id="weekly-brief-public-draft"
           queryId={activeQueryId}
@@ -105,7 +105,8 @@ export function WeeklyBriefSection({ queries = {} }) {
             </p>
           </div>
         </DataComponent>
-      ) : (
+      )}
+      {(
         <>
           {/* 1. Commitments */}
           <DataComponent
@@ -202,7 +203,7 @@ export function WeeklyBriefSection({ queries = {} }) {
                 {/* Stage: Released */}
                 <div className="egm-stage-column" data-stage="released">
                   <h4 className="egm-stage-header">
-                    <span className="egm-brief-stage-badge stage-released">Released (v0.1.0)</span>
+                    <span className="egm-brief-stage-badge stage-released">Released ({brief.latestRelease})</span>
                     <span className="egm-stage-count">({brief.improvedByStage.released.length})</span>
                   </h4>
                   <p className="egm-stage-subhead">Shipped in tagged release; user outcome unverified</p>
@@ -452,9 +453,9 @@ export function WorkflowResearchSection({ queries = {} }) {
         <div className="egm-research-flow" data-reviewed-rows>
           <div className="egm-research-summary-bar">
             <div className="egm-summary-stat">
-              <span className="stat-label">First-workflow sessions</span>
-              <span className="stat-value stat-unmeasured">
-                {research.metrics.firstWorkflowSessions ?? 'Not measured'}
+              <span className="stat-label">Public friction records</span>
+              <span className="stat-value">
+                {research.metrics.recordedWorkflowRows}
               </span>
             </div>
             <div className="egm-summary-stat">
