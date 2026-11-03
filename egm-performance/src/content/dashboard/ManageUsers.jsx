@@ -16,6 +16,17 @@ function UserAvatar({user}) {
   return <span className="egm-user-avatar" aria-hidden="true">{photo&&!failed?<img src={photo} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:initials}</span>
 }
 
+export function UserActivity({activity,status}) {
+  if(status!=='available')return <span className="egm-user-activity">Usage unavailable</span>
+  if(!activity)return <span className="egm-user-activity">No recorded activity in 30 days</span>
+  const lastSeen=new Date(activity.lastSeen)
+  const elapsed=Math.max(0,Date.now()-lastSeen.getTime())
+  const unit=elapsed<3600000?'minute':elapsed<86400000?'hour':'day'
+  const ago=elapsed<60000?'just now':new Intl.RelativeTimeFormat('en',{numeric:'always'}).format(-Math.floor(elapsed/({minute:60000,hour:3600000,day:86400000}[unit])),unit)
+  const exact=lastSeen.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})
+  return <span className="egm-user-activity"><span>Last visited <time dateTime={activity.lastSeen} title={exact}>{ago}</time></span><span>{activity.pageViews.toLocaleString()} {activity.pageViews===1?'page view':'page views'} · {activity.activeDays} active {activity.activeDays===1?'day':'days'} · {activity.questions} Ask {activity.questions===1?'question':'questions'}</span></span>
+}
+
 export function UserAccessActions({user,busy,onDecide}) {
   const identity=user.name&&user.email&&user.name!==user.email?`${user.name} (${user.email})`:user.name||user.email||'user'
   const status=user.status??'pending'
@@ -163,7 +174,8 @@ export function ManageUsers({open,onClose,accessVersion}) {
       {createdLink&&<div className="egm-invite-created"><label>Invitation link<input className="egm-field" readOnly value={createdLink.url} onFocus={event=>event.target.select()} /></label><CopyInvitationLink copied={copied} onCopy={async()=>{try{await navigator.clipboard.writeText(createdLink.url);setInviteError('');setCopied(true)}catch{setCopied(false);setInviteError('Could not copy the link. Select it to copy manually.')}}}/><p>Expires {date(createdLink.expiresAt)}. Copy it now; it cannot be shown again.</p></div>}
     </section>
     <section className="egm-manage-section" aria-labelledby="egm-users-heading"><div className="egm-manage-section-heading"><h3 id="egm-users-heading">Users <span>({record.users.length})</span></h3>{pending.length>0&&<span>{pending.length} pending</span>}</div>
-    {accessNotice&&<p className="egm-manage-message" role="status">{accessNotice}</p>}{!record.users.length&&<EmptyState title="No users yet">People appear here after they request access or accept an invitation.</EmptyState>}<ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}</div></div>{user.id!==record.ownerId&&['pending','approved','denied'].includes(user.status)?<UserAccessActions user={user} busy={busy} onDecide={decide}/>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
+    <p className="egm-user-activity-note">Recorded dashboard activity, last 30 days. Analytics blockers can leave gaps.</p>
+    {accessNotice&&<p className="egm-manage-message" role="status">{accessNotice}</p>}{!record.users.length&&<EmptyState title="No users yet">People appear here after they request access or accept an invitation.</EmptyState>}<ul aria-label="Users">{record.users.map(user=><li key={user.id}><div className="egm-user-identity"><UserAvatar user={user}/><div className="egm-user-details"><strong>{user.name||user.email}</strong>{user.name&&<span>{user.email}</span>}<UserActivity activity={user.activity} status={record.activity?.status}/></div></div>{user.id!==record.ownerId&&['pending','approved','denied'].includes(user.status)?<UserAccessActions user={user} busy={busy} onDecide={decide}/>:<span className="egm-user-status">{user.id===record.ownerId?'Owner':user.status==='approved'?'Approved':user.status==='pending'?'Pending approval':'Access denied'}</span>}</li>)}</ul></section>
     {invitations?.length>0&&<section className="egm-manage-section" aria-labelledby="egm-invitations-heading"><h3 id="egm-invitations-heading">Invitations</h3><ul aria-label="Invitations">{invitations.map(invitation=>{const expired=new Date(invitation.expiresAt).getTime()<=Date.now(),active=!invitation.redeemedAt&&!invitation.revokedAt&&!expired;const state=invitation.redeemedAt?'Used':invitation.revokedAt?'Revoked':expired?'Expired':invitation.deliveryState==='unknown'||invitation.deliveryState==='sending'?'Email delivery unconfirmed':invitation.deliveryState==='failed'?'Email delivery failed':'Active';return <li key={invitation.id}><div><strong>{invitation.email||'Shareable link'}</strong><span>{state}{active?` · Expires ${date(invitation.expiresAt)}`:''}</span></div>{active&&<InvitationRevokeAction invitation={invitation} busy={busy} onRevoke={revokeInvitation}/>}</li>})}</ul></section>}</>}
   </Dialog>
 }
