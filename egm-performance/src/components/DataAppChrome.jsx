@@ -1,7 +1,10 @@
+import { Hint } from './NavTooltip.jsx'
 import { dataAppExportOptions } from "../export-catalog.js";
 import { Feedback } from "../content/dashboard/Feedback.jsx";
+import { resetUsageIdentity } from "../content/dashboard/usage-analytics.js";
+import { NavTooltip } from "./NavTooltip.jsx";
 import { navbarAccountIcon, navbarAskIcon, navbarIconSize, navbarRefreshIcon, navbarSparkleSize } from "../content/dashboard/navbar-icons.mjs";
-import { reportingRangeLabel } from "../content/dashboard/overview-summary.mjs";
+import { pacificReportingRangeLabel as reportingRangeLabel } from "../content/dashboard/overview-summary.mjs";
 import { useOptionalDataAppShell } from "../DataAppContext.jsx";
 import { dataAppBuildState } from "../build-state.js";
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
@@ -95,8 +98,8 @@ function RelativeFreshness({ generatedAt, rangeLabel }) {
     : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago`
       : `${Math.floor(minutes / 1440)}d ago`;
   const exact = new Date(timestamp).toLocaleString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" });
-  const label = rangeLabel ? `Updated ${exact}. Reporting period ${rangeLabel}, UTC.` : `Updated ${exact}`;
-  return <time dateTime={generatedAt} title={label} aria-label={label} style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon name={navbarRefreshIcon} size={navbarIconSize}/>{age}</time>;
+  const label = rangeLabel ? `Updated ${exact}. Reporting period ${rangeLabel}.` : `Updated ${exact}`;
+  return <NavTooltip label={label}><time dateTime={generatedAt} tabIndex={0} aria-label={label} className="dashboard-relative-freshness"><Icon name={navbarRefreshIcon} size={navbarIconSize}/>{age}</time></NavTooltip>;
 }
 
 function DataAppVerificationBadge({
@@ -507,25 +510,20 @@ const HeaderActionButton = React.forwardRef(function HeaderActionButton(
 });
 
 const HeaderOverflowButton = React.forwardRef(function HeaderOverflowButton(props, ref) {
-  const tooltipId = React.useId();
   return (
-    <span className="history-tooltip-trigger" data-delayed-tooltip>
+    <NavTooltip label="More">
       <button
         {...props}
         ref={ref}
         type="button"
         aria-label="More"
-        aria-describedby={tooltipId}
         className="dashboard-header-action-button dashboard-header-overflow-button"
       >
         <span className="dashboard-header-overflow-visual">
           <Icon name="more" size={18} />
         </span>
       </button>
-      <Tooltip id={tooltipId} className="topbar-mode-tooltip">
-        More
-      </Tooltip>
-    </span>
+    </NavTooltip>
   );
 });
 
@@ -580,6 +578,7 @@ function DataAppOverflowMenu({
   const [viewer,setViewer]=useState(null);
   const [manageUsersOpen,setManageUsersOpen]=useState(false);
   const [accountSecurityOpen,setAccountSecurityOpen]=useState(false);
+  const [accountMenuOpen,setAccountMenuOpen]=useState(false);
   const [failedPhoto,setFailedPhoto]=useState(null);
   const [pendingAccess,setPendingAccess]=useState(false);
   const [accessVersion,setAccessVersion]=useState(0);
@@ -616,6 +615,7 @@ function DataAppOverflowMenu({
   const photo=(()=>{try{const url=new URL(viewer?.profilePictureUrl);return url.protocol==='https:'&&url.hostname==='workoscdn.com'&&!url.username&&!url.password&&!url.port?url.href:null}catch{return null}})();
   const avatar=<span className="egm-account-avatar-wrap" aria-hidden="true"><span className="egm-account-avatar">{photo&&failedPhoto!==photo?<img src={photo} alt="" width="28" height="28" referrerPolicy="no-referrer" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={()=>setFailedPhoto(photo)}/>:initial||<Icon name={navbarAccountIcon} size={navbarIconSize}/>}</span>{pendingAccess&&<span className="egm-account-pending"/>}</span>;
   const logOut = () => {
+    resetUsageIdentity();
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/auth/logout';
@@ -652,14 +652,14 @@ function DataAppOverflowMenu({
       });
   };
   if(published)return <>
-    <span className="dashboard-custom-overflow"><Menu label="Account" align="end" contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label={pendingAccess?'Account, pending access requests':'Account'} title={pendingAccess?'Pending access requests':viewer?.name?`Account: ${viewer.name}`:'Account'}>{avatar}</button>}>
+    <NavTooltip disabled={accountMenuOpen} label={pendingAccess?'Pending access requests':viewer?.name?`Account: ${viewer.name}`:'Account'}><span className="dashboard-custom-overflow"><Menu label="Account" align="end" onOpenChange={setAccountMenuOpen} contentClassName="dashboard-header-action-menu" trigger={<button ref={triggerRef} type="button" className="dashboard-header-action-button egm-account-button" aria-label={pendingAccess?'Account, pending access requests':'Account'}>{avatar}</button>}>
       <MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>onAction?.('copy-link')}>Copy link</MenuItem>
       <MenuItem icon="palette" className="dashboard-action-menu-item" onSelect={onOpenThemes}>Switch theme</MenuItem>
       {canManageUsers&&<MenuItem icon="link" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Invite</MenuItem>}
       {canManageUsers&&<MenuItem icon="users" className="dashboard-action-menu-item" onSelect={()=>setManageUsersOpen(true)}>Manage users</MenuItem>}
       {canLogOut&&viewer?.widgetsEnabled===true&&<MenuItem icon="users" className="dashboard-action-menu-item" onSelect={()=>setAccountSecurityOpen(true)}>Profile and sessions</MenuItem>}
       {canLogOut&&<MenuItem icon="logOut" className="dashboard-action-menu-item" onSelect={logOut}>Log out</MenuItem>}
-    </Menu></span>
+    </Menu></span></NavTooltip>
     <span className="dashboard-native-overflow"><span className="dashboard-header-overflow-visual" aria-hidden="true">{avatar}</span><select ref={nativeSelect} aria-label={pendingAccess?'Account, pending access requests':'Account'} onChange={nativeAction} onKeyDown={event=>{if(event.key==='Escape')event.stopPropagation()}}><option value="copy-link">Copy link</option><option value="theme">Switch theme</option>{canManageUsers&&<option value="manage-users">Manage users and invite</option>}{canLogOut&&viewer?.widgetsEnabled===true&&<option value="account-security">Profile and sessions</option>}{canLogOut&&<option value="logout">Log out</option>}</select></span>
     {canManageUsers&&<ManageUsers open={manageUsersOpen} onClose={()=>setManageUsersOpen(false)} accessVersion={accessVersion}/>}
     {canLogOut&&viewer?.widgetsEnabled===true&&<WorkosSessions open={accountSecurityOpen} onClose={()=>setAccountSecurityOpen(false)} profileEnabled={viewer?.profileEnabled===true}/>}
@@ -692,7 +692,7 @@ function DataAppOverflowMenu({
                 Edit text and layout
               </MenuItem>
             )}
-            {!published && (
+            {!published && canEdit && (
               <MenuItem
                 icon="globe"
                 className="dashboard-action-menu-item"
@@ -782,12 +782,12 @@ function DataAppOverflowMenu({
               Ask
             </option>
             {canEdit && <option value="edit">Edit text and layout</option>}
-            {!published && (
+            {!published && canEdit && (
               <option value="publish" aria-label="Publish" disabled={publishDisabled}>
                 Publish
               </option>
             )}
-            {canEdit && <option value="theme">Switch theme</option>}
+            {canSwitchTheme && <option value="theme">Switch theme</option>}
             {published && <option value="copy-link">Copy link</option>}
             {canLogOut && <option value="logout">Log out</option>}
             {published && onOpenHandoffSettings && <option value="handoff-settings">Editor settings</option>}
@@ -893,6 +893,7 @@ export function DataAppTopbar({
   surface = "dashboard",
   published = false,
   canEdit = true,
+  canRefresh = canEdit,
   verification,
   pendingVerification,
   onVerificationReminderError,
@@ -964,7 +965,6 @@ export function DataAppTopbar({
     });
     return () => cancelAnimationFrame(frame);
   }, [mode]);
-  const askTooltipId = React.useId();
   const askButtonRef = useRef(null);
   const moreButtonRef = useRef(null);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -1116,7 +1116,7 @@ export function DataAppTopbar({
               {title}
             </TitleTag>
             {build.label && (
-              <span
+              <Hint as="span"
                 className="freshness freshness-label dashboard-authoring-status"
                 role="status"
                 title={
@@ -1127,12 +1127,12 @@ export function DataAppTopbar({
               >
                 {build.active && <Icon name="spinner" size={16} className="dashboard-authoring-spinner" />}
                 {build.label}
-              </span>
+              </Hint>
             )}
             {mode === "edit" ? (
               <span className="freshness freshness-label dashboard-edit-session-label">Editing</span>
             ) : null}
-            {!build.label && mode !== "edit" && generatedAt && canEdit && surface !== "report" && (
+            {!build.label && mode !== "edit" && generatedAt && canRefresh && surface !== "report" && (
               <DataAppRefreshControl
                 showTrigger={false}
                 generatedAt={generatedAt}
@@ -1223,7 +1223,7 @@ export function DataAppTopbar({
                   <span className="egm-account-menu">
                   <DataAppOverflowMenu
                     canEdit={canEdit && !editingBlocked}
-                    canSwitchTheme={canEdit}
+                    canSwitchTheme={true}
                     getActionHref={getActionHref}
                     hiddenCount={hiddenCount}
                     mode={mode}
@@ -1239,7 +1239,7 @@ export function DataAppTopbar({
                       setRefreshScheduleOpen(true);
                     }}
                     publishDisabled={build.publishBlocked}
-                    hasRefresh={Boolean(generatedAt && canEdit && surface !== "report")}
+                    hasRefresh={Boolean(generatedAt && canRefresh && surface !== "report")}
                     triggerRef={moreButtonRef}
                     published={published}
                     surface={surface}
@@ -1249,12 +1249,11 @@ export function DataAppTopbar({
 
                 </>
               )}
-              <span className="history-tooltip-trigger" data-delayed-tooltip>
+              <NavTooltip label={mode === 'edit' ? 'Cancel' : build.active ? `Available when this ${noun} is ready.` : 'Ask Gemini'}>
                 <HeaderActionButton
                   disabled={mode === "edit" ? saving : build.active}
                   data-mode-action="secondary"
                   data-state={mode !== "edit" && headerComposerOpen ? "open" : undefined}
-                  aria-describedby={mode !== "edit" && build.active ? askTooltipId : undefined}
                   ref={askButtonRef}
                   label={mode === "edit" ? "Cancel" : "Ask Gemini"}
                   iconOnly={mode !== "edit"}
@@ -1263,13 +1262,8 @@ export function DataAppTopbar({
                   className="dashboard-ask-button"
                   onClick={mode === "edit" ? onCancel : () => openAskComposer()}
                 />
-                {mode !== 'edit' && (
-                  <Tooltip id={askTooltipId} className="topbar-mode-tooltip">
-                    {build.active?`Available when this ${noun} is ready.`:'Ask Gemini'}
-                  </Tooltip>
-                )}
-              </span>
-              {(!published || mode === "edit") && (
+              </NavTooltip>
+              {mode === "edit" && (
                 <DataAppPublishButton
                   published={published}
                   getActionHref={getActionHref}

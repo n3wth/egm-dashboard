@@ -1,6 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { XAxis, YAxis, getNiceTickValues, useXAxisDomain, useXAxisTicks, useYAxisDomain, useYAxisTicks } from "recharts";
 import { mergeNumericAxisTicks, numericAxisFormatter } from "./chart-theme.js";
+import { roundedNumericTicks, usesRoundedNumericScale, zeroAnchoredDomain } from './numeric-axis-scale.mjs';
+
+function useRoundedScale(props, domain, tickCount, allowDecimals, percent) {
+  const automatic = usesRoundedNumericScale(props, percent);
+  const domainSignature = JSON.stringify(domain ?? null);
+  const ticks = useMemo(() => roundedNumericTicks(JSON.parse(domainSignature), tickCount, allowDecimals),
+    [domainSignature, tickCount, allowDecimals]);
+  const resolveDomain = useMemo(() => bounds => {
+    const ticks = roundedNumericTicks(zeroAnchoredDomain(bounds), tickCount, allowDecimals);
+    return ticks.length ? [ticks[0], ticks.at(-1)] : zeroAnchoredDomain(bounds);
+  }, [tickCount, allowDecimals]);
+  return automatic ? { domain: resolveDomain, ticks, niceTicks: 'none' } : {};
+}
 
 function useNumericAxisFormatter(axis, axisId, domain, ticks, percent, percentDigits, tickCount, allowDecimals, currency) {
   const numericDomain =
@@ -35,10 +48,12 @@ function useNumericAxisFormatter(axis, axisId, domain, ticks, percent, percentDi
 }
 
 export function NumericXAxis({ percent = false, percentDigits, xAxisId = 0, tickCount = 5, allowDecimals = true, currency, ...props }) {
+  const domain = useXAxisDomain(xAxisId);
+  const rounded = useRoundedScale(props, domain, tickCount, allowDecimals, percent);
   const format = useNumericAxisFormatter(
     "x",
     xAxisId,
-    useXAxisDomain(xAxisId),
+    domain,
     useXAxisTicks(xAxisId),
     percent,
     percentDigits,
@@ -47,15 +62,17 @@ export function NumericXAxis({ percent = false, percentDigits, xAxisId = 0, tick
     currency,
   );
   return (
-    <XAxis {...props} xAxisId={xAxisId} tickCount={tickCount} allowDecimals={allowDecimals} tickFormatter={format} />
+    <XAxis {...props} {...rounded} xAxisId={xAxisId} tickCount={tickCount} allowDecimals={allowDecimals} tickFormatter={format} />
   );
 }
 
 export function NumericYAxis({ percent = false, percentDigits, yAxisId = 0, tickCount = 5, allowDecimals = true, currency, ...props }) {
+  const domain = useYAxisDomain(yAxisId);
+  const rounded = useRoundedScale(props, domain, tickCount, allowDecimals, percent);
   const format = useNumericAxisFormatter(
     "y",
     yAxisId,
-    useYAxisDomain(yAxisId),
+    domain,
     useYAxisTicks(yAxisId),
     percent,
     percentDigits,
@@ -64,6 +81,6 @@ export function NumericYAxis({ percent = false, percentDigits, yAxisId = 0, tick
     currency,
   );
   return (
-    <YAxis {...props} yAxisId={yAxisId} tickCount={tickCount} allowDecimals={allowDecimals} tickFormatter={format} />
+    <YAxis {...props} {...rounded} yAxisId={yAxisId} tickCount={tickCount} allowDecimals={allowDecimals} tickFormatter={format} />
   );
 }

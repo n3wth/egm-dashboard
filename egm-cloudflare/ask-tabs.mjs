@@ -2,6 +2,7 @@
 const tabs = {
   reach: ['/overview', 'Overview'],
   star_history: ['/overview', 'Overview'],
+  star_observations: ['/overview', 'Overview'],
   traffic: ['/overview', 'Overview'],
   live_github: ['/overview', 'Overview'],
   referrers: ['/acquisition', 'Acquisition'],
@@ -18,6 +19,9 @@ const tabs = {
   maintenance: ['/development', 'Development'],
   activity: ['/development', 'Development'],
   issue_queue: ['/development', 'Development'],
+  weekly_brief: ['/development', 'Development'],
+  oss_health: ['/development', 'Development'],
+  workflow_research: ['/adoption', 'Adoption'],
   research_evidence: ['/research', 'Research'],
   research_status: ['/research', 'Research'],
   exa_research: ['/research', 'Research'],

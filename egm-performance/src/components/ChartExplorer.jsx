@@ -1,3 +1,4 @@
+import { Hint } from './NavTooltip.jsx'
 import React, { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -245,7 +246,7 @@ function ChartColorControl({
   return (
     <div className="explorer-color-row">
       <span className="explorer-property-name">{name}</span>
-      <button
+      <Hint as="button"
         ref={triggerRef}
         type="button"
         className="explorer-color-trigger"
@@ -258,7 +259,7 @@ function ChartColorControl({
       >
         <i style={{ "--explorer-swatch-color": swatchColor }} />
         <span>{colorLabel}</span>
-      </button>
+      </Hint>
       {popoverPosition &&
         createPortal(
           <div
@@ -281,7 +282,7 @@ function ChartColorControl({
             <span className="explorer-color-popover-title">Theme colors</span>
             <div className="explorer-color-options" role="group" aria-label="Chart series colors">
               {chartColorOptions.map(({ label, token }) => (
-                <button
+                <Hint as="button"
                   key={token}
                   type="button"
                   className="explorer-color-option"

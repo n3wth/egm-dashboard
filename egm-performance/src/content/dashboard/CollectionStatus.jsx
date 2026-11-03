@@ -8,7 +8,6 @@ export function CollectionStatus({ refreshStatus }) {
   const summary = collectionSummary(sources, refreshStatus.collectionEndsAt, now)
   return <details className="egm-collection-status">
     <summary>
-      <span className="egm-collection-title">Collection status</span>
       <span className="egm-collection-summary">{summary.label}</span>
     </summary>
     <ul>

@@ -4,17 +4,21 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { defineConfig } from "vite";
-import { viteSingleFile } from "vite-plugin-singlefile";
 
 const localThreadId = [process.env.CODEX_SESSION_ID, process.env.CODEX_THREAD_ID].find((value) =>
   /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu.test(value ?? ""),
 );
 
-const snapshotIntegrityPlugin = {
+export function snapshotFile(command, root = fileURLToPath(new URL(".", import.meta.url))) {
+  const preview = join(root, ".data-app-preview/snapshot.json");
+  return command === "serve" && existsSync(preview) ? preview : join(root, "src/data.json");
+}
+
+const snapshotIntegrityPlugin = (snapshotPath) => ({
   name: "data-app-snapshot-integrity",
   async transformIndexHtml(_html, context) {
     const root = fileURLToPath(new URL(".", import.meta.url));
-    let snapshotBytes = readFileSync(new URL("./src/data.json", import.meta.url));
+    let snapshotBytes = readFileSync(snapshotPath);
     if (context?.filename && /^examples\/[\w-]+\/index\.html$/u.test(relative(root, context.filename).replaceAll("\\", "/"))) {
       const entry = join(dirname(context.filename), "data.js");
       if (!existsSync(entry)) throw new Error(`Gallery example needs an explicit snapshot entry: ${entry}`);
@@ -39,20 +43,24 @@ const snapshotIntegrityPlugin = {
       }] : []),
     ];
   },
-};
+});
 
-export default defineConfig(({ command, isSsrBuild }) => ({
+export default defineConfig(({ command, isSsrBuild }) => {
+  const snapshotPath = snapshotFile(command);
+  return {
   // Gallery launchers and prepared apps consume the same authored reference modules.
   resolve: {
-    alias: { "../../data-app-public.jsx": fileURLToPath(new URL("./src/data-app-public.jsx", import.meta.url)) },
+    alias: [
+      { find: /^\.\/data\.json$/u, replacement: snapshotPath },
+      { find: "../../data-app-public.jsx", replacement: fileURLToPath(new URL("./src/data-app-public.jsx", import.meta.url)) },
+    ],
     // Canonical examples live outside this package; use this app's installed UI runtime.
     dedupe: ["react", "react-dom", "recharts"],
   },
   plugins: isSsrBuild
     ? []
     : [
-        viteSingleFile(),
-        snapshotIntegrityPlugin,
+        snapshotIntegrityPlugin(snapshotPath),
         {
           name: "data-app-local-task",
           // Development gallery only. Prepared apps retain their own root entry.
@@ -86,5 +94,13 @@ export default defineConfig(({ command, isSsrBuild }) => ({
   define: {
     __DATA_APP_PROJECT_ROOT__: JSON.stringify(command === "serve" ? process.cwd() : ""),
   },
-  build: isSsrBuild ? { rollupOptions: { output: { entryFileNames: "index.js" } } } : {},
-}));
+  build: isSsrBuild ? { rolldownOptions: { output: { entryFileNames: "index.js" } } } : {
+    // Static imports load all chunks at startup; stable libraries survive authored-data updates in browser cache.
+    rolldownOptions: { output: { codeSplitting: { groups: [
+      { name: "react", test: /[\\/]node_modules[\\/](?:react|react-dom|scheduler)[\\/]/u },
+      { name: "vendor", test: /[\\/]node_modules[\\/]/u },
+      { name: "snapshot", test: /[\\/]src[\\/]data\.json$/u },
+    ] } } },
+  },
+  };
+});

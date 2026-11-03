@@ -55,6 +55,7 @@ export function streamAsk(run,finalize,signal,timeoutMs=30000,hooks={}) {
         }
       }catch(error){hooks.onError?.(error);send({type:'error',error:error?.message==='timeout'?'ask_timeout':'ask_unavailable'})}
       finally {
+        hooks.onFinally?.()
         clearTimeout(timer)
         signal?.removeEventListener('abort',abort)
         await reader?.cancel().catch(()=>{})

@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { Tooltip, useTabOverflow } from "./ui.jsx";
+import { useTabOverflow } from "./ui.jsx";
+import { NavTooltip } from "./NavTooltip.jsx";
 import { Icon } from "./Icon.jsx";
 import { navbarIcon, navbarIconSize } from "../content/dashboard/navbar-icons.mjs";
 
@@ -24,7 +25,6 @@ export function DashboardTabs({
   tabs, activeTabId, editMode = false, onChange, onReorder, trailing,
 }) {
   const [dragPreview, setDragPreview] = useState(null);
-  const [hoveredTab, setHoveredTab] = useState(null);
   const [pressedTabId, setPressedTabId] = useState(null);
   const drag = useRef({ id: null, moved: false });
   const navRef = useRef(null);
@@ -123,7 +123,7 @@ export function DashboardTabs({
     <div ref={scrollRef} className="dashboard-chrome-inner dashboard-tabs-inner">
       <nav ref={navRef} className={`dashboard-tabs egm-icon-tabs${pressedTabId ? " is-pressed" : ""}${dragPreview ? " is-dragging" : ""}`}
         role="tablist" aria-label="Dashboard pages">
-        {tabs.map((tab) => <span className="dashboard-tab-item history-tooltip-trigger" role="presentation" key={tab.id}>
+        {tabs.map((tab) => <NavTooltip label={tab.label} className="dashboard-tab-item" role="presentation" key={tab.id}>
           <button type="button" role="tab"
           ref={(element) => {
             if (element) tabRefs.current.set(tab.id, element);
@@ -132,19 +132,13 @@ export function DashboardTabs({
           className={`dashboard-tab${dragPreview?.id === tab.id ? " is-dragging" : ""}`}
           data-dashboard-tab-id={tab.id}
           aria-label={tab.label}
-          aria-describedby={hoveredTab?.id===tab.id?"egm-page-tab-tooltip":undefined}
           aria-selected={activeTabId === tab.id} tabIndex={activeTabId === tab.id ? 0 : -1}
-          onPointerEnter={event=>{{const bounds=event.currentTarget.getBoundingClientRect();setHoveredTab({id:tab.id,label:tab.label,left:bounds.left+bounds.width/2,top:bounds.bottom+6});}}}
-          onPointerLeave={()=>setHoveredTab(null)}
-          onFocus={event=>{{const bounds=event.currentTarget.getBoundingClientRect();setHoveredTab({id:tab.id,label:tab.label,left:bounds.left+bounds.width/2,top:bounds.bottom+6});}}}
-          onBlur={()=>setHoveredTab(null)}
           onClick={(event) => {
             if (drag.current.moved) {
               drag.current.moved = false;
               event.preventDefault();
               return;
             }
-            setHoveredTab(null);
             onChange?.(tab.id);
           }}
           onMouseDown={editMode ? (event) => {
@@ -179,11 +173,10 @@ export function DashboardTabs({
           <PageIcon id={tab.id}/>
 
           </button>
-        </span>)}
+        </NavTooltip>)}
       </nav>
       {trailing}
     </div>
-    {hoveredTab&&<Tooltip portal id="egm-page-tab-tooltip" style={{position:'fixed',zIndex:'var(--layer-tooltip)',left:hoveredTab.left,top:hoveredTab.top,transform:'translateX(-50%)',opacity:1}}>{hoveredTab.label}</Tooltip>}
     {dragPreview && typeof document !== "undefined" && createPortal(
       <div className="dashboard-tab-drag-preview" aria-hidden="true"
         data-drag-direction={dragPreview.direction} style={{

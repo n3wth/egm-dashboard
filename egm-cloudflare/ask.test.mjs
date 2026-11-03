@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {DatabaseSync} from 'node:sqlite'
-import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations,summedUniques} from './ask.mjs'
+import {handleAsk,askContext,askCards,askHistory,neutralCausalWording,renumberCitations,summedUniques,askFollowUps} from './ask.mjs'
 import {geminiRunner} from './gemini.mjs'
 const origin='https://egm.n3wth.com'
 const user={id:'owner',status:'approved'}
@@ -241,15 +241,16 @@ test('PostHog AI events record successful and failed generations without the sna
   assert.equal((await handleAsk(request({question:'How many views?',history:[{question:'hi',answer:'hello'}]}),env,user,options)).status,200)
   await Promise.all(pending)
   assert.equal(sent.length,1)
-  const ok=sent[0].properties
-  assert.equal(sent[0].event,'$ai_generation');assert.equal(sent[0].distinct_id,'owner')
+  const recorded=sent[0].batch[0]
+  const ok=recorded.properties
+  assert.equal(recorded.event,'$ai_generation');assert.equal(recorded.distinct_id,'owner')
   assert.equal(ok.$ai_input_tokens,12);assert.equal(ok.$ai_is_error,false)
   assert.deepEqual(ok.$ai_input.map(turn=>turn.content),['hi','hello','How many views?'])
   assert.ok(!JSON.stringify(sent[0]).includes('rawMarkdown'))
   env.INFER.run=async()=>{throw Error('provider_failed')}
   assert.equal((await handleAsk(request({question:'How many views?'}),env,user,options)).status,503)
   await Promise.all(pending)
-  assert.equal(sent.at(-1).properties.$ai_is_error,true);assert.equal(sent.at(-1).properties.$ai_error,'ask_unavailable')
+  assert.equal(sent.at(-1).batch[0].properties.$ai_is_error,true);assert.equal(sent.at(-1).batch[0].properties.$ai_error,'ask_unavailable')
 })
 test('causal verbs before measured numbers become neutral, other uses are untouched',()=>{
   assert.equal(neutralCausalWording('YouTube is a referrer, driving 4,792 views [S12].'),'YouTube is a referrer, accounting for 4,792 views [S12].')
@@ -273,8 +274,34 @@ test('prompt requires neutral verbs and measurable experiment criteria',async()=
   env.INFER.run=async(_,input)=>{system=input.messages[0].content;return {response:'100 views [S1]'}}
   await handleAsk(request(),env,user)
   assert.match(system,/never drove, caused, led to or resulted in/)
-  assert.match(system,/current cited value as the baseline, the observation window/)
+  assert.match(system,/current cited value as the baseline only when that metric can observe the proposed outcome/)
   assert.match(system,/rolling 14-day window/)
+  assert.match(system,/observedAt is the collection time; coverage gives the period measured and may end earlier/)
+  assert.match(system,/state material coverage gaps, lag dates or stale source dates when they change the answer/)
+  assert.doesNotMatch(system,/do not print record dates because/)
+})
+test('adoption experiments require direct manual measurement when activation and retention are unmeasured',async()=>{
+  const env=environment()
+  let system
+  env.INFER.run=async(_,input)=>{system=input.messages[0].content;return {response:'Adoption is not measured [S1]'}}
+  await handleAsk(request({question:'Does recent star growth prove adoption, and what should we validate next?'}),env,user)
+  assert.match(system,/explicitly say Not measured and propose a new manual measurement/)
+  assert.match(system,/Never invent a baseline or an arbitrary percentage change as a success criterion/)
+  assert.match(system,/Stars, clones, downloads, visitor counts and open issue or PR counts are not activation or retention measures/)
+  assert.match(system,/five new users: follow the existing installation instructions and complete one first workflow, record completion and blockers, then check whether participants return after seven days/)
+  assert.match(system,/Label this Proposed manual measurement/)
+  assert.match(system,/Do not propose adding telemetry to a README or claim documentation is missing unless the supplied evidence identifies that specific documentation gap/)
+  assert.doesNotMatch(system,/Only use measures this dashboard already records/)
+})
+test('Ask retains source coverage separately from collection freshness for undated referral rows',()=>{
+  const source={label:'GitHub referrers',executedAt:'2026-11-02T08:31:00Z',coverage:{startDate:'2026-10-18',endDate:'2026-10-31',apiToken:'not-for-context'}}
+  const context=askContext({queries:{referrers:{rows:[{referrer:'Google',count:123}],source}}},'Latest referrals?')
+  const coverage={startDate:'2026-10-18',endDate:'2026-10-31'}
+  assert.equal(context.records[0].observedAt,source.executedAt)
+  assert.deepEqual(context.records[0].coverage,coverage)
+  assert.deepEqual(context.sources[0].coverage,coverage)
+  assert.equal(source.coverage.apiToken,'not-for-context','source metadata is not mutated')
+  assert.equal(askContext({queries:{referrers:{rows:[]}}},'referrers').records[0].coverage,null)
 })
 test('summed unique counts are detected per sentence',()=>{
   assert.equal(summedUniques('LinkedIn sent 2,507 unique visitors (1,718 + 789) [S1].'),true)
@@ -295,4 +322,16 @@ test('cards only come from cited records and sources lead with dataset names',as
   assert.deepEqual(result.cards.map(card=>card.queryId),['reach'])
   assert.equal(result.sources[0].label,'Repository reach')
   assert.equal(result.sources[0].provider,'GitHub REST API')
+})
+test('follow-ups come from cited data and skip questions already asked',()=>{
+  assert.deepEqual(askFollowUps(['reach'],['How many stars?']),['How has EGM star growth changed?','What are the clearest growth opportunities?'])
+  assert.deepEqual(askFollowUps(['reach','traffic'],['how has egm star growth changed?']),['Which channels bring visitors to EGM?','What are the clearest growth opportunities?'])
+  assert.deepEqual(askFollowUps(['unmapped'],[]),['What are the clearest growth opportunities?','Which channels bring visitors to EGM?'])
+})
+test('measurement limits are scoped to experiments, not short answers',async()=>{
+  const env=environment()
+  let system
+  env.INFER.run=async(_,input)=>{system=input.messages[0].content;return {response:'100 views [S1]'}}
+  await handleAsk(request(),env,user)
+  assert.match(system,/Do not add measurement limits to a short factual answer/)
 })

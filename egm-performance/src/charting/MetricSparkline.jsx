@@ -1,5 +1,6 @@
 import React, { useId } from "react";
 import { resolveDeltaTone } from "./table-data.js";
+import { Hint } from "../components/NavTooltip.jsx";
 
 export function MetricSparkline({ values = [], label, tone, negative = false, className = "" }) {
   const id = useId().replaceAll(":", "");
@@ -20,10 +21,9 @@ export function MetricSparkline({ values = [], label, tone, negative = false, cl
   if (points.length) segments.push(points);
   const gradient = `metric-fill-${id}`;
   const stroke = `metric-stroke-${id}`;
-  return <svg className={["metric-mini-trend", "data-metric-sparkline", className].filter(Boolean).join(" ")}
+  return <Hint as="svg" title={label} tabIndex={label ? 0 : undefined} className={["metric-mini-trend", "data-metric-sparkline", className].filter(Boolean).join(" ")}
     viewBox="0 0 58 25" role={label ? "img" : undefined} aria-label={label || undefined}
     aria-hidden={label ? undefined : true} data-direction={resolveDeltaTone(tone, undefined, undefined, negative ? "negative" : "positive")}>
-    {label && <title>{label}</title>}
     <defs>
       <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopColor="currentColor" stopOpacity=".32" />
@@ -41,5 +41,5 @@ export function MetricSparkline({ values = [], label, tone, negative = false, cl
         <polyline points={segment.join(" ")} fill="none" stroke={`url(#${stroke})`} strokeWidth="1.7"
           strokeLinecap="round" strokeLinejoin="round" />
       </React.Fragment>)}
-  </svg>;
+  </Hint>;
 }

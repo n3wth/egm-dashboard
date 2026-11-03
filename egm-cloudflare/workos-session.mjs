@@ -50,10 +50,22 @@ export function workosSessionConfigured(env) {
   return env.WORKOS_WIDGETS_ENABLED === 'true' && /^client_[A-Za-z0-9]+$/.test(env.WORKOS_CLIENT_ID ?? '') && /^user_[A-Za-z0-9]+$/.test(env.WORKOS_OWNER_USER_ID ?? '') && typeof env.WORKOS_API_KEY === 'string' && !!env.WORKOS_API_KEY && typeof env.WORKOS_RBAC_ISSUER === 'string' && !!env.WORKOS_RBAC_ISSUER && typeof env.SESSION_SECRET === 'string' && env.SESSION_SECRET.length >= 48
 }
 
+function providerSessionId(accessToken) {
+  try {
+    const payload = JSON.parse(decoder.decode(un64(accessToken.split('.')[1])))
+    return /^session_[A-Za-z0-9]+$/.test(payload.sid ?? '') ? payload.sid : null
+  } catch { return null }
+}
+
 export async function storeWorkosSession(env, sessionId, userId, accessToken, refreshToken) {
   if (!(rbacConfigured(env) || workosSessionConfigured(env)) || typeof accessToken !== 'string' || !accessToken || typeof refreshToken !== 'string' || !refreshToken) return false
   const tokens = await encrypt(env.SESSION_SECRET, sessionId, userId, { accessToken, refreshToken })
-  await env.DB.prepare('INSERT INTO workos_sessions(session_id,user_id,tokens,scoped) VALUES(?,?,?,0)').bind(sessionId, userId, tokens).run()
+  const sid = providerSessionId(accessToken)
+  try {
+    await env.DB.prepare('INSERT INTO workos_sessions(session_id,user_id,tokens,scoped,provider_session_id) VALUES(?,?,?,0,?)').bind(sessionId, userId, tokens, sid).run()
+  } catch {
+    await env.DB.prepare('INSERT INTO workos_sessions(session_id,user_id,tokens,scoped) VALUES(?,?,?,0)').bind(sessionId, userId, tokens).run()
+  }
   return true
 }
 
@@ -86,7 +98,7 @@ export async function validatedWorkosSession(env, sessionId, userId, options = {
       if (!next || next.sessionId !== original.sessionId) return { status: 'unavailable' }
       tokens = { accessToken: refreshed.accessToken, refreshToken: refreshed.refreshToken }
       const rotated = await encrypt(env.SESSION_SECRET, sessionId, userId, tokens)
-      const saved = await env.DB.prepare('UPDATE workos_sessions SET tokens=?,version=version+1,lease_id=NULL,lease_until=0 WHERE session_id=? AND user_id=? AND version=? AND lease_id=?').bind(rotated, sessionId, userId, row.version, lease).run()
+      const saved = await env.DB.prepare('UPDATE workos_sessions SET tokens=?,provider_session_id=COALESCE(?,provider_session_id),version=version+1,lease_id=NULL,lease_until=0 WHERE session_id=? AND user_id=? AND version=? AND lease_id=?').bind(rotated, providerSessionId(refreshed.accessToken), sessionId, userId, row.version, lease).run()
       if (saved.meta?.changes !== 1) return { status: 'unavailable' }
     } finally {
       await env.DB.prepare('UPDATE workos_sessions SET lease_id=NULL,lease_until=0 WHERE session_id=? AND user_id=? AND lease_id=?').bind(sessionId, userId, lease).run()
@@ -134,7 +146,7 @@ export async function workosAdminPermission(env, sessionId, userId, options = {}
       if (!nextSession || nextSession.sessionId !== previousSession.sessionId) return { status: 'denied' }
     }
     const rotated = await encrypt(env.SESSION_SECRET, sessionId, userId, { accessToken: refreshed.accessToken, refreshToken: refreshed.refreshToken })
-    const saved = await env.DB.prepare('UPDATE workos_sessions SET tokens=?,scoped=1,version=version+1,lease_id=NULL,lease_until=0 WHERE session_id=? AND user_id=? AND version=? AND lease_id=?').bind(rotated, sessionId, userId, row.version, lease).run()
+    const saved = await env.DB.prepare('UPDATE workos_sessions SET tokens=?,provider_session_id=COALESCE(?,provider_session_id),scoped=1,version=version+1,lease_id=NULL,lease_until=0 WHERE session_id=? AND user_id=? AND version=? AND lease_id=?').bind(rotated, providerSessionId(refreshed.accessToken), sessionId, userId, row.version, lease).run()
     if (saved.meta?.changes !== 1) return { status: 'retryable' }
     return { status: await verifyWorkosPermission(refreshed.accessToken, { ...expected, time: clock() }) ? 'allowed' : 'denied' }
   } finally {

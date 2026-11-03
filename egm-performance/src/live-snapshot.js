@@ -1,5 +1,5 @@
 // Poll stored snapshots only. This never invokes source ingestion or page reloads.
-export function startLiveSnapshot({ request = fetch, document: doc = globalThis.document, onSnapshot, interval = 5000, setTimer = setTimeout, clearTimer = clearTimeout }) {
+export function startLiveSnapshot({ request = fetch, document: doc = globalThis.document, onSnapshot, interval = 60000, setTimer = setTimeout, clearTimer = clearTimeout }) {
   let stopped = false, running = false, timer, controller, version, failures = 0, checkAgain = false;
   const schedule = delay => {
     clearTimer(timer);

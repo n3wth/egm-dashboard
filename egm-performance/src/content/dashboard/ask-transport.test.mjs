@@ -131,3 +131,8 @@ test('answerSections spreads cards across citing sections before stacking them',
   const sections=answerSections('## A\nx [1] [2] [3]\n## B\ny [1] [2]\n## C\nz [3]',[{sourceId:'1'},{sourceId:'2'},{sourceId:'3'}])
   assert.deepEqual(sections.map(section=>section.cards.map(item=>item.card.sourceId)),[['1'],['2'],['3']])
 })
+test('streamingCitations numbers markers in citation order and hides partial ones', async () => {
+  const {streamingCitations}=await import('./ask-transport.mjs')
+  assert.equal(streamingCitations('Up [S7], then [S2, S7] and [S','m'),'Up [1](#ask-cite-m-1), then [2](#ask-cite-m-2)[1](#ask-cite-m-1) and')
+  assert.equal(streamingCitations('Plain text','m'),'Plain text')
+})

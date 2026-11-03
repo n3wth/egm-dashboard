@@ -13,15 +13,23 @@
   "d1_databases": [{"binding": "DB", "database_name": "egm-growth-access", "database_id": "4e4bd12f-afcf-4fda-a875-f40afa765f97"}],
   "vars": {
     "APP_URL": "https://egm.n3wth.com",
+    "POSTHOG_PROJECT_ID": "223560",
     "VIDEO_INITIAL_BACKFILL_LIMIT": "10",
     "OWNER_EMAIL": "oliver@newth.ai",
     "APPROVAL_WEBHOOK_HOSTS": "connectors.api.openai.com",
     "GROK_WEBHOOK_HOSTS": "api2.cursor.sh",
-    // Paid collection stops at this instant. This is the only end date. Change this line to extend it.
+    // Source-provider collection stops here; ongoing daily analysis has its own explicit switch.
     "REFRESH_UNTIL": "2026-11-04T06:33:01Z",
+    // GitHub only: retain the existing 30-minute interval and monthly cap.
+    "GITHUB_COLLECTION_ENABLED": "true",
+    // One bounded Gemini attempt per Pacific date; independent of source-provider collection.
+    "DAILY_ANALYSIS_ENABLED": "true",
     "WORKOS_CLIENT_ID": "client_01M60K01HRESAKEPD135F3KAMM",
     "WORKOS_AUTHKIT_DOMAIN": "https://striking-ripple-85.authkit.app",
     "INVITATION_EMAIL_ENABLED": "true",
+    // Approval mail is on. Denial stays off until Oliver decides; it is a second switch.
+    "DECISION_EMAIL_ENABLED": "true",
+    "DECISION_DENY_EMAIL_ENABLED": "false",
     "WORKOS_RBAC_ENABLED": "true",
     "WORKOS_RBAC_ORGANIZATION_ID": "org_01M616GHNTAA6GW7ER7RAXDSR0",
     "WORKOS_RBAC_ISSUER": "https://api.workos.com/user_management/client_01KT21TBYTKHENW4172A587X7Q",

@@ -23,6 +23,44 @@ test('body relevance, short literal quotes and themes are evidence checks only',
   for(const theme of result.themes){assert.ok(body.includes(theme.quote));assert.ok(theme.quote.split(' ').length<=5)}
   assert.ok(result.contentExcerpt.split(' ').length<=14)
 })
+test('URL destinations, images and HTML attributes do not establish discussion evidence',()=>{
+  const url='https://example-news.org/'
+  const hidden=[
+    '[.](https://blog.example-news.org/elephant-goldfish-model-install-tutorial)',
+    'Read https://example-news.org/google/elephant-goldfish-model/workflow for more.',
+    '![Elephant Goldfish installation tutorial](https://example-news.org/image.png)',
+    '![Elephant Goldfish installation tutorial]',
+    '<a href="https://egm.dev/install" title="Elephant Goldfish workflow">Read more</a>',
+    '[Read more][project]\n\n[project]: https://example-news.org/elephant-goldfish-model',
+    '<script>Elephant Goldfish workflow</script><p>Read more</p>',
+    '<a title="Elephant Goldfish installation',
+    '<script>Elephant Goldfish workflow'
+  ]
+  for(const body of hidden)assert.equal(extractDiscussionEvidence(body,url).status,'unverified',body)
+  const visible=extractDiscussionEvidence('[Elephant Goldfish Model](https://example-news.org/install/tutorial) supports review.','https://example-news.org/')
+  assert.equal(visible.status,'verified')
+  assert.equal(visible.contentExcerpt,'Elephant Goldfish Model supports review.')
+  assert.deepEqual(visible.themes,[],'theme words in a URL are not discussion themes')
+  assert.equal(extractDiscussionEvidence('<p>Elephant Goldfish Model has a workflow tutorial.</p>',url).status,'verified')
+})
+test('cached verification is corrected from retained text without requests or changed provenance',async()=>{
+  const at=new Date(now).toISOString()
+  const source={label:'Original scrape',executedAt:at,links:[{url:mention(0).url}]}
+  const row={...mention(0),status:'verified',reason:'project_name_or_domain_in_scraped_body',contentExcerpt:'elephant-goldfish-model-install',themes:[{theme:'install'}],rawMarkdown:'[.](https://example-news.org/elephant-goldfish-model-install)',firstAttemptAt:at,lastAttemptAt:at,attempts:1,metadata:{title:'Original title'}}
+  const result=await collectContentResearch(env,async()=>assert.fail('must not fetch cached evidence'),{...queries(1),research_evidence:{rows:[row],source}},now+1000)
+  const corrected=result.research_evidence.rows[0]
+  assert.equal(corrected.status,'unverified')
+  assert.equal(corrected.contentExcerpt,null)
+  assert.deepEqual(corrected.themes,[])
+  assert.equal(corrected.lastAttemptAt,at)
+  assert.equal(corrected.firstAttemptAt,at)
+  assert.equal(corrected.rawMarkdown,row.rawMarkdown)
+  assert.deepEqual(corrected.metadata,row.metadata)
+  assert.deepEqual(result.research_evidence.source,source)
+  assert.equal(result.research_status.rows[0].urlsAttempted,0)
+  assert.equal(result.research_status.rows[0].verified,0)
+  assert.equal(row.status,'verified','the input snapshot is not mutated')
+})
 test('at most five fixed-provider requests; raw retained content is bounded',async()=>{
   let count=0
   const result=await collectContentResearch(env,async(url,init)=>{

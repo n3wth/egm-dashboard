@@ -17,16 +17,48 @@ export function publicMentionUrl(value,knownUrls) {
 function shortQuote(body,index,words=5) {
   return body.slice(index).split(/\s+/).filter(Boolean).slice(0,words).join(' ')
 }
+function visibleText(body) {
+  return body
+    .replace(/<!--[\s\S]*?(?:-->|$)|<(script|style)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi,' ')
+    .replace(/^\s{0,3}\[[^\]]+\]:.*$/gm,' ')
+    .replace(/!\[[^\]]*\](?:\((?:[^()]|\([^)]*\))*\)|\[[^\]]*\])?/g,' ')
+    .replace(/\[([^\]]*)\]\((?:[^()]|\([^)]*\))*\)/g,'$1')
+    .replace(/\[([^\]]*)\]\[[^\]]*\]/g,'$1')
+    .replace(/<[^>]*(?:>|$)/g,' ')
+    .replace(/\b(?:https?:\/\/|www\.)[^\s<>\]]+/gi,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+}
 export function extractDiscussionEvidence(body,url) {
-  const match=relevant.exec(body)
+  const prose=visibleText(body)
+  const match=relevant.exec(prose)
   if(!match) return {status:'unverified',reason:'project_not_matched_in_body',contentExcerpt:null,themes:[]}
   const found=[]
   for(const [theme,pattern] of themes) {
-    const hit=pattern.exec(body)
-    if(hit) found.push({theme,quote:shortQuote(body,hit.index),url})
+    const hit=pattern.exec(prose)
+    if(hit) found.push({theme,quote:shortQuote(prose,hit.index),url})
     if(found.length===2) break
   }
-  return {status:'verified',reason:'project_name_or_domain_in_scraped_body',contentExcerpt:shortQuote(body,match.index,14),themes:found}
+  return {status:'verified',reason:'project_name_or_domain_in_scraped_body',contentExcerpt:shortQuote(prose,match.index,14),themes:found}
+}
+function revalidateEvidence(row) {
+  const record={...row}
+  if(row.status==='verified')Object.assign(record,extractDiscussionEvidence(typeof row.rawMarkdown==='string'?row.rawMarkdown:'',row.url))
+  if(row.previousVerifiedEvidence) {
+    const previous=row.previousVerifiedEvidence
+    record.previousVerifiedEvidence={...previous,...extractDiscussionEvidence(typeof previous.rawMarkdown==='string'?previous.rawMarkdown:'',row.url)}
+  }
+  return record
+}
+export function revalidateResearchQuery(query) {
+  return query?{...query,rows:(query.rows??[]).map(revalidateEvidence)}:query
+}
+export function revalidateResearchQueries(queries) {
+  if(!queries.research_evidence)return queries
+  const evidence=revalidateResearchQuery(queries.research_evidence)
+  const counts=Object.fromEntries(['verified','unverified','inaccessible'].map(status=>[status,evidence.rows.filter(row=>row.status===status).length]))
+  const status=queries.research_status
+  return {...queries,research_evidence:evidence,...(status?{research_status:{...status,rows:(status.rows??[]).map((row,index)=>index===0?{...row,...counts}:row)}}:{})}
 }
 const text=value=>typeof value==='string'?value.slice(0,350):null
 function isoDate(value) {
@@ -42,7 +74,7 @@ function source(at,rows) {
 export async function collectContentResearch(env,request=fetch,previousQueries={},time=Date.now(),options={}) {
   const at=new Date(time).toISOString()
   const prior=previousQueries.research_evidence?.rows??[]
-  const rows=new Map(prior.map(row=>[row.url,{...row}]))
+  const rows=new Map(prior.map(row=>[row.url,revalidateEvidence(row)]))
   const mentions=previousQueries.mentions?.rows??[]
   const knownUrls=new Set(mentions.map(row=>canonicalMentionUrl(row.url)).filter(Boolean))
   const totalPrior=prior.reduce((sum,row)=>sum+(Number.isSafeInteger(row.attempts)?row.attempts:1),0)

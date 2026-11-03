@@ -1,29 +1,29 @@
 import {percentage} from './percentage.mjs'
 import React from 'react'
-import {DataComponent,DataTable,Section,useDataApp} from '../../data-app-public.jsx'
+import {DataComponent,DataTable,Hint,Section,useDataApp} from '../../data-app-public.jsx'
 import {SiteName} from './SiteName.jsx'
 import {InsightCallout} from './InsightCallout.jsx'
 import {EngagementSignals} from './EngagementSignals.jsx'
 import {PageSummary} from './PageSummary.jsx'
 import {EmptyState} from './DataStates.jsx'
 import {VideoThumbnail} from './VideoThumbnail.jsx'
+import {videoId} from './video-coverage.mjs'
 import {safeExternalUrl,mentionGroup,earliestValidDate,uniqueMentionKey,matchingEngagement} from './research-mentions.mjs'
 
 const mentionLink=(value,row)=>{const href=safeExternalUrl(row.url);return href?<a className="egm-mention-link" href={href} target="_blank" rel="noreferrer nofollow">{value}</a>:<span>{value||'Link unavailable'}</span>}
 const dateValue=value=>{if(!value)return null;const date=new Date(/^\d{4}-\d{2}-\d{2}$/.test(value)?value+'T12:00:00Z':value);return Number.isFinite(date.getTime())?date:null}
 function ShortDate({value}) {
   const date=dateValue(value)
-  if(!date)return <span title="Date unavailable" aria-label="Date unavailable">—</span>
+  if(!date)return <Hint title="Date unavailable" aria-label="Date unavailable">—</Hint>
   const dateOnly=/^\d{4}-\d{2}-\d{2}$/.test(value)
   const full=date.toLocaleString('en-US',{timeZone:'America/Los_Angeles',year:'numeric',month:'long',day:'numeric',...(!dateOnly?{hour:'numeric',minute:'2-digit',timeZoneName:'short'}:{})})
-  return <time dateTime={value} title={full} aria-label={full}>{date.toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'})}</time>
+  return <Hint as="time" dateTime={value} title={full} aria-label={full}>{date.toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric'})}</Hint>
 }
 const mentionTitle=(value,row)=><div className="egm-mentions-title">{mentionLink(value,row)}<div className="egm-mentions-detail"><SiteName url={row.url} label={row.platform??row.domain}/><EngagementSignals row={row}/>{row.discoveryProviders?.length>0&&<span>Found by {row.discoveryProviders.join(' and ')}</span>}{dateValue(row.published)&&<span>Published <ShortDate value={row.published}/></span>}</div></div>
 function MentionRows({rows,label}) {
   const columns=[{field:'title',label:'Mention',renderCell:mentionTitle},...(rows.some(row=>dateValue(row.firstSeen))?[{field:'firstSeen',label:'First seen',renderCell:value=><ShortDate value={value}/>}]:[])]
   return <div className="egm-mentions-table" data-has-dates={columns.length>1?'true':'false'}><DataTable rows={rows} searchable={rows.length>8} label={label} columns={columns}/></div>
 }
-const videoId=value=>{try{const url=new URL(value);if(!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname))return null;const id=url.hostname==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v')??url.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1];return /^[A-Za-z0-9_-]{11}$/.test(id??'')?id:null}catch{return null}}
 function VideoGallery({rows,queries}) {
   const metadata=queries.youtube_videos?.rows??[]
   const comments=queries.youtube_comments?.rows??[]
@@ -33,11 +33,11 @@ function VideoGallery({rows,queries}) {
   const observedViews=measured.reduce((total,row)=>total+row.views,0)
   const otherVideos=rows.filter(row=>!videoId(row.url))
   return <DataComponent id="mentions-youtube-gallery" queryId="mentions" queryIds={queryIds} title="YouTube" kind="custom" variant="card" displayRows={[...videos,...otherVideos]} sourceRowsByQuery={{mentions:queries.mentions?.rows??[],...(queries.youtube_videos?{youtube_videos:metadata}:{}),...(queries.youtube_comments?{youtube_comments:comments}:{})}}>
-    {measured.length>=2&&observedViews>0&&<InsightCallout>The most-viewed video accounts for {percentage(measured[0].views/observedViews)} of YouTube view counts across the {measured.length} videos that have one.</InsightCallout>}
+    {measured.length>=2&&observedViews>0&&<InsightCallout>The leading video accounts for {percentage(measured[0].views/observedViews)} of recorded views in this {measured.length}-video measured sample.</InsightCallout>}
     {otherVideos.length>0&&<MentionRows rows={otherVideos} label="Other video mentions"/>}
     <div className="egm-video-gallery" data-reviewed-rows>{videos.map(row=><article className="egm-video-card" key={row.id}>
-      <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><VideoThumbnail id={row.id} sizes="(max-width: 550px) 100vw, (max-width: 1000px) 50vw, 33vw"/><h3 title={row.title}>{row.title}</h3></a>
-      {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><span title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</span>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
+      <a className="egm-video-link" href={`https://www.youtube.com/watch?v=${row.id}`} target="_blank" rel="noreferrer"><VideoThumbnail id={row.id} sizes="(max-width: 550px) 100vw, (max-width: 1000px) 50vw, 33vw"/><Hint as="h3" title={row.title}>{row.title}</Hint></a>
+      {(row.channelTitle||row.channel||dateValue(row.published))&&<p className="egm-video-meta egm-video-byline"><Hint title={row.channelTitle??row.channel??''}>{row.channelTitle??row.channel}</Hint>{dateValue(row.published)&&<>{(row.channelTitle||row.channel)&&<span aria-hidden="true"> · </span>}<ShortDate value={row.published}/></>}</p>}
       <div className="egm-video-stats"><EngagementSignals row={row}/></div>
       {row.commentSample&&<details className="egm-video-comments"><summary className="egm-video-meta">Comment sample{row.commentSample.comments?.length>0&&` (${row.commentSample.comments.length})`} {row.commentSample.observedAt&&<>observed <ShortDate value={row.commentSample.observedAt}/></>}{row.commentSample.status==='unavailable'&&(row.commentSample.observedAt?' · refresh failed, cached':' · unavailable')}</summary>{row.commentSample.comments?.length>0?<ul>{row.commentSample.comments.map(comment=><li key={comment.id}>{mentionLink(comment.text,comment)}</li>)}</ul>:row.commentSample.status==='available'&&<p className="egm-video-meta">No comments returned in this sample.</p>}</details>}
     </article>)}</div>
@@ -123,7 +123,7 @@ export function Mentions() {
     <SupplementaryMentions discovery={discovery}/>
     <Section id="mentions-coverage" spacing="none">
       {query?<DataComponent id="mentions-summary" queryId="mentions" queryIds={['mentions','mentions_status',...discovery.queryIds]} title="Collection" showHeading={false} showActions={false} className="egm-mentions-summary" kind="custom" variant="plain" displayRows={allRows} sourceRowsByQuery={mentionSummarySources(queries,discovery)}>
-        <div className="egm-mentions-collection-line"><span title={since?`Discovered since ${since}`:undefined}>{allRows.length.toLocaleString('en-US')} discovered links</span>{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
+        <div className="egm-mentions-collection-line"><Hint title={since?`Discovered since ${since}`:undefined}>{allRows.length.toLocaleString('en-US')} discovered links</Hint>{discovery.providers.map(([provider,,statusId])=><CollectionNote key={statusId} provider={provider} status={queries[statusId]?.rows?.[0]}/>)}</div>
         {status?.status==='stale'&&<p className="egm-note">Latest search failed; showing cached results.</p>}
         {status?.status==='unavailable'&&<p className="egm-note">Search unavailable.</p>}
       </DataComponent>:<MissingMentionCollection providers={discovery.providers} queries={queries}/>}

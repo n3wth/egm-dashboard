@@ -44,6 +44,16 @@ test('session token is bound to key, audience, expiry, and signature',async()=>{
   assert.equal(await open(token+'x',secret,'session'),null)
   assert.equal(await open(await seal({},secret,'session',-1),secret,'session'),null)
 })
+test('outline email marks are public png assets',async()=>{
+  const seen=[]
+  const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,ASSETS:{fetch(request){seen.push(new URL(request.url).pathname);return new Response('png',{headers:{'content-type':'image/png'}})}}}
+  for(const path of ['/email/egm-mark-black.png','/email/egm-mark-white.png']){
+    const response=await handle(new Request(env.APP_URL+path),env)
+    assert.equal(response.status,200,path)
+    assert.equal(response.headers.get('content-type'),'image/png',path)
+  }
+  assert.deepEqual(seen,['/email/egm-mark-black.png','/email/egm-mark-white.png'])
+})
 test('anonymous requests cannot access html, data, APIs, or approval tools',async()=>{
   let assetReads=0
   const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,ASSETS:{fetch(){assetReads++;return new Response('private')}}}
@@ -92,7 +102,7 @@ test('owner publishing rejects cross-origin requests',async()=>{
 test('logout revokes the server session and expires the cookie',async()=>{
   const token=await seal({sid:'logout-session'},secret,'session')
   let revoked
-  const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,DB:{prepare(sql){assert.match(sql,/DELETE FROM sessions/);return {bind(sid){revoked=sid;return {run:async()=>({})}}}}}}
+  const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,DB:{prepare(sql){if(/SELECT user_id FROM sessions/.test(sql))return {bind(){return {first:async()=>null}}};assert.match(sql,/DELETE FROM sessions/);return {bind(sid){revoked=sid;return {run:async()=>({})}}}}}}
   const response=await handle(new Request(env.APP_URL+'/auth/logout',{method:'POST',headers:{cookie:'__Host-egm_session='+token,origin:env.APP_URL}}),env)
   assert.equal(response.status,303)
   assert.equal(revoked,'logout-session')

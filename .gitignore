@@ -1,5 +1,6 @@
 **/node_modules/
 **/.wrangler/
+**/.data-app-preview/
 boing/site-deploy/.cloudflare/
 **/dist/
 **/.impeccable/
@@ -16,3 +17,4 @@ work/
 !egm-cloudflare/assets/fonts/*.woff2
 .claude/
 /egm-dashboard/
+/weekly-brief-output/

@@ -115,15 +115,134 @@ export function staleStarCaveat(stargazerCount) {
 }
 
 export function stampCollectedQueries(data, collectedQueries, started, requests, traffic, starRange) {
+  const repo = 'https://github.com/google/elephant-goldfish-model'
+  const links = {
+    downloads: [{ label: 'GitHub releases', url: repo + '/releases' }],
+    maintenance: [{ label: 'GitHub issues', url: repo + '/issues' }, { label: 'GitHub pull requests', url: repo + '/pulls' }],
+    issue_queue: [{ label: 'GitHub issues', url: repo + '/issues' }],
+    oss_health: [
+      { label: 'GitHub issues', url: repo + '/issues' },
+      { label: 'GitHub pull requests', url: repo + '/pulls' },
+      { label: 'GitHub releases', url: repo + '/releases' }
+    ],
+    star_history: [{ label: 'GitHub stargazers', url: repo + '/stargazers' }],
+    reach: [{ label: 'GitHub repository', url: repo }, { label: 'GitHub traffic', url: repo + '/graphs/traffic' }]
+  }
   for (const [id, query] of Object.entries(data.queries)) {
     // Seeded independent-provider records are dated evidence, not GitHub results.
     if (!collectedQueries.has(id)) continue
     query.source.executedAt = started
-    query.source.coverage = id === 'star_history'
-      ? { startDate: starRange.start, endDate: starRange.today }
-      : { startDate: traffic[0].date, endDate: traffic.at(-1).date }
+    query.source.coverage = id === 'downloads'
+      ? { type: 'lifetime', asOf: started }
+      : ['maintenance', 'issue_queue', 'oss_health'].includes(id)
+        ? { type: 'point-in-time', asOf: started }
+        : id === 'star_history'
+          ? { startDate: starRange.start, endDate: starRange.today }
+          : { startDate: traffic[0].date, endDate: traffic.at(-1).date, ...(id === 'reach' ? { type: 'mixed', asOf: started } : {}) }
+    if (links[id]) query.source.links = links[id]
+    if (['downloads', 'maintenance', 'issue_queue', 'oss_health', 'star_history'].includes(id)) {
+      query.source.filters = (query.source.filters ?? []).filter(filter => filter !== 'Daily traffic buckets use UTC')
+    }
     query.source.caveats = (query.source.caveats ?? []).filter(caveat => !caveat.includes('Oct 13') && !caveat.includes('Oct 27'))
+    if (id === 'reach') query.source.caveats = [...new Set([...query.source.caveats, 'Views, visitors, clones and cloners cover the displayed traffic window. Stars, forks and watchers are current repository totals as of collection, not gains during that window.'])]
     query.source.caveats.push('Automated GitHub refresh. Sources were collected in one run; current counts can change during collection.')
     query.source.evidenceFlow = [{ title: 'Automated GitHub REST collection', detail: requests.join('\n') }]
   }
 }
+
+export function ossHealthRows(pulls = [], issues = [], releases = [], asOf = new Date().toISOString()) {
+  const isBot = user => !user || /\[bot\]$/i.test(user.login) || /dependabot/i.test(user.login)
+  const realIssues = issues.filter(i => !i.pull_request)
+  const openIssues = realIssues.filter(i => i.state === 'open').length
+  const openPRList = pulls.filter(p => p.state === 'open')
+  const openPRs = openPRList.length
+  const nonDraftOpenPRs = openPRList.filter(p => !p.draft).length
+
+  let oldestOpenPrDays = 0
+  if (openPRList.length) {
+    const nowMs = Date.parse(asOf)
+    const oldestCreated = Math.min(...openPRList.map(p => Date.parse(p.created_at)))
+    oldestOpenPrDays = Math.max(0, Math.floor((nowMs - oldestCreated) / 86400000))
+  }
+
+  const mergedList = pulls.filter(p => p.merged_at)
+  const mergedPRs = mergedList.length
+
+  const turnarounds = mergedList.map(p => (Date.parse(p.merged_at) - Date.parse(p.created_at)) / 3600000)
+  let medianPrTurnaroundHours = null
+  if (turnarounds.length) {
+    const sorted = [...turnarounds].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    medianPrTurnaroundHours = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+  }
+
+  const publishedReleases = (releases || [])
+    .filter(r => !r.draft && r.published_at)
+    .sort((a, b) => b.published_at.localeCompare(a.published_at))
+  const latest = publishedReleases[0] || null
+  const latestRelease = latest ? latest.tag_name : null
+  const latestReleasePublishedAt = latest ? latest.published_at : null
+
+  let releasedMergedPRs = 0
+  let unreleasedMergedPRs = 0
+  if (latestReleasePublishedAt) {
+    const relMs = Date.parse(latestReleasePublishedAt)
+    for (const p of mergedList) {
+      if (Date.parse(p.merged_at) <= relMs) releasedMergedPRs++
+      else unreleasedMergedPRs++
+    }
+  } else {
+    unreleasedMergedPRs = mergedPRs
+  }
+
+  const contributors = new Map()
+  for (const p of pulls) {
+    if (p.user && !isBot(p.user)) {
+      contributors.set(p.user.login, (contributors.get(p.user.login) || 0) + 1)
+    }
+  }
+  for (const i of realIssues) {
+    if (i.user && !isBot(i.user)) {
+      contributors.set(i.user.login, (contributors.get(i.user.login) || 0) + 1)
+    }
+  }
+  const returningContributors = [...contributors.values()].filter(c => c >= 2).length
+
+  const independentIssueReporters = new Set(
+    realIssues.filter(i => i.user && !isBot(i.user)).map(i => i.user.login)
+  ).size
+
+  const closedIssues = realIssues.filter(i => i.state === 'closed')
+  let closedSpamOrBlankIssues = 0
+  let closedSubstantiveIssues = 0
+  for (const i of closedIssues) {
+    const isSpam = /\[Feature\]:\s*$/i.test(i.title) ||
+      /trust99/i.test(i.title) ||
+      /fors-sudan/i.test(i.title) ||
+      i.title === 'Ad' ||
+      i.title === 'แก้ไข' ||
+      !i.body ||
+      !i.body.trim()
+    if (isSpam) closedSpamOrBlankIssues++
+    else closedSubstantiveIssues++
+  }
+
+  return [{
+    openIssues,
+    openPRs,
+    nonDraftOpenPRs,
+    oldestOpenPrDays,
+    mergedPRs,
+    medianPrTurnaroundHours,
+    firstResponseDelayHours: null,
+    latestRelease,
+    latestReleasePublishedAt,
+    releasedMergedPRs,
+    unreleasedMergedPRs,
+    returningContributors,
+    independentIssueReporters,
+    closedSpamOrBlankIssues,
+    closedSubstantiveIssues
+  }]
+}
+

@@ -1,3 +1,4 @@
+import { Hint } from "../components/NavTooltip.jsx";
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Sankey, Tooltip, useChartWidth } from "recharts";
 
@@ -110,7 +111,7 @@ function SankeyNode({ x, y, width, height, payload, colorFor, showValues, lastSt
       }}>
       <rect x={x} y={y} width={width} height={height} rx={Math.min(4, height / 3)} fill={color}
         stroke={selected || hovered ? "var(--text)" : "none"} strokeWidth={selected ? 2.5 : hovered ? 1.5 : 0} />
-      <text
+      <Hint as="text" title={name} tabIndex={0}
         ref={measureFont}
         x={textX}
         y={nameY}
@@ -122,9 +123,8 @@ function SankeyNode({ x, y, width, height, payload, colorFor, showValues, lastSt
         paintOrder="stroke"
         fontSize={labelFontSize}
       >
-        <title>{name}</title>
         {visibleName}
-      </text>
+      </Hint>
       {valueVisible && (
         <text
           x={textX}

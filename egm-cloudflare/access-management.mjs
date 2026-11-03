@@ -1,5 +1,8 @@
+import {notifyAccessDecision} from './decision-email.mjs'
+import {scheduleWorkosAudit} from './workos-audit-log.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
 import {readBody} from './request-body.mjs'
+import {userActivity} from './user-activity.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
 const photoCache=new WeakMap()
 
@@ -44,12 +47,12 @@ async function userPhotos(env,users,viewer,request) {
   return photos
 }
 
-export async function manageAccess(request,env,user,fetcher=fetch) {
+export async function manageAccess(request,env,user,fetcher=fetch,ctx) {
   if(!user||user.status!=='approved'||user.verified!==1||(env.WORKOS_RBAC_ENABLED==='true'?user.canManageAccess!==true:!isDashboardOwner(user,env)))return reply({error:'owner_required'},403)
   if(request.method==='GET') {
     const result=await env.DB.prepare('SELECT id,name,email,status,created_at,decided_at FROM users ORDER BY created_at DESC LIMIT 200').all()
-    const photos=await userPhotos(env,result.results,user,fetcher)
-    return reply({users:result.results.map(entry=>({...entry,profilePictureUrl:photos.get(entry.id)??null})),shareUrl:env.APP_URL+'/overview',ownerId:result.results.find(entry=>isDashboardOwner(entry,env))?.id??null})
+    const [photos,activity]=await Promise.all([userPhotos(env,result.results,user,fetcher),userActivity(env,result.results,fetcher)])
+    return reply({users:result.results.map(entry=>({...entry,profilePictureUrl:photos.get(entry.id)??null,activity:activity.users[entry.id]??null})),activity:{status:activity.status,windowDays:activity.windowDays,asOf:activity.asOf},shareUrl:env.APP_URL+'/overview',ownerId:result.results.find(entry=>isDashboardOwner(entry,env))?.id??null})
   }
   if(request.method!=='POST')return reply({error:'method_not_allowed'},405)
   if(request.headers.get('origin')!==env.APP_URL)return reply({error:'invalid_origin'},403)
@@ -69,5 +72,10 @@ export async function manageAccess(request,env,user,fetcher=fetch) {
     env.DB.prepare('UPDATE users SET status=?,decided_at=?,decided_by=? WHERE id=? AND status=? AND id<>? AND (?<>\'\' OR email<>?)').bind(input.decision,at,user.id,input.id,current.status,ownerId,ownerId,env.OWNER_EMAIL),
     env.DB.prepare('INSERT INTO audit(id,user_id,action,actor,created_at) SELECT ?,id,?,?,? FROM users WHERE changes()=1 AND id=? AND decided_at=? AND decided_by=? AND status=?').bind(crypto.randomUUID(),auditAction,user.id,at,input.id,at,user.id,input.decision)
   ])
-  return results[0].meta?.changes===1?reply({ok:true,action:auditAction}):reply({error:'unchanged'},409)
+  if(results[0].meta?.changes!==1)return reply({error:'unchanged'},409)
+  const auditName={approved:'egm.access.approved',denied:'egm.access.denied',revoked:'egm.access.revoked',reinstated:'egm.access.reinstated'}[auditAction]
+  if(auditName) scheduleWorkosAudit(env,{action:auditName,actorId:user.id,actorName:user.name,targetId:input.id,targetType:'user',metadata:{from_status:current.status,to_status:input.decision}},request,promise=>ctx?.waitUntil?.(promise))
+  // Only a pending decision is new information for the requester. Revoke and reinstate stay quiet.
+  if(current.status==='pending')ctx?.waitUntil?.(notifyAccessDecision(env,{userId:input.id,decision:input.decision,fromStatus:'pending'},ctx.decisionEmailFetcher).catch(error=>console.error('Decision email failed',error?.message)))
+  return reply({ok:true,action:auditAction})
 }
