@@ -306,11 +306,12 @@ test('renders adoption and development tabs without throwing when snapshot lacks
   }
 })
 
-test('egm.css has no bold Suisse font, no font-weight 700, no italic, and tables have no strong cells', async () => {
+test('egm.css has no bold Suisse font, no font-weight 700, no italic, caps chart height, and tables have no strong cells', async () => {
   const css = readFileSync('src/content/dashboard/egm.css', 'utf8')
   assert.doesNotMatch(css, /SuisseIntl-Bold\.woff2/, 'SuisseIntl-Bold.woff2 must not be referenced in egm.css')
   assert.doesNotMatch(css, /font-weight:\s*700/, 'font-weight: 700 must not exist in egm.css')
   assert.doesNotMatch(css, /font-style:\s*italic/, 'font-style: italic must not exist in egm.css')
+  assert.match(css, /\.egm-time-series\s+\.chart-frame\s*\{[^}]*max-height:\s*280px/, '.egm-time-series .chart-frame must cap max-height on desktop')
 
   const server = await createServer({ server: { middlewareMode: true }, logLevel: 'silent' })
   try {

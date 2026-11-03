@@ -57,8 +57,8 @@
 .egm-dashboard-grid { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: var(--data-card-gap); }
 .egm-dashboard-grid > .egm-block { grid-column: span var(--egm-span); min-width: 0; }
 .egm-metric-reading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); min-height: 44px; }
-/* The requested ratio overrides the chart's inline minimum height. */
-.egm-time-series .chart-frame{aspect-ratio:2 / 1;min-height:0 !important;flex:0 0 auto}
+/* The requested ratio overrides the chart's inline minimum height while capping height on wide desktop cards. */
+.egm-time-series .chart-frame{aspect-ratio:2 / 1;max-height:280px;min-height:0 !important;flex:0 0 auto}
 .egm-chart-notes summary{width:fit-content;cursor:pointer;color:var(--secondary);font-size:var(--text-xs-size);line-height:1.5;min-height:24px}
 .egm-chart-notes summary:focus-visible{outline:2px solid var(--text);outline-offset:3px}
 .egm-chart-notes p{margin:8px 0 0;max-width:80ch}
