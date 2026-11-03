@@ -332,6 +332,17 @@ test('independent source failures cannot overwrite newly collected GitHub data o
   assert.deepEqual(saved.queries.semrush_status, f.previous.queries.semrush_status)
 })
 
+test('retained traffic history survives a GitHub refresh that could not read it', async () => {
+  const f = fixture()
+  const day = (date, views) => ({ date, views, visitors: 1, clones: 1, cloners: 1 })
+  f.previous.queries.traffic_history = { rows: [day('2026-09-01', 4), day('2026-10-13', 9)] }
+  f.db.prepare('UPDATE snapshots SET body=?').run(JSON.stringify(f.previous))
+  await runRefresh(f.env, noRequest, { now: () => baseTime, github: async () => ({ status: 'refreshed', snapshot: { generatedAt: '2026-10-28T00:00:00Z', queries: { traffic_history: { rows: [day('2026-10-13', 2), day('2026-10-27', 5)], source: { executedAt: '2026-10-28T00:00:00Z' } } } } }) })
+  const saved = JSON.parse(f.db.prepare('SELECT body FROM snapshots').get().body)
+  assert.deepEqual(saved.queries.traffic_history.rows.map(row => [row.date, row.views]), [['2026-09-01', 4], ['2026-10-13', 9], ['2026-10-27', 5]])
+  assert.deepEqual(saved.queries.traffic_history.source.coverage, { startDate: '2026-09-01', endDate: '2026-10-27' })
+})
+
 test('persisted collector outcomes preserve partial and unconfigured states without copying arbitrary values', async () => {
   const f = fixture()
   await runRefresh(f.env, noRequest, {

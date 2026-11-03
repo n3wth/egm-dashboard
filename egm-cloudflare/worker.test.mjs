@@ -125,6 +125,19 @@ test('unknown browser routes get an HTML 404 and API paths keep JSON',async()=>{
   assert.deepEqual(await api.json(),{error:'not_found'})
   assert.equal((await handle(new Request(env.APP_URL+'/api/nope'),env)).status,401)
 })
+test('approved viewers cache hashed app chunks; the HTML shell and other files stay uncached',async()=>{
+  const token=await seal({sid:'s'},secret,'session')
+  const files={'/assets/index-DG-E-lQ-.js':'text/javascript','/assets/workos-_3lr_CiF.css':'text/css','/index.html':'text/html','/snapshot.data.json':'application/json','/assets/index.js':'text/javascript'}
+  const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,DB:{prepare(){return {bind(){return {first:async()=>({id:'u',email:'a@example.com',verified:1,status:'approved'})}}}}},ASSETS:{fetch(request){const type=files[new URL(request.url).pathname];return type?new Response('x',{headers:{'content-type':type}}):new Response('missing',{status:404})}}}
+  const read=(path,headers={cookie:'__Host-egm_session='+token})=>handle(new Request(env.APP_URL+path,{headers}),env)
+  const rewriter=globalThis.HTMLRewriter
+  globalThis.HTMLRewriter??=class {on(){return this} transform(response){return response}}
+  for(const path of ['/assets/index-DG-E-lQ-.js','/assets/workos-_3lr_CiF.css']) assert.equal((await read(path)).headers.get('cache-control'),'private, max-age=31536000, immutable',path)
+  for(const path of ['/overview','/index.html','/snapshot.data.json','/assets/index.js','/assets/gone-AAAAAAAA.js']) assert.equal((await read(path)).headers.get('cache-control'),'private, no-store',path)
+  assert.equal((await read('/assets/gone-AAAAAAAA.js')).status,404)
+  assert.equal((await read('/assets/index-DG-E-lQ-.js',{})).status,401)
+  globalThis.HTMLRewriter=rewriter
+})
 test('a session cookie without a live session shows the session ended page',async()=>{
   const token=await seal({sid:'gone'},secret,'session')
   const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret,DB:{prepare(){return {bind(){return {first:async()=>null}}}}}}
