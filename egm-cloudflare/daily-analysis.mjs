@@ -8,7 +8,7 @@ export const analysisSections={
   website:['website','website_contribution','web_pagespeed','web_crux'],
   development:['maintenance','maintenance_history','activity','issue_queue'],
   research:['peers','research_evidence','exa_research','emerging','seo_backlinks'],
-  mentions:['youtube_videos','mentions','mention_engagement','exa_mentions','tavily_mentions','parallel_mentions'],
+  mentions:['youtube_comments','youtube_videos','mentions','mention_engagement','exa_mentions','tavily_mentions','parallel_mentions'],
   overview_experiment:['issue_queue','research_evidence','referrers','paths'],
   research_opportunities:['peers','referrers','paths','research_evidence']
 }
@@ -31,13 +31,14 @@ export function validateDailyAnalysis(value,records) {
 export function dailyAnalysisInput(snapshot) {
   const allowed=new Set(Object.values(analysisSections).flat())
   const queries=Object.fromEntries(Object.entries(snapshot.queries??{}).filter(([id])=>allowed.has(id)))
-  return JSON.parse(JSON.stringify(askContext({queries},'Repository growth acquisition adoption website development research mentions experiments').records))
+  return JSON.parse(JSON.stringify(askContext({queries},'Repository growth acquisition adoption website development research mentions experiments audience sentiment youtube comments').records))
 }
 
 const instructions=`Return one JSON object with a sections array containing exactly these IDs: ${Object.keys(analysisSections).join(', ')}.
 Each section has exactly id, headline (short interpretation), summary (one concise explanation), nextStep (one reversible proposed action), queryIds (up to four exact input queryIds), confidence (low or medium), unknowns (up to two short strings).
 Write as a concise update to a VP: result first, significance second, next decision last. Apply that structure without printing framework names or labels such as BLUF, bottom line, so what or executive summary.
 The headline must carry the strongest supported conclusion that matters to a decision. Avoid empty directional statements such as "Star totals rose between observations" or "Metrics show growth". The summary should add the implication or essential evidence, not repeat the headline. The nextStep should name one concrete action and what it will resolve.
+For the mentions section, assess audience sentiment from the actual collected youtube_comments text and cite youtube_comments. Describe the supported tone and recurring praise or concerns, with low confidence because these are selected comments rather than a representative audience survey. Do not infer sentiment from views, likes, titles or discovery snippets. If comments are absent, unusable or too sparse to support a tone, say sentiment is not yet assessed and explain the missing evidence. Never claim an overall audience verdict or a sentiment percentage.
 Judge performance only against a supported comparable period, explicit target or supplied benchmark. Without one, describe the observed result and the decision it supports; do not call it strong, healthy, impressive, significant or on track. Distinguish attention from successful use. Do not imply a forecast from distance to a target.
 Use familiar language and only decision-relevant detail. Avoid decimal durations, sampling jargon, methodology narration and generic advice. Keep any limitation that changes the conclusion explicit; put secondary uncertainty in unknowns. Never turn sparse or stale samples into a current-week claim. Before returning, check that each sentence adds a result, implication, action or material uncertainty; remove filler and repetition.
 Use only the supplied source records and their metric definitions, coverage, caveats and observation times. Cite only allowed queryIds listed for that section. If a section has no evidence, state that analysis is unavailable, cite no queryIds, use low confidence and name the missing evidence.

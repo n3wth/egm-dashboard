@@ -26,6 +26,7 @@ function fixture(infer=async()=>({response:JSON.stringify(response())}),initial=
 }
 
 test('daily output requires every known section and exact allowed evidence IDs',()=>{
+  assert.ok(analysisSections.mentions.includes('youtube_comments'))
   assert.equal(validateDailyAnalysis(response(),records).length,9)
   for(const modify of [value=>value.sections.pop(),value=>value.sections.push(value.sections[0]),value=>value.sections[0].queryIds=['secrets'],value=>value.sections[0].queryIds=['peers'],value=>value.sections[0].headline='Growth caused 20 installs',value=>value.sections[0].summary='<script>bad</script>',value=>value.sections[0].nextStep='Read https://example.com',value=>value.sections[0].extra='not allowed',value=>value.sections[0].confidence='high']) {
     const value=response();modify(value)
