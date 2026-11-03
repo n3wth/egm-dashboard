@@ -15,6 +15,7 @@ import {InsightCallout} from './InsightCallout.jsx'
 import {OverviewSummary} from './OverviewSummary.jsx'
 import {PageSummary} from './PageSummary.jsx'
 import {VideoThumbnail} from './VideoThumbnail.jsx'
+import {EngagementSignals} from './EngagementSignals.jsx'
 import {trackDashboardSection} from './usage-analytics.js'
 import {EmptyState,StaleNotice} from './DataStates.jsx'
 import {formatObservedAt} from './collection-status.mjs'
@@ -25,7 +26,7 @@ import {PageLink} from './PageLink.jsx'
 import {SiteFooter} from './PageFooter.jsx'
 import {starGrowth,observedStarGrowth,hasObservedDailyChange} from './star-growth.mjs'
 import {Welcome} from './Welcome.jsx'
-import {analysisSummary,savedAnalysis} from './saved-analysis.mjs'
+import {analysisSummary,savedAnalysis,audienceSentiment} from './saved-analysis.mjs'
 import {AnalysisLabel,AnalysisText} from './SavedAnalysis.jsx'
 import {overviewSummary,trafficCoverageNote} from './overview-summary.mjs'
 import {pageSummary} from './page-summary.mjs'
@@ -131,9 +132,10 @@ function useVideoGrid(available) {
   return videoGrid(available,width)
 }
 function AcrossEgm({queries}) {
+  const sentiment=audienceSentiment(queries)
   const saved=savedAnalysis(queries,'overview_experiment')
   const analysis=saved&&!saved.stale?saved:null
-  const ids=[...['referrers','paths','youtube_videos','research_evidence','issue_queue'].filter(id=>queries[id]),...(analysis?['daily_analysis',...analysis.evidenceQueryIds]:[])]
+  const ids=[...new Set([...['referrers','paths','youtube_videos','youtube_comments','research_evidence','issue_queue'].filter(id=>queries[id]),...(analysis?['daily_analysis',...analysis.evidenceQueryIds]:[]),...(sentiment.analysis?['daily_analysis',...sentiment.analysis.evidenceQueryIds]:[])])]
   const sourceRowsByQuery=Object.fromEntries(ids.map(id=>[id,queries[id].rows]))
   const rankedVideos=(queries.youtube_videos?.rows??[]).filter(row=>Number.isFinite(row.views)&&row.views>=0&&/^[A-Za-z0-9_-]{11}$/.test(row.videoId??'')).sort((a,b)=>b.views-a.views)
   const grid=useVideoGrid(rankedVideos.length)
@@ -142,6 +144,13 @@ function AcrossEgm({queries}) {
   const displayRows=[...popularVideos.map(video=>({signal:'YouTube view count',url:video.url,views:video.views})),...(experiment?[{signal:'Suggested experiment',url:experiment.winner.url,category:experiment.category}]:[])]
   return <DataComponent id="overview-across-egm" queryId={ids[0]} queryIds={ids} title="Highlights" kind="custom" variant="card" displayRows={displayRows} sourceRowsByQuery={sourceRowsByQuery}>
     <div className="egm-highlights" data-reviewed-rows>
+      <article className="egm-highlight egm-highlight-sentiment">
+        <h3>Audience sentiment</h3>
+        <p className="egm-highlight-value">{sentiment.analysis?.headline??'Not yet assessed.'}</p>
+        {sentiment.analysis&&<><p>{sentiment.analysis.summary}</p><AnalysisLabel analysis={sentiment.analysis}/></>}
+        <p className="egm-note">{sentiment.comments?`${sentiment.comments} collected comments across ${sentiment.videos} ${sentiment.videos===1?'video':'videos'}. Selected sample, not overall audience opinion.`:'No comment sample collected yet.'}{!sentiment.analysis&&sentiment.comments>0?' A current Gemini assessment is not available yet.':''}</p>
+        <PageLink className="egm-highlight-link" page="mentions">Read collected comments <Icon name="arrowUpRight" size={14}/></PageLink>
+      </article>
       <article className="egm-highlight egm-highlight-videos">
         <h3>Popular videos</h3>
         {popularVideos.length?<div className="egm-overview-videos" style={{'--video-columns':grid.columns}}>{popularVideos.map(video=>{
@@ -149,7 +158,7 @@ function AcrossEgm({queries}) {
           return <a className="egm-overview-video" key={video.videoId} href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noreferrer">
             <span className="egm-overview-video-frame"><VideoThumbnail id={video.videoId} poster="mqdefault" sizes="(max-width: 799px) 33vw, (max-width: 1279px) 25vw, 16vw" alt={`${title} preview`}/></span>
             <Hint className="egm-overview-video-title" title={title}>{title}</Hint>
-            <span className="egm-overview-video-views">{compact(video.views)} views</span>
+            <span className="egm-overview-video-views"><EngagementSignals row={video}/></span>
           </a>
         })}</div>:<p className="egm-highlight-value">No YouTube view counts collected yet.</p>}
         <PageLink className="egm-highlight-link" page="mentions">Mentions <Icon name="arrowUpRight" size={14}/></PageLink>
