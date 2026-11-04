@@ -5,8 +5,8 @@ import { GEMINI_MODEL, geminiRunner } from './gemini.mjs'
 export const defaultGrowthRecipient = 'newth@google.com'
 export const repoUrl = 'https://github.com/google/elephant-goldfish-model'
 export const websiteUrl = 'https://egm.dev'
-export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png?v=4`
-export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png?v=4`
+export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png?v=5`
+export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png?v=5`
 export const defaultUnsubscribeUrl = `${dashboardUrl}/email/unsubscribe`
 
 const font = `'Suisse Intl',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif`
@@ -207,11 +207,22 @@ function renderHostedChartOrImage(img) {
   const href = safeHttpsUrl(img.href) || `${dashboardUrl}/overview`
   const alt = escapeHtml(img.alt || 'EGM growth visual')
   const width = Number.isFinite(img.width) ? img.width : 444
-  const height = Number.isFinite(img.height) ? img.height : 120
+  const height = Number.isFinite(img.height) ? img.height : 96
+  const chartHeaderRow = img.showChartHeaders
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 6px">` +
+      `<tr>` +
+      `<td width="46%" align="left" class="heading" style="font-size:12px;line-height:16px;font-weight:500;color:#1a1c1f">Cumulative stars</td>` +
+      `<td width="2%" align="right" class="muted" style="font-size:11px;line-height:16px;color:#767676;padding-right:26px">51d</td>` +
+      `<td width="46%" align="left" class="heading" style="font-size:12px;line-height:16px;font-weight:500;color:#1a1c1f">Daily new stars</td>` +
+      `<td width="6%" align="right" class="muted" style="font-size:11px;line-height:16px;color:#767676">14d</td>` +
+      `</tr>` +
+      `</table>`
+    : ''
   const caption = img.caption ? `<p class="muted" style="margin:6px 0 0;font-size:11px;line-height:16px;color:#767676;text-align:left">${linkifyRepoText(img.caption)}</p>` : ''
 
   return (
     `<div class="divider-band" style="padding:14px 0;border-top:1px solid #ededed;border-bottom:1px solid #ededed;margin:14px 0 16px">` +
+    chartHeaderRow +
     `<a href="${escapeHtml(href)}" style="display:block;text-decoration:none;border:0">` +
     `<img class="img-light" src="${escapeHtml(lightSrc)}" width="${width}" height="${height}" alt="${alt}" style="display:block;width:100%;max-width:${width}px;height:auto;border:0">` +
     `<img class="img-dark" src="${escapeHtml(darkSrc)}" width="${width}" height="${height}" alt="${alt}" style="display:none;max-height:0;overflow:hidden;width:100%;max-width:${width}px;height:auto;border:0">` +
@@ -294,7 +305,8 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
       href: `${dashboardUrl}/overview`,
       alt: `Cumulative stars (51d) and daily new stars (14d) for ${s.isoWeek}`,
       width: 444,
-      height: 120
+      height: 96,
+      showChartHeaders: true
     }]),
     ...s.customImages,
     ...(Array.isArray(options.images) ? options.images : [])
@@ -330,11 +342,14 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
     )
   }).join('')
 
-  const styles = [
+  const fontStyles = [
     `@font-face{font-family:'Suisse Intl';font-style:normal;font-weight:400;src:url('${dashboardUrl}/fonts/SuisseIntl-Book.woff2') format('woff2')}`,
     `@font-face{font-family:'Suisse Intl';font-style:normal;font-weight:500;src:url('${dashboardUrl}/fonts/SuisseIntl-Medium.woff2') format('woff2')}`,
     `@font-face{font-family:'Suisse Intl';font-style:normal;font-weight:600;src:url('${dashboardUrl}/fonts/SuisseIntl-Semibold.woff2') format('woff2')}`,
-    `:root{color-scheme:light dark;supported-color-schemes:light dark}`,
+    `:root{color-scheme:light dark;supported-color-schemes:light dark}`
+  ].join('')
+
+  const layoutStyles = [
     `body{margin:0;padding:0;background:transparent;background-color:transparent;-webkit-font-smoothing:antialiased}`,
     `.logo-dark,.img-dark{display:none !important;max-height:0 !important;overflow:hidden !important}`,
     `@media (prefers-color-scheme:dark){`,
@@ -358,7 +373,8 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
     `<meta name="color-scheme" content="light dark">` +
     `<meta name="supported-color-schemes" content="light dark">` +
     `<title>${escapeHtml(subject)}</title>` +
-    `<style>${styles}</style>` +
+    `<style>${fontStyles}</style>` +
+    `<style>${layoutStyles}</style>` +
     `</head>` +
     `<body style="margin:0;padding:0;background:transparent;background-color:transparent;font-family:${font}">` +
     `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preheader)}</div>` +
@@ -372,7 +388,7 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
     `<tr>` +
     `<td align="left" valign="middle">` +
     `<a href="${dashboardUrl}" style="display:inline-block;text-decoration:none;border:0">` +
-    `<img class="logo-light" src="${logoBlackUrl}" width="44" height="26" alt="EGM" style="display:block;width:44px;height:26px;border:0">` +
+    `<img class="logo-light" src="${logoBlackUrl}" width="44" height="26" alt="EGM" style="display:block;width:44px;height:26px;border:0;mix-blend-mode:difference">` +
     `<img class="logo-dark" src="${logoWhiteUrl}" width="44" height="26" alt="EGM" style="display:none;max-height:0;overflow:hidden;width:44px;height:26px;border:0">` +
     `</a>` +
     `</td>` +

@@ -86,7 +86,7 @@ function bodyParagraph(html, marginBottom) {
 }
 
 function logoMark() {
-  const light = `<img class="logo-light" src="${logoBlackUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:block;margin:0 auto;width:${logoWidth}px;height:${logoHeight}px;border:0">`
+  const light = `<img class="logo-light" src="${logoBlackUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:block;margin:0 auto;width:${logoWidth}px;height:${logoHeight}px;border:0;mix-blend-mode:difference">`
   const dark = `<img class="logo-dark" src="${logoWhiteUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:none;max-height:0;overflow:hidden;margin:0 auto;width:${logoWidth}px;height:${logoHeight}px;border:0">`
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 0 28px">${light}${dark}</td></tr></table>`
 }
