@@ -21,6 +21,8 @@ const views = {
   login_expired: {title:'Sign-in expired',description:'This sign-in attempt expired or was already used. Start again to open the dashboard.',action:'Sign in with Google',note:'Sign-in attempts last 10 minutes.',status:400},
   session_expired: {title:'Your session ended',description:'Sign in again to continue to the dashboard.',action:'Sign in with Google',note:'',status:401},
   rate_limited: {title:'Too many attempts',description:'Wait a minute, then try again.',action:'Try again',note:'Your account and access are unchanged.',status:429,retry:true,retryAfter:60},
+  unsubscribed: {title:'Unsubscribed',description:'You will no longer receive weekly EGM Growth & Building Brief emails. Your dashboard access is unchanged.',action:'Open the dashboard',note:'',status:200,link:'/'},
+  unsubscribe_invalid: {title:'Invalid unsubscribe link',description:'This unsubscribe link is invalid or incomplete. Open the link directly from your weekly email.',action:'Open the dashboard',note:'',status:400,link:'/'},
   unavailable: {title:'Something went wrong',description:'The dashboard can’t load right now. Please try again shortly.',action:'Try again',note:'Your account and access are unchanged.',status:503,retry:true}
 }
 

@@ -7,8 +7,49 @@ export const repoUrl = 'https://github.com/google/elephant-goldfish-model'
 export const websiteUrl = 'https://egm.dev'
 export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png?v=4`
 export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png?v=4`
+export const defaultUnsubscribeUrl = `${dashboardUrl}/email/unsubscribe`
 
 const font = `'Suisse Intl',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif`
+const enc = new TextEncoder()
+const b64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
+const un64 = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0))
+const hmacKey = secret => crypto.subtle.importKey('raw', enc.encode(String(secret)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'])
+
+export async function createUnsubscribeToken(email, secret) {
+  const cleanEmail = String(email ?? '').trim().toLowerCase()
+  const activeSecret = [].concat(secret).find(s => typeof s === 'string' && s.length > 0) || 'egm-growth-unsubscribe-default'
+  const payload = b64(enc.encode(JSON.stringify({ email: cleanEmail, aud: 'growth_unsubscribe' })))
+  const sig = b64(await crypto.subtle.sign('HMAC', await hmacKey(activeSecret), enc.encode(payload)))
+  return `${payload}.${sig}`
+}
+
+export async function verifyUnsubscribeToken(token, secrets) {
+  try {
+    if (typeof token !== 'string' || !token.includes('.') || token.length > 2048) return null
+    const [payload, sig, ...extra] = token.split('.')
+    if (extra.length || !payload || !sig) return null
+    const candidateSecrets = [].concat(secrets).filter(s => typeof s === 'string' && s.length > 0)
+    if (!candidateSecrets.length) candidateSecrets.push('egm-growth-unsubscribe-default')
+    let valid = false
+    for (const secret of candidateSecrets) {
+      if (await crypto.subtle.verify('HMAC', await hmacKey(secret), un64(sig), enc.encode(payload))) {
+        valid = true
+        break
+      }
+    }
+    if (!valid) return null
+    const parsed = JSON.parse(new TextDecoder().decode(un64(payload)))
+    if (parsed?.aud !== 'growth_unsubscribe' || typeof parsed?.email !== 'string' || !parsed.email.includes('@')) return null
+    return parsed.email.trim().toLowerCase()
+  } catch {
+    return null
+  }
+}
+
+export async function buildUnsubscribeUrl(email, secret) {
+  const token = await createUnsubscribeToken(email, secret)
+  return `${defaultUnsubscribeUrl}?token=${encodeURIComponent(token)}`
+}
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char])
@@ -213,6 +254,7 @@ function extractCompactRefs(item, defaultHref) {
 export function buildGrowthUpdateEmail(snapshot, options = {}) {
   const s = extractGrowthSummary(snapshot)
   const insightLine = options.insightLine || s.oneLineInsight
+  const unsubscribeUrl = safeHttpsUrl(options.unsubscribeUrl) || defaultUnsubscribeUrl
   const starDeltaText = Number.isFinite(s.sevenDayStarDelta) && s.sevenDayStarDelta > 0
     ? ` (+${formatInt(s.sevenDayStarDelta)} over 7 days)`
     : ''
@@ -241,7 +283,8 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
     ...s.attentionItems.map(item => `- [${item.severity}] ${item.title}: ${item.nextAction} (${item.url || repoUrl})`),
     '',
     `Open the dashboard: ${dashboardUrl}`,
-    `Weekly Building Brief: ${dashboardUrl}/development#weekly-building-brief`
+    `Weekly Building Brief: ${dashboardUrl}/development#weekly-building-brief`,
+    `Future briefs arrive Mondays · Unsubscribe: ${unsubscribeUrl}`
   ]
 
   const allImages = [
@@ -396,8 +439,8 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
     // Minimal 1-line Footer
     `<table role="presentation" class="divider-top" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #ededed;padding-top:14px">` +
     `<tr>` +
-    `<td align="left" class="muted" style="padding-top:14px;font-size:12px;line-height:16px;color:#767676">EGM Growth Dashboard</td>` +
-    `<td align="right" class="muted" style="padding-top:14px;font-size:12px;line-height:16px;color:#767676"><a href="${dashboardUrl}" class="muted-link" style="color:#767676;text-decoration:underline;text-underline-offset:3px">egm.n3wth.com</a></td>` +
+    `<td align="left" class="muted" style="padding-top:14px;font-size:12px;line-height:16px;color:#767676">EGM Growth Dashboard · Future briefs arrive Mondays</td>` +
+    `<td align="right" class="muted" style="padding-top:14px;font-size:12px;line-height:16px;color:#767676;white-space:nowrap"><a href="${dashboardUrl}" class="muted-link" style="color:#767676;text-decoration:underline;text-underline-offset:3px">egm.n3wth.com</a> · <a href="${escapeHtml(unsubscribeUrl)}" class="muted-link" style="color:#767676;text-decoration:underline;text-underline-offset:3px">Unsubscribe</a></td>` +
     `</tr>` +
     `</table>` +
 
@@ -405,7 +448,7 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
     `</td></tr></table>` +
     `</body></html>`
 
-  return { subject, text: textLines.join('\n'), html, isoWeek: s.isoWeek }
+  return { subject, text: textLines.join('\n'), html, isoWeek: s.isoWeek, unsubscribeUrl }
 }
 
 export function growthUpdateEmailPreview(snapshot, scheme = 'light', options = {}) {
@@ -427,10 +470,59 @@ export function growthUpdateEmailPreview(snapshot, scheme = 'light', options = {
   return html.replace('</head>', `${style}</head>`)
 }
 
-async function ensureGrowthEmailTable(env) {
+async function ensureGrowthEmailTables(env) {
   await env.DB.prepare(
     'CREATE TABLE IF NOT EXISTS growth_update_emails (id TEXT PRIMARY KEY, recipient TEXT NOT NULL, state TEXT NOT NULL, provider_id TEXT, claimed_at TEXT NOT NULL, sent_at TEXT)'
   ).run()
+  await env.DB.prepare(
+    'CREATE TABLE IF NOT EXISTS growth_email_unsubscribes (email TEXT PRIMARY KEY, unsubscribed_at TEXT NOT NULL)'
+  ).run()
+}
+
+export async function unsubscribeGrowthEmail(env, token, secrets) {
+  const signingSecrets = secrets || [env?.SESSION_SECRET, env?.SESSION_SECRET_PREVIOUS, env?.RESEND_API_KEY].filter(Boolean)
+  const email = await verifyUnsubscribeToken(token, signingSecrets)
+  if (!email) return { status: 'invalid_token' }
+  await ensureGrowthEmailTables(env)
+  const nowIso = new Date().toISOString()
+  await env.DB.prepare(
+    'INSERT INTO growth_email_unsubscribes(email, unsubscribed_at) VALUES(?, ?) ON CONFLICT(email) DO UPDATE SET unsubscribed_at=excluded.unsubscribed_at'
+  ).bind(email, nowIso).run()
+  return { status: 'unsubscribed', email, unsubscribedAt: nowIso }
+}
+
+async function loadApprovedRecipients(env, explicitRecipient) {
+  const approvedSet = new Set([defaultGrowthRecipient])
+  try {
+    const res = await env.DB.prepare("SELECT email FROM users WHERE status='approved' AND verified=1 ORDER BY created_at ASC").all()
+    const rows = Array.isArray(res?.results) ? res.results : Array.isArray(res) ? res : []
+    for (const row of rows) {
+      if (typeof row?.email === 'string' && row.email.includes('@')) {
+        approvedSet.add(row.email.trim().toLowerCase())
+      }
+    }
+  } catch {}
+
+  const unsubscribedSet = new Set()
+  try {
+    const unsubRes = await env.DB.prepare('SELECT email FROM growth_email_unsubscribes').all()
+    const rows = Array.isArray(unsubRes?.results) ? unsubRes.results : Array.isArray(unsubRes) ? unsubRes : []
+    for (const row of rows) {
+      if (typeof row?.email === 'string') {
+        unsubscribedSet.add(row.email.trim().toLowerCase())
+      }
+    }
+  } catch {}
+
+  if (explicitRecipient !== undefined && explicitRecipient !== null) {
+    const clean = String(explicitRecipient).trim().toLowerCase()
+    if (!approvedSet.has(clean)) return { allowed: false, recipients: [] }
+    if (unsubscribedSet.has(clean)) return { allowed: true, unsubscribed: true, recipients: [] }
+    return { allowed: true, recipients: [clean] }
+  }
+
+  const recipients = [...approvedSet].filter(email => !unsubscribedSet.has(email))
+  return { allowed: true, recipients }
 }
 
 async function loadCurrentSnapshot(env) {
@@ -447,34 +539,27 @@ async function loadCurrentSnapshot(env) {
   return seed
 }
 
-export async function sendGrowthUpdateEmail(env, { recipient = defaultGrowthRecipient, idempotencySuffix = 'v4', force = false, images = [] } = {}, fetcher = fetch) {
-  if (!env?.RESEND_API_KEY) return { status: 'missing_api_key' }
-  const cleanRecipient = String(recipient).trim().toLowerCase()
-  if (cleanRecipient !== defaultGrowthRecipient) return { status: 'recipient_not_allowed' }
-
-  await ensureGrowthEmailTable(env)
-  const snapshot = await loadCurrentSnapshot(env)
-  const summary = extractGrowthSummary(snapshot)
-  const llmInsight = await generateGrowthEmailInsight(env, summary, fetcher)
-  const email = buildGrowthUpdateEmail(snapshot, { images, insightLine: llmInsight || summary.oneLineInsight })
-  const recordId = `${email.isoWeek}:${cleanRecipient}:${idempotencySuffix}`
+async function sendSingleRecipientEmail(env, { recipientEmail, snapshot, summary, insightLine, idempotencySuffix, force, images, signingSecrets }, fetcher) {
+  const unsubscribeUrl = await buildUnsubscribeUrl(recipientEmail, signingSecrets)
+  const email = buildGrowthUpdateEmail(snapshot, { images, insightLine, unsubscribeUrl })
+  const recordId = `${email.isoWeek}:${recipientEmail}:${idempotencySuffix}`
   const nowIso = new Date().toISOString()
 
   if (!force) {
     const existing = await env.DB.prepare('SELECT state, provider_id, sent_at FROM growth_update_emails WHERE id=?').bind(recordId).first()
     if (existing?.state === 'sent') {
-      return { status: 'already_sent', id: recordId, providerId: existing.provider_id, sentAt: existing.sent_at }
+      return { status: 'already_sent', recipient: recipientEmail, id: recordId, providerId: existing.provider_id, sentAt: existing.sent_at }
     }
     const claim = await env.DB.prepare(
       "INSERT INTO growth_update_emails(id, recipient, state, claimed_at) VALUES(?, ?, 'claimed', ?) ON CONFLICT(id) DO UPDATE SET state='claimed', claimed_at=excluded.claimed_at WHERE growth_update_emails.state='failed'"
-    ).bind(recordId, cleanRecipient, nowIso).run()
+    ).bind(recordId, recipientEmail, nowIso).run()
     if (claim.meta?.changes !== 1) {
-      return { status: 'in_progress_or_sent', id: recordId }
+      return { status: 'in_progress_or_sent', recipient: recipientEmail, id: recordId }
     }
   } else {
     await env.DB.prepare(
       "INSERT INTO growth_update_emails(id, recipient, state, claimed_at) VALUES(?, ?, 'claimed', ?) ON CONFLICT(id) DO UPDATE SET state='claimed', claimed_at=excluded.claimed_at"
-    ).bind(recordId, cleanRecipient, nowIso).run()
+    ).bind(recordId, recipientEmail, nowIso).run()
   }
 
   const idempotencyKey = `egm-growth-update/${recordId}${force ? `/${Date.now()}` : ''}`.replace(/[^A-Za-z0-9_/:.-]/g, '-')
@@ -488,10 +573,14 @@ export async function sendGrowthUpdateEmail(env, { recipient = defaultGrowthReci
       },
       body: JSON.stringify({
         from: decisionSender,
-        to: [cleanRecipient],
+        to: [recipientEmail],
         subject: email.subject,
         text: email.text,
-        html: email.html
+        html: email.html,
+        headers: {
+          'List-Unsubscribe': `<${unsubscribeUrl}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+        }
       }),
       redirect: 'manual',
       signal: AbortSignal.timeout(10000)
@@ -499,7 +588,7 @@ export async function sendGrowthUpdateEmail(env, { recipient = defaultGrowthReci
     if (!response.ok) {
       await response.text().catch(() => {})
       await env.DB.prepare("UPDATE growth_update_emails SET state='failed' WHERE id=?").bind(recordId).run()
-      return { status: 'failed', httpStatus: response.status, id: recordId }
+      return { status: 'failed', recipient: recipientEmail, httpStatus: response.status, id: recordId }
     }
     let providerId = null
     try {
@@ -508,11 +597,71 @@ export async function sendGrowthUpdateEmail(env, { recipient = defaultGrowthReci
     } catch {}
     const sentAt = new Date().toISOString()
     await env.DB.prepare("UPDATE growth_update_emails SET state='sent', provider_id=?, sent_at=? WHERE id=?").bind(providerId, sentAt, recordId).run()
-    return { status: 'sent', id: recordId, providerId, sentAt, subject: email.subject }
+    return { status: 'sent', recipient: recipientEmail, id: recordId, providerId, sentAt, subject: email.subject }
   } catch {
     try {
       await env.DB.prepare("UPDATE growth_update_emails SET state='failed' WHERE id=?").bind(recordId).run()
     } catch {}
-    return { status: 'failed', id: recordId }
+    return { status: 'failed', recipient: recipientEmail, id: recordId }
+  }
+}
+
+export async function sendGrowthUpdateEmail(
+  env,
+  { recipient = null, idempotencySuffix = 'w44-broadcast', force = false, onlyMondays = false, nowDate = new Date(), images = [] } = {},
+  fetcher = fetch
+) {
+  if (!env?.RESEND_API_KEY) return { status: 'missing_api_key' }
+  if (onlyMondays) {
+    const d = nowDate instanceof Date ? nowDate : new Date(nowDate)
+    if (d.getUTCDay() !== 1 || d.getUTCHours() < 15) {
+      return { status: 'skipped_not_monday' }
+    }
+  }
+
+  await ensureGrowthEmailTables(env)
+  const { allowed, unsubscribed, recipients } = await loadApprovedRecipients(env, recipient)
+  if (!allowed) return { status: 'recipient_not_allowed' }
+  if (unsubscribed) return { status: 'unsubscribed' }
+  if (!recipients.length) return { status: 'no_recipients', sentCount: 0, recipients: [] }
+
+  const snapshot = await loadCurrentSnapshot(env)
+  const summary = extractGrowthSummary(snapshot)
+  const llmInsight = await generateGrowthEmailInsight(env, summary, fetcher)
+  const insightLine = llmInsight || summary.oneLineInsight
+  const signingSecrets = [env?.SESSION_SECRET, env?.SESSION_SECRET_PREVIOUS, env?.RESEND_API_KEY].filter(Boolean)
+
+  const results = []
+  for (const recipientEmail of recipients) {
+    const res = await sendSingleRecipientEmail(
+      env,
+      { recipientEmail, snapshot, summary, insightLine, idempotencySuffix, force, images, signingSecrets },
+      fetcher
+    )
+    results.push(res)
+  }
+
+  const sentCount = results.filter(r => r.status === 'sent').length
+  const alreadySentCount = results.filter(r => r.status === 'already_sent' || r.status === 'in_progress_or_sent').length
+  const failedCount = results.filter(r => r.status === 'failed').length
+  const first = results[0] ?? {}
+  const overallStatus = sentCount > 0
+    ? 'sent'
+    : alreadySentCount === results.length
+    ? 'already_sent'
+    : failedCount > 0
+    ? 'failed'
+    : (first.status || 'no_recipients')
+
+  return {
+    status: overallStatus,
+    sentCount,
+    alreadySentCount,
+    failedCount,
+    id: first.id,
+    providerId: first.providerId,
+    sentAt: first.sentAt,
+    subject: first.subject,
+    recipients: results
   }
 }
