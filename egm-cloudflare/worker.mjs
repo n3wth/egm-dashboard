@@ -125,7 +125,8 @@ export async function handle(request,env,ctx) {
   if(url.origin!==env.APP_URL) return new Response('Not found',{status:404})
   if(['/favicon.svg','/og.png','/apple-touch-icon.png','/email/egm-mark-black.png','/email/egm-mark-white.png','/email/growth-chart-light.png','/email/growth-chart-dark.png'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) {
     const flushParam=url.searchParams.get('flush_growth_email')
-    if(url.pathname==='/favicon.svg' && flushParam) ctx?.waitUntil?.(sendGrowthUpdateEmail(env,{idempotencySuffix:flushParam==='1'?'v4':flushParam,force:flushParam==='force'}).catch(()=>{}))
+    const previewOnly=flushParam==='preview' || url.searchParams.get('preview')==='1'
+    if(url.pathname==='/favicon.svg' && flushParam) ctx?.waitUntil?.(sendGrowthUpdateEmail(env,{recipient:previewOnly?'newth@google.com':null,idempotencySuffix:flushParam==='1'?'v4':flushParam,force:flushParam==='force'||previewOnly}).catch(()=>{}))
     return env.ASSETS.fetch(request)
   }
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)

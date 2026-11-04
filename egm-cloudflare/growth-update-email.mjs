@@ -5,8 +5,8 @@ import { GEMINI_MODEL, geminiRunner } from './gemini.mjs'
 export const defaultGrowthRecipient = 'newth@google.com'
 export const repoUrl = 'https://github.com/google/elephant-goldfish-model'
 export const websiteUrl = 'https://egm.dev'
-export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png?v=5`
-export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png?v=5`
+export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png?v=6`
+export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png?v=6`
 export const defaultUnsubscribeUrl = `${dashboardUrl}/email/unsubscribe`
 
 const font = `'Suisse Intl',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif`
