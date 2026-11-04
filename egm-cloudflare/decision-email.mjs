@@ -4,7 +4,7 @@
 export const decisionSender = 'EGM Dashboard <updates@n3wth.com>'
 export const dashboardUrl = 'https://egm.n3wth.com'
 // Public after the worker that ships these files is deployed. Email clients fetch them with no session.
-export const logoBlackUrl = 'https://egm.n3wth.com/email/egm-mark-black.png'
+export const logoBlackUrl = 'https://egm.n3wth.com/email/egm-mark-black.png?v=2'
 export const logoWhiteUrl = 'https://egm.n3wth.com/email/egm-mark-white.png'
 const logoWidth = 56
 const logoHeight = 33
