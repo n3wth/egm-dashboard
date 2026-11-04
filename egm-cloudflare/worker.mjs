@@ -2,7 +2,7 @@ import {validatePresentation} from '../egm-performance/src/presentation-state.js
 import {runRefresh} from './refresh-runner.mjs'
 import {flushApprovalEvents} from './approval-events.mjs'
 import {flushGrokNotifications} from './grok-notify.mjs'
-import {sendGrowthUpdateEmail} from './growth-update-email.mjs'
+import {sendGrowthUpdateEmail,unsubscribeGrowthEmail} from './growth-update-email.mjs'
 import {flushFeedbackEvents,flushFeedbackToPosthog,loadFeedbackSurvey,recordFeedbackActivity,submitFeedback} from './feedback-events.mjs'
 import {mcp} from './mcp-server.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
@@ -132,6 +132,12 @@ export async function handle(request,env,ctx) {
   if(['/fonts/SuisseIntl-Book.woff2','/fonts/SuisseIntl-Medium.woff2','/fonts/SuisseIntl-Semibold.woff2','/fonts/SuisseIntl-Bold.woff2'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
   if(url.pathname==='/webhooks/workos') return handleWorkosWebhook(request,env)
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return unavailable(request)
+  if(url.pathname==='/email/unsubscribe' && (request.method==='GET' || request.method==='POST')) {
+    const token=url.searchParams.get('token')
+    const result=await unsubscribeGrowthEmail(env,token,sessionSecrets(env)).catch(()=>({status:'error'}))
+    if(request.method==='POST') return json({status:result.status},result.status==='unsubscribed'?200:400)
+    return renderAccessPage(result.status==='unsubscribed'?'unsubscribed':'unsubscribe_invalid')
+  }
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})
   if(url.pathname==='/mcp') return mcp(request,env,ctx)
   const pagePaths=['overview','reach','website','development','acquisition','adoption','research','mentions']
@@ -413,7 +419,7 @@ export default {
       if(env.WORKOS_RBAC_ENABLED==='true') try { await syncWorkosMemberships(env) } catch { console.error('WorkOS membership reconciliation deferred') }
     }
     try {await flushApprovalEvents(env)} catch {console.error('Approval notification delivery deferred')}
-    try {await sendGrowthUpdateEmail(env)} catch {console.error('Growth update email delivery deferred')}
+    try {await sendGrowthUpdateEmail(env,{onlyMondays:true,idempotencySuffix:'weekly'})} catch {console.error('Growth update email delivery deferred')}
     try {await flushFeedbackEvents(env)} catch {console.error('Feedback notification delivery deferred')}
     try {await flushFeedbackToPosthog(env)} catch {console.error('Feedback survey delivery deferred')}
     try {await flushGrokNotifications(env)} catch {console.error('Grok notification delivery deferred')}

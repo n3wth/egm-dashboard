@@ -9,3 +9,5 @@ CREATE TABLE IF NOT EXISTS presentation (id INTEGER PRIMARY KEY CHECK(id=1), bod
 INSERT OR IGNORE INTO presentation VALUES(1,'{}',0);
 CREATE TABLE IF NOT EXISTS snapshots (id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL, generated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS repo_baselines (repo TEXT PRIMARY KEY,stars INTEGER NOT NULL,observed_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS growth_update_emails (id TEXT PRIMARY KEY, recipient TEXT NOT NULL, state TEXT NOT NULL, provider_id TEXT, claimed_at TEXT NOT NULL, sent_at TEXT);
+CREATE TABLE IF NOT EXISTS growth_email_unsubscribes (email TEXT PRIMARY KEY, unsubscribed_at TEXT NOT NULL);
