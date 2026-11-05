@@ -42,7 +42,7 @@ test('buildGrowthUpdateEmail uses hosted images, single-line linked items, Monda
   assert.match(email.html, /https:\/\/egm\.n3wth\.com\/email\/custom-dark\.png/)
   assert.match(email.html, /prefers-color-scheme:dark/)
   assert.match(email.html, /background:transparent;background-color:transparent/)
-  assert.match(email.html, /mix-blend-mode:difference/)
+  assert.doesNotMatch(email.html, /mix-blend-mode/)
   assert.match(email.html, />Cumulative stars<\/td>/)
   assert.match(email.html, />Daily new stars<\/td>/)
 
