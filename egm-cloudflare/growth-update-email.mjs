@@ -388,7 +388,7 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
     `<tr>` +
     `<td align="left" valign="middle">` +
     `<a href="${dashboardUrl}" style="display:inline-block;text-decoration:none;border:0">` +
-    `<img class="logo-light" src="${logoBlackUrl}" width="44" height="26" alt="EGM" style="display:block;width:44px;height:26px;border:0;mix-blend-mode:difference">` +
+    `<img class="logo-light" src="${logoBlackUrl}" width="44" height="26" alt="EGM" style="display:block;width:44px;height:26px;border:0">` +
     `<img class="logo-dark" src="${logoWhiteUrl}" width="44" height="26" alt="EGM" style="display:none;max-height:0;overflow:hidden;width:44px;height:26px;border:0">` +
     `</a>` +
     `</td>` +

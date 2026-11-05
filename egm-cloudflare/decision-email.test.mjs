@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { readFileSync } from 'node:fs'
+import { inflateSync } from 'node:zlib'
 import { manageAccess } from './access-management.mjs'
 import { decisionEmail, decisionEmailPreview, decisionSender, logoBlackUrl, logoWhiteUrl, notifyAccessDecision } from './decision-email.mjs'
 import { decideAccessRequest } from './mcp-server.mjs'
@@ -128,12 +129,23 @@ test('decision mail is flat and transparent in light and dark', () => {
   assert.match(approved.html, /lang="en" dir="ltr"/)
   const black = readFileSync(new URL('../assets/branding/egm-mark-black.png', import.meta.url))
   const white = readFileSync(new URL('../assets/branding/egm-mark-white.png', import.meta.url))
-  assert.equal(black.readUInt32BE(16), 72)
-  assert.equal(black.readUInt32BE(20), 42)
-  assert.equal(white.readUInt32BE(16), 72)
-  assert.equal(white.readUInt32BE(20), 42)
+  assert.equal(black.readUInt32BE(16), 288)
+  assert.equal(black.readUInt32BE(20), 168)
+  assert.equal(white.readUInt32BE(16), 288)
+  assert.equal(white.readUInt32BE(20), 168)
   assert.equal(black[25], 6)
   assert.equal(white[25], 6)
+  for (const png of [black, white]) {
+    const chunks = []
+    for (let offset = 8; offset < png.length;) {
+      const length = png.readUInt32BE(offset)
+      if (png.toString('ascii', offset + 4, offset + 8) === 'IDAT') chunks.push(png.subarray(offset + 8, offset + 8 + length))
+      offset += length + 12
+    }
+    // The first pixel has no left or upper predictor, regardless of PNG filter.
+    assert.equal(inflateSync(Buffer.concat(chunks))[4], 0, 'logo corner must be transparent')
+  }
+  assert.doesNotMatch(approved.html, /mix-blend-mode/)
   const light = decisionEmailPreview('approved', 'light')
   const dark = decisionEmailPreview('approved', 'dark')
   assert.match(light, /html\{background-color:#ffffff\}/)

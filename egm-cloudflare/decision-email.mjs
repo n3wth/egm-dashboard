@@ -4,8 +4,8 @@
 export const decisionSender = 'EGM Dashboard <updates@n3wth.com>'
 export const dashboardUrl = 'https://egm.n3wth.com'
 // Public after the worker that ships these files is deployed. Email clients fetch them with no session.
-export const logoBlackUrl = 'https://egm.n3wth.com/email/egm-mark-black.png?v=2'
-export const logoWhiteUrl = 'https://egm.n3wth.com/email/egm-mark-white.png'
+export const logoBlackUrl = 'https://egm.n3wth.com/email/egm-mark-black.png?v=3'
+export const logoWhiteUrl = 'https://egm.n3wth.com/email/egm-mark-white.png?v=3'
 const logoWidth = 56
 const logoHeight = 33
 const footerText = 'Sent because you requested access. n3wth.com'
@@ -86,7 +86,7 @@ function bodyParagraph(html, marginBottom) {
 }
 
 function logoMark() {
-  const light = `<img class="logo-light" src="${logoBlackUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:block;margin:0 auto;width:${logoWidth}px;height:${logoHeight}px;border:0;mix-blend-mode:difference">`
+  const light = `<img class="logo-light" src="${logoBlackUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:block;margin:0 auto;width:${logoWidth}px;height:${logoHeight}px;border:0">`
   const dark = `<img class="logo-dark" src="${logoWhiteUrl}" width="${logoWidth}" height="${logoHeight}" alt="EGM" style="display:none;max-height:0;overflow:hidden;margin:0 auto;width:${logoWidth}px;height:${logoHeight}px;border:0">`
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 0 28px">${light}${dark}</td></tr></table>`
 }
