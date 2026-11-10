@@ -5,8 +5,8 @@ import { GEMINI_MODEL, geminiRunner } from './gemini.mjs'
 export const defaultGrowthRecipient = 'newth@google.com'
 export const repoUrl = 'https://github.com/google/elephant-goldfish-model'
 export const websiteUrl = 'https://egm.dev'
-export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png?v=6`
-export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png?v=6`
+export const growthChartLightUrl = `${dashboardUrl}/email/growth-chart-light.png?v=7`
+export const growthChartDarkUrl = `${dashboardUrl}/email/growth-chart-dark.png?v=7`
 export const defaultUnsubscribeUrl = `${dashboardUrl}/email/unsubscribe`
 
 const font = `'Suisse Intl',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif`
@@ -206,29 +206,20 @@ function renderHostedChartOrImage(img) {
   const darkSrc = safeHttpsUrl(img.darkSrc) || lightSrc
   const href = safeHttpsUrl(img.href) || `${dashboardUrl}/overview`
   const alt = escapeHtml(img.alt || 'EGM growth visual')
-  const width = Number.isFinite(img.width) ? img.width : 444
-  const height = Number.isFinite(img.height) ? img.height : 96
-  const chartHeaderRow = img.showChartHeaders
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 6px">` +
-      `<tr>` +
-      `<td width="46%" align="left" class="heading" style="font-size:12px;line-height:16px;font-weight:500;color:#1a1c1f">Cumulative stars</td>` +
-      `<td width="2%" align="right" class="muted" style="font-size:11px;line-height:16px;color:#767676;padding-right:26px">51d</td>` +
-      `<td width="46%" align="left" class="heading" style="font-size:12px;line-height:16px;font-weight:500;color:#1a1c1f">Daily new stars</td>` +
-      `<td width="6%" align="right" class="muted" style="font-size:11px;line-height:16px;color:#767676">14d</td>` +
-      `</tr>` +
-      `</table>`
+  const width = Number.isFinite(img.width) ? img.width : 488
+  const height = Number.isFinite(img.height) ? img.height : 106
+  const labels = img.showChartHeaders
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
+      `<td width="50%" class="muted" style="font-size:11px;line-height:14px;color:#76766f">Total stars since launch</td>` +
+      `<td width="50%" class="muted" style="font-size:11px;line-height:14px;color:#76766f">New per day, last 14 days</td>` +
+      `</tr></table>`
     : ''
-  const caption = img.caption ? `<p class="muted" style="margin:6px 0 0;font-size:11px;line-height:16px;color:#767676;text-align:left">${linkifyRepoText(img.caption)}</p>` : ''
-
+  const caption = img.caption ? `<p class="muted" style="margin:6px 0 0;font-size:11px;line-height:16px;color:#76766f">${linkifyRepoText(img.caption)}</p>` : ''
   return (
-    `<div class="divider-band" style="padding:14px 0;border-top:1px solid #ededed;border-bottom:1px solid #ededed;margin:14px 0 16px">` +
-    chartHeaderRow +
-    `<a href="${escapeHtml(href)}" style="display:block;text-decoration:none;border:0">` +
-    `<img class="img-light" src="${escapeHtml(lightSrc)}" width="${width}" height="${height}" alt="${alt}" style="display:block;width:100%;max-width:${width}px;height:auto;border:0">` +
-    `<img class="img-dark" src="${escapeHtml(darkSrc)}" width="${width}" height="${height}" alt="${alt}" style="display:none;max-height:0;overflow:hidden;width:100%;max-width:${width}px;height:auto;border:0">` +
-    `</a>` +
-    caption +
-    `</div>`
+    `<a href="${escapeHtml(href)}" style="display:block;margin:20px 0 8px;text-decoration:none;border:0">` +
+    `<img class="img-light" src="${escapeHtml(lightSrc)}" width="${width}" alt="${alt}" style="display:block;width:100%;max-width:${width}px;height:auto;border:0">` +
+    `<img class="img-dark" src="${escapeHtml(darkSrc)}" width="${width}" alt="" style="display:none;max-height:0;overflow:hidden;width:100%;max-width:${width}px;height:auto;border:0">` +
+    `</a>` + labels + caption
   )
 }
 
@@ -262,24 +253,84 @@ function extractCompactRefs(item, defaultHref) {
   return links.join(' · ')
 }
 
+const C = {
+  ink: '#18181a', muted: '#76766f', body: '#5f5f59', line: '#ebebe8', page: '#f4f4f2',
+  pos: '#007a32', posBg: '#e5f5eb', hi: '#b3261e', hiBg: '#fdecea', md: '#8a5300', mdBg: '#fdf3e1'
+}
+
+function formatCompact(value) {
+  if (!Number.isFinite(value)) return 'n/a'
+  if (value >= 10000) return `${(value / 1000).toFixed(1).replace(/\.0$/, '')}k`
+  return formatInt(value)
+}
+
+function nextPatchVersion(tag) {
+  const match = String(tag ?? '').match(/^v(\d+)\.(\d+)\.(\d+)$/)
+  return match ? `v${match[1]}.${match[2]}.${Number(match[3]) + 1}` : 'the next release'
+}
+
+function weekRangeLabel(start, end) {
+  const s = new Date(`${start}T00:00:00Z`)
+  const e = new Date(`${end}T00:00:00Z`)
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return ''
+  e.setUTCDate(e.getUTCDate() - 1)
+  const month = d => d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+  const left = `${month(s)} ${s.getUTCDate()}`
+  const right = month(s) === month(e) ? `${e.getUTCDate()}` : `${month(e)} ${e.getUTCDate()}`
+  return `${left} to ${right}, ${e.getUTCFullYear()}`
+}
+
+function sectionRule(inner, top = 28) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="line" style="margin:${top}px 0 0;border-top:1px solid ${C.line}"><tr><td style="padding-top:24px">${inner}</td></tr></table>`
+}
+
+function statTile(value, label, sub, href, position) {
+  const pad = position === 'first' ? 'padding:0 14px 0 0' : position === 'last' ? `padding:0 0 0 14px;border-left:1px solid ${C.line}` : `padding:0 14px;border-left:1px solid ${C.line}`
+  return (
+    `<td class="stat line${position === 'first' ? ' stat-first' : ''}" width="33%" valign="top" style="${pad}">` +
+    `<a href="${escapeHtml(href)}" style="text-decoration:none;display:block">` +
+    `<div class="fg" style="font-size:22px;line-height:28px;font-weight:500;color:${C.ink};font-variant-numeric:tabular-nums">${escapeHtml(value)}</div>` +
+    `<div class="muted" style="font-size:12px;line-height:17px;color:${C.muted}">${escapeHtml(label)}</div>` +
+    `<div class="muted" style="font-size:12px;line-height:17px;color:${C.muted}">${escapeHtml(sub)}</div>` +
+    `</a></td>`
+  )
+}
+
 export function buildGrowthUpdateEmail(snapshot, options = {}) {
   const s = extractGrowthSummary(snapshot)
   const insightLine = options.insightLine || s.oneLineInsight
   const unsubscribeUrl = safeHttpsUrl(options.unsubscribeUrl) || defaultUnsubscribeUrl
-  const starDeltaText = Number.isFinite(s.sevenDayStarDelta) && s.sevenDayStarDelta > 0
-    ? ` (+${formatInt(s.sevenDayStarDelta)} over 7 days)`
-    : ''
-  const starBadgeHtml = Number.isFinite(s.sevenDayStarDelta) && s.sevenDayStarDelta > 0
-    ? ` <span class="positive" style="font-size:15px;font-weight:500;color:#00a240;margin-left:4px">+${escapeHtml(formatInt(s.sevenDayStarDelta))} (7d)</span>`
-    : ''
+  const delta = Number.isFinite(s.sevenDayStarDelta) && s.sevenDayStarDelta > 0 ? s.sevenDayStarDelta : null
+  const priorStars = delta ? s.stars - delta : null
+  const multiple = delta && priorStars > 0 ? s.stars / priorStars : null
+  const multipleText = multiple && multiple >= 1.5 ? `${multiple.toFixed(1).replace(/\.0$/, '')}x` : null
+  const nextRelease = nextPatchVersion(s.latestRelease)
+  const highItems = s.attentionItems.filter(item => String(item.severity).toLowerCase() === 'high')
+  const starDeltaText = delta ? ` (+${formatInt(delta)} over 7 days)` : ''
+  const rangeLabel = weekRangeLabel(s.windowStart, s.windowEnd)
+  const weekNum = String(s.isoWeek).split('-W')[1]
+
+  const blockerPhrase = highItems.length === 1 ? 'One blocker' : `${['', 'One', 'Two', 'Three', 'Four', 'Five'][highItems.length] || highItems.length} blockers`
+  const headline = highItems.length
+    ? `${multipleText ? 'Breakout week. ' : ''}${blockerPhrase} before ${nextRelease}.`
+    : `${multipleText ? 'Breakout week. ' : ''}Clear path to ${nextRelease}.`
+  const leadSentence = multipleText
+    ? `Stars grew ${multipleText} to ${formatInt(s.stars)}, and ${formatCompact(s.cloners)} people cloned the repo.`
+    : `${formatInt(s.stars)} stars${delta ? `, up ${formatInt(delta)} this week` : ''}, and ${formatCompact(s.cloners)} people cloned the repo.`
+
   const subject = `EGM Growth & Weekly Brief (${s.isoWeek}): ${formatInt(s.stars)} stars${starDeltaText}`
-  const preheader = `${formatInt(s.stars)} stars${starDeltaText}, ${formatInt(s.visitors)} visitors (14d), ${formatInt(s.cloners)} cloners, and ${s.isoWeek} maintainer brief.`
+  const preheader = highItems.length
+    ? `${multipleText ? `Stars up ${multipleText} this week. ` : ''}${highItems.length} high-priority ${highItems.length === 1 ? 'fix stands' : 'fixes stand'} between you and ${nextRelease}.`
+    : `${formatInt(s.stars)} stars${starDeltaText}. Nothing high-priority blocks ${nextRelease}.`
 
   const textLines = [
     `EGM Growth & Weekly Building Brief (${s.isoWeek})`,
     '',
-    `${formatInt(s.stars)} stars${starDeltaText}`,
+    headline,
+    leadSentence,
     insightLine,
+    '',
+    `${formatInt(s.stars)} stars${starDeltaText}`,
     '',
     'Snapshot (14d):',
     `- Repo traffic (14d): ${formatInt(s.visitors)} visitors · ${formatInt(s.views)} views (${dashboardUrl}/acquisition)`,
@@ -287,11 +338,11 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
     `- egm.dev referrals: ${formatInt(s.websiteReferralVisitors)} visitors · ${formatInt(s.websiteReferralViews)} views (${dashboardUrl}/website)`,
     `- Release cutline: ${s.unreleasedMergedPRs} PRs since ${s.latestRelease} (${repoUrl}/compare/${s.latestRelease}...main) · ${s.verifiedCommitments}/${s.totalCommitments} verified (${s.reviewIssueUrl})`,
     '',
-    'User-verified improvements:',
-    ...s.verifiedItems.map(item => `- ${item.title}: ${item.evidence} (${item.url || repoUrl})`),
+    `To do before ${nextRelease}:`,
+    ...s.attentionItems.map((item, i) => `${i + 1}. [${item.severity}] ${item.title}: ${item.nextAction} (${item.url || repoUrl})`),
     '',
-    'Needs attention:',
-    ...s.attentionItems.map(item => `- [${item.severity}] ${item.title}: ${item.nextAction} (${item.url || repoUrl})`),
+    'Confirmed fixed by users:',
+    ...s.verifiedItems.map(item => `- ${item.title}: ${item.evidence} (${item.url || repoUrl})`),
     '',
     `Open the dashboard: ${dashboardUrl}`,
     `Weekly Building Brief: ${dashboardUrl}/development#weekly-building-brief`,
@@ -303,9 +354,9 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
       src: growthChartLightUrl,
       darkSrc: growthChartDarkUrl,
       href: `${dashboardUrl}/overview`,
-      alt: `Cumulative stars (51d) and daily new stars (14d) for ${s.isoWeek}`,
-      width: 444,
-      height: 96,
+      alt: priorStars ? `Chart: stars rose from about ${formatInt(priorStars)} to ${formatInt(s.stars)} over the past week.` : `Cumulative and daily new stars for ${s.isoWeek}`,
+      width: 488,
+      height: 106,
       showChartHeaders: true
     }]),
     ...s.customImages,
@@ -313,155 +364,160 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
   ]
   const imagesHtml = allImages.map(renderHostedChartOrImage).join('')
 
-  const verifiedRowsHtml = s.verifiedItems.map(item => {
-    const itemHref = safeHttpsUrl(item.url) || `${dashboardUrl}/development#weekly-brief-improved`
-    const rightMeta = extractCompactRefs(item, itemHref)
-    return (
-      `<tr>` +
-      `<td style="padding:4px 0;font-size:13px;line-height:19px;white-space:nowrap">` +
-      `<a href="${escapeHtml(itemHref)}" class="primary-link" title="${escapeHtml(item.title)}" style="color:#1a1c1f;text-decoration:underline;text-underline-offset:3px;text-decoration-color:#ededed">${escapeHtml(compactTitle(item.title))}</a>` +
-      `</td>` +
-      `<td align="right" class="muted" style="padding:4px 0 4px 12px;font-size:12px;line-height:18px;color:#767676;white-space:nowrap">${rightMeta}</td>` +
-      `</tr>`
-    )
-  }).join('')
-
-  const attentionRowsHtml = s.attentionItems.map(item => {
+  const todoHtml = s.attentionItems.map((item, i) => {
     const itemHref = safeHttpsUrl(item.url) || `${dashboardUrl}/development#weekly-brief-attention`
     const isHigh = String(item.severity).toLowerCase() === 'high'
-    const sev = isHigh ? 'High' : 'Med'
     const refs = extractCompactRefs(item, itemHref)
-    const rightMeta = [sev, refs].filter(Boolean).join(' · ')
+    const last = i === s.attentionItems.length - 1
+    const badge = isHigh
+      ? `<span class="hi" style="display:inline-block;padding:2px 7px;border-radius:4px;background:${C.hiBg};color:${C.hi};font-weight:500">High</span>`
+      : `<span class="md" style="display:inline-block;padding:2px 7px;border-radius:4px;background:${C.mdBg};color:${C.md};font-weight:500">Medium</span>`
+    const numStyle = isHigh ? `background:${C.ink};color:#ffffff` : `background:${C.line};color:${C.ink}`
     return (
-      `<tr>` +
-      `<td style="padding:4px 0;font-size:13px;line-height:19px;white-space:nowrap">` +
-      `<a href="${escapeHtml(itemHref)}" class="primary-link" title="${escapeHtml(item.title)}" style="color:#1a1c1f;text-decoration:underline;text-underline-offset:3px;text-decoration-color:#ededed">${escapeHtml(compactTitle(item.title))}</a>` +
-      `</td>` +
-      `<td align="right" class="muted" style="padding:4px 0 4px 12px;font-size:12px;line-height:18px;color:#767676;white-space:nowrap">${rightMeta}</td>` +
-      `</tr>`
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="line" style="${last ? '' : `border-bottom:1px solid ${C.line}`}"><tr>` +
+      `<td width="32" valign="top" style="padding:16px 0"><span class="${isHigh ? 'num' : 'num-soft'}" style="display:inline-block;width:22px;height:22px;border-radius:11px;${numStyle};font-size:12px;line-height:22px;font-weight:500;text-align:center">${i + 1}</span></td>` +
+      `<td valign="top" style="padding:16px 0">` +
+      `<div style="font-size:15px;line-height:22px"><a href="${escapeHtml(itemHref)}" class="fg" title="${escapeHtml(item.title)}" style="color:${C.ink};text-decoration:none;font-weight:500">${escapeHtml(compactTitle(item.title))}</a></div>` +
+      (item.nextAction ? `<div class="muted" style="font-size:13px;line-height:20px;color:${C.body}">${linkifyRepoText(item.nextAction, 'muted-link', `color:${C.body};text-underline-offset:3px`)}</div>` : '') +
+      `<div style="margin-top:6px;font-size:12px;line-height:16px">${badge}<span class="muted" style="color:${C.muted}">&nbsp; ${refs}</span></div>` +
+      `</td></tr></table>`
     )
   }).join('')
 
-  const fontStyles = [
-    `@font-face{font-family:'Suisse Intl';font-style:normal;font-weight:400;src:url('${dashboardUrl}/fonts/SuisseIntl-Book.woff2') format('woff2')}`,
-    `@font-face{font-family:'Suisse Intl';font-style:normal;font-weight:500;src:url('${dashboardUrl}/fonts/SuisseIntl-Medium.woff2') format('woff2')}`,
-    `@font-face{font-family:'Suisse Intl';font-style:normal;font-weight:600;src:url('${dashboardUrl}/fonts/SuisseIntl-Semibold.woff2') format('woff2')}`,
-    `:root{color-scheme:light dark;supported-color-schemes:light dark}`
+  const verifiedHtml = s.verifiedItems.map(item => {
+    const itemHref = safeHttpsUrl(item.url) || `${dashboardUrl}/development#weekly-brief-improved`
+    const refs = extractCompactRefs(item, itemHref)
+    return (
+      `<tr><td width="24" valign="top" class="pos" style="padding:5px 0;font-size:14px;line-height:21px;color:${C.pos}">&#10003;</td>` +
+      `<td style="padding:5px 0;font-size:14px;line-height:21px"><a href="${escapeHtml(itemHref)}" class="fg" title="${escapeHtml(item.title)}" style="color:${C.ink};text-decoration:none">${escapeHtml(compactTitle(item.title))}</a>` +
+      `<span class="muted" style="color:${C.muted};font-size:12px">&nbsp; ${refs}</span></td></tr>`
+    )
+  }).join('')
+
+  const progressPct = s.totalCommitments ? Math.round((s.verifiedCommitments / s.totalCommitments) * 100) : 0
+  const progressFill = progressPct > 0
+    ? `<table role="presentation" width="${progressPct}%" cellpadding="0" cellspacing="0" border="0"><tr><td class="fill" height="6" style="background:${C.ink};border-radius:3px;font-size:0;line-height:0">&nbsp;</td></tr></table>`
+    : '&nbsp;'
+
+  const darkRules = [
+    `body,.bg{background:#0e0e0e !important}`,
+    `.card{background:#171717 !important;border-color:#262626 !important}`,
+    `.fg{color:#f2f2f2 !important}`,
+    `.muted,.muted-link{color:#9a9a9a !important}`,
+    `.line,.stat{border-color:#262626 !important}`,
+    `.track,.num-soft{background:#2a2a2a !important}`,
+    `.num-soft{color:#f2f2f2 !important}`,
+    `.fill,.num{background:#f2f2f2 !important}`,
+    `.num{color:#171717 !important}`,
+    `.pos{color:#4ad083 !important}`,
+    `.pill{background:#123020 !important;color:#4ad083 !important}`,
+    `.hi{background:#3a1512 !important;color:#ff8a80 !important}`,
+    `.md{background:#33260c !important;color:#f0b44c !important}`,
+    `.btn{background:#f2f2f2 !important}.btn a{color:#171717 !important}`,
+    `.img-light{display:none !important;max-height:0 !important;overflow:hidden !important}`,
+    `.img-dark{display:block !important;max-height:none !important;overflow:visible !important}`
   ].join('')
 
-  const layoutStyles = [
-    `body{margin:0;padding:0;background:transparent;background-color:transparent;-webkit-font-smoothing:antialiased}`,
-    `.logo-dark,.img-dark{display:none !important;max-height:0 !important;overflow:hidden !important}`,
-    `@media (prefers-color-scheme:dark){`,
-    `.card{border-color:#303030 !important}`,
-    `.heading,.primary-link,.metric-val{color:#f5f5f5 !important}`,
-    `.primary-link{text-decoration-color:#303030 !important}`,
-    `.positive{color:#40c977 !important}`,
-    `.muted,.muted-link,.section-label{color:#afafaf !important}`,
-    `.divider-band{border-top-color:#303030 !important;border-bottom-color:#303030 !important}`,
-    `.divider-top{border-top-color:#303030 !important}`,
-    `.logo-light,.img-light{display:none !important;max-height:0 !important;overflow:hidden !important}`,
-    `.logo-dark,.img-dark{display:block !important;max-height:none !important;overflow:visible !important}`,
-    `.button-primary a{background-color:#f5f5f5 !important;color:#181818 !important}`,
-    `}`
+  const styles = [
+    `@font-face{font-family:'Suisse Intl';font-style:normal;font-weight:400;src:url('${dashboardUrl}/fonts/SuisseIntl-Book.woff2') format('woff2')}`,
+    `@font-face{font-family:'Suisse Intl';font-style:normal;font-weight:500;src:url('${dashboardUrl}/fonts/SuisseIntl-Medium.woff2') format('woff2')}`,
+    `:root{color-scheme:light dark;supported-color-schemes:light dark}`,
+    `body{margin:0 !important;padding:0 !important;width:100% !important;background:${C.page};-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}`,
+    `a[x-apple-data-detectors]{color:inherit !important;text-decoration:none !important}`,
+    `.img-dark{display:none !important;max-height:0 !important;overflow:hidden !important}`,
+    `@media (max-width:540px){.pad{padding:24px 20px !important}.stat{padding-left:10px !important;padding-right:10px !important}.stat-first{padding-left:0 !important}.hero{font-size:52px !important;line-height:54px !important}}`,
+    `@media (prefers-color-scheme:dark){${darkRules}}`,
+    `[data-ogsc] .fg{color:#f2f2f2 !important}[data-ogsc] .muted{color:#9a9a9a !important}`,
+    `[data-ogsb] .card{background:#171717 !important}[data-ogsb] .bg{background:#0e0e0e !important}`
   ].join('')
 
   const html =
-    `<!DOCTYPE html><html lang="en" dir="ltr"><head>` +
+    `<!DOCTYPE html><html lang="en" dir="ltr" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head>` +
     `<meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<meta name="x-apple-disable-message-reformatting">` +
+    `<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">` +
     `<meta name="color-scheme" content="light dark">` +
     `<meta name="supported-color-schemes" content="light dark">` +
     `<title>${escapeHtml(subject)}</title>` +
-    `<style>${fontStyles}</style>` +
-    `<style>${layoutStyles}</style>` +
+    `<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><style>td,a,div,span,p{font-family:Arial,sans-serif !important}</style><![endif]-->` +
+    `<style>${styles}</style>` +
     `</head>` +
-    `<body style="margin:0;padding:0;background:transparent;background-color:transparent;font-family:${font}">` +
-    `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preheader)}</div>` +
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:transparent;background-color:transparent">` +
-    `<tr><td align="center" style="padding:24px 12px">` +
-    `<table role="presentation" class="card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:500px;background:transparent;background-color:transparent;border:1px solid #ededed;border-radius:12px;border-collapse:separate">` +
-    `<tr><td style="padding:28px">` +
+    `<body class="bg" style="margin:0;padding:0;background:${C.page};font-family:${font}">` +
+    `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escapeHtml(preheader)}${'&#8199;&#847;'.repeat(40)}</div>` +
+    `<div role="article" aria-roledescription="email" aria-label="EGM weekly brief, ${escapeHtml(s.isoWeek)}" lang="en">` +
+    `<table role="presentation" class="bg" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.page}">` +
+    `<tr><td align="center" style="padding:32px 12px 8px">` +
+    `<!--[if mso]><table role="presentation" width="560" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->` +
+    `<table role="presentation" class="card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#ffffff;border:1px solid ${C.line};border-radius:14px;border-collapse:separate">` +
+    `<tr><td class="pad" style="padding:36px">` +
 
-    // Minimal Header: EGM mark left, week right
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px">` +
-    `<tr>` +
-    `<td align="left" valign="middle">` +
-    `<a href="${dashboardUrl}" style="display:inline-block;text-decoration:none;border:0">` +
-    `<img class="logo-light" src="${logoBlackUrl}" width="44" height="26" alt="EGM" style="display:block;width:44px;height:26px;border:0">` +
-    `<img class="logo-dark" src="${logoWhiteUrl}" width="44" height="26" alt="EGM" style="display:none;max-height:0;overflow:hidden;width:44px;height:26px;border:0">` +
-    `</a>` +
-    `</td>` +
-    `<td align="right" valign="middle">` +
-    `<a href="${dashboardUrl}/development#weekly-building-brief" class="muted-link" style="font-size:12px;line-height:16px;color:#767676;text-decoration:none">${escapeHtml(s.isoWeek)}</a>` +
-    `</td>` +
-    `</tr>` +
-    `</table>` +
+    // Header: logo on a fixed white tile so it survives forced dark mode
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
+    `<td valign="middle"><a href="${dashboardUrl}" style="text-decoration:none;display:inline-block"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#ffffff" style="background:#ffffff;border:1px solid ${C.line};border-radius:8px;padding:7px 8px"><img src="${logoBlackUrl}" width="36" height="21" alt="EGM" style="display:block;width:36px;height:21px;border:0"></td></tr></table></a></td>` +
+    `<td align="right" valign="middle" class="muted" style="font-size:12px;line-height:16px;color:${C.muted}"><a href="${dashboardUrl}/development#weekly-building-brief" class="muted-link" style="color:${C.muted};text-decoration:none">Week ${escapeHtml(weekNum || s.isoWeek)}${rangeLabel ? ` · ${escapeHtml(rangeLabel)}` : ''}</a></td>` +
+    `</tr></table>` +
 
-    // Hero Metric + 1-line LLM/Maintainer Insight
-    `<div class="heading" style="margin:0 0 6px;font-size:28px;line-height:34px;font-weight:500;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;color:#1a1c1f">` +
-    `${escapeHtml(formatInt(s.stars))} stars${starBadgeHtml}` +
+    // Summary
+    `<h1 class="fg" style="margin:32px 0 10px;font-size:24px;line-height:31px;font-weight:500;letter-spacing:-0.015em;color:${C.ink}">${escapeHtml(headline)}</h1>` +
+    `<p class="muted" style="margin:0 0 6px;font-size:15px;line-height:23px;color:${C.body}">${escapeHtml(leadSentence)}</p>` +
+    (insightLine ? `<p class="muted" style="margin:0;font-size:13px;line-height:20px;color:${C.muted}">${linkifyRepoText(insightLine, 'muted-link', `color:${C.muted};text-underline-offset:3px`)}</p>` : '') +
+
+    // Hero metric + chart
+    sectionRule(
+      `<div class="muted" style="font-size:12px;line-height:16px;font-weight:500;color:${C.muted}">GitHub stars</div>` +
+      `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:6px"><tr>` +
+      `<td class="fg hero" style="font-size:60px;line-height:62px;font-weight:500;letter-spacing:-0.035em;color:${C.ink};font-variant-numeric:tabular-nums">${escapeHtml(formatInt(s.stars))}</td>` +
+      (delta ? `<td valign="bottom" style="padding:0 0 10px 12px"><span class="pill" style="display:inline-block;padding:4px 9px;border-radius:999px;background:${C.posBg};color:${C.pos};font-size:13px;line-height:17px;font-weight:500;white-space:nowrap">&uarr; ${escapeHtml(formatInt(delta))} this week</span></td>` : '') +
+      `</tr></table>` +
+      imagesHtml
+    ) +
+
+    // Stats
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0"><tr>` +
+    statTile(formatCompact(s.visitors), 'repo visitors', `${formatCompact(s.views)} views`, `${dashboardUrl}/acquisition`, 'first') +
+    statTile(formatCompact(s.cloners), 'unique cloners', `${formatCompact(s.clones)} clones`, `${dashboardUrl}/adoption`, 'middle') +
+    statTile(formatCompact(s.websiteReferralVisitors), 'from egm.dev', `${formatInt(s.websiteReferralViews)} views`, `${dashboardUrl}/website`, 'last') +
+    `</tr></table>` +
+    `<div class="muted" style="margin:12px 0 0;font-size:11px;line-height:14px;color:${C.muted}">Traffic covers the last 14 days. GitHub reports no shorter window.</div>` +
+
+    // To-do list
+    sectionRule(
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
+      `<td class="fg" style="font-size:17px;line-height:22px;font-weight:500;color:${C.ink}">Your to-do list for ${escapeHtml(nextRelease)}</td>` +
+      `<td align="right" class="muted" style="font-size:12px;line-height:22px;color:${C.muted}"><a href="${escapeHtml(s.reviewIssueUrl)}" class="muted-link" style="color:${C.muted};text-underline-offset:3px">${escapeHtml(String(s.verifiedCommitments))} of ${escapeHtml(String(s.totalCommitments))} verified</a></td>` +
+      `</tr></table>` +
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0 4px"><tr><td class="track" height="6" style="background:${C.line};border-radius:3px;font-size:0;line-height:0">${progressFill}</td></tr></table>` +
+      `<div class="muted" style="font-size:12px;line-height:17px;color:${C.muted};margin-bottom:8px"><a href="${repoUrl}/compare/${encodeURIComponent(s.latestRelease)}...main" class="muted-link" style="color:${C.muted};text-underline-offset:3px">${escapeHtml(String(s.unreleasedMergedPRs))} PRs merged since ${escapeHtml(s.latestRelease)}</a></div>` +
+      (todoHtml || `<p class="muted" style="margin:12px 0 0;font-size:14px;line-height:21px;color:${C.body}">Nothing needs you this week.</p>`),
+      32
+    ) +
+
+    // Verified
+    (verifiedHtml ? sectionRule(
+      `<div class="fg" style="font-size:17px;line-height:22px;font-weight:500;color:${C.ink};margin-bottom:10px">Confirmed fixed by users</div>` +
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${verifiedHtml}</table>`,
+      12
+    ) : '') +
+
+    // CTA (bulletproof, with VML for Outlook desktop)
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0"><tr><td>` +
+    `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${dashboardUrl}" style="height:44px;v-text-anchor:middle;width:200px;" arcsize="18%" stroke="f" fillcolor="${C.ink}"><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;">Open the dashboard</center></v:roundrect><![endif]-->` +
+    `<!--[if !mso]><!--><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td class="btn" style="border-radius:8px;background:${C.ink}"><a href="${dashboardUrl}" style="display:inline-block;padding:13px 22px;border-radius:8px;color:#ffffff;font-size:14px;font-weight:500;line-height:18px;text-decoration:none">Open the dashboard &rarr;</a></td></tr></table><!--<![endif]-->` +
+    `</td></tr></table>` +
+
+    `</td></tr></table>` +
+    `<!--[if mso]></td></tr></table><![endif]-->` +
+
+    // Footer below the card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px"><tr>` +
+    `<td class="muted" style="padding:18px 6px 32px;font-size:12px;line-height:18px;color:${C.muted}">EGM Growth Dashboard · Future briefs arrive Mondays<br>` +
+    `<a href="${dashboardUrl}/development#weekly-building-brief" class="muted-link" style="color:${C.muted};text-underline-offset:3px">Full weekly brief</a> · ` +
+    `<a href="${escapeHtml(unsubscribeUrl)}" class="muted-link" style="color:${C.muted};text-underline-offset:3px">Unsubscribe</a></td>` +
+    `</tr></table>` +
+
+    `</td></tr></table>` +
     `</div>` +
-    `<p class="muted" style="margin:0 0 14px;font-size:13px;line-height:20px;color:#767676;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${linkifyRepoText(insightLine)}</p>` +
-
-    // Hosted Transparent Chart (Light/Dark swapped via media query)
-    imagesHtml +
-
-    // Flat 4-row Metric Strip (1 line per row)
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 18px;white-space:nowrap">` +
-    `<tr>` +
-    `<td class="muted" style="padding:5px 0;font-size:13px;line-height:19px;color:#767676"><a href="${dashboardUrl}/acquisition" class="muted-link" style="color:#767676;text-decoration:none">Repo traffic (14d)</a></td>` +
-    `<td align="right" class="metric-val" style="padding:5px 0;font-size:13px;line-height:19px;color:#1a1c1f;font-variant-numeric:tabular-nums"><a href="${dashboardUrl}/acquisition" class="primary-link" style="color:#1a1c1f;text-decoration:none">${escapeHtml(formatInt(s.visitors))} visitors · ${escapeHtml(formatInt(s.views))} views</a></td>` +
-    `</tr>` +
-    `<tr>` +
-    `<td class="muted" style="padding:5px 0;font-size:13px;line-height:19px;color:#767676"><a href="${dashboardUrl}/adoption" class="muted-link" style="color:#767676;text-decoration:none">Git clones (14d)</a></td>` +
-    `<td align="right" class="metric-val" style="padding:5px 0;font-size:13px;line-height:19px;color:#1a1c1f;font-variant-numeric:tabular-nums"><a href="${dashboardUrl}/adoption" class="primary-link" style="color:#1a1c1f;text-decoration:none">${escapeHtml(formatInt(s.cloners))} cloners · ${escapeHtml(formatInt(s.clones))} clones</a></td>` +
-    `</tr>` +
-    `<tr>` +
-    `<td class="muted" style="padding:5px 0;font-size:13px;line-height:19px;color:#767676"><a href="${websiteUrl}" class="muted-link" style="color:#767676;text-decoration:underline;text-underline-offset:3px">egm.dev</a> referrals</td>` +
-    `<td align="right" class="metric-val" style="padding:5px 0;font-size:13px;line-height:19px;color:#1a1c1f;font-variant-numeric:tabular-nums"><a href="${dashboardUrl}/website" class="primary-link" style="color:#1a1c1f;text-decoration:none">${escapeHtml(formatInt(s.websiteReferralVisitors))} visitors · ${escapeHtml(formatInt(s.websiteReferralViews))} views</a></td>` +
-    `</tr>` +
-    `<tr>` +
-    `<td class="muted" style="padding:5px 0;font-size:13px;line-height:19px;color:#767676">Release cutline</td>` +
-    `<td align="right" class="metric-val" style="padding:5px 0;font-size:13px;line-height:19px;color:#1a1c1f;font-variant-numeric:tabular-nums"><a href="${repoUrl}/compare/${encodeURIComponent(s.latestRelease)}...main" class="primary-link" style="color:#1a1c1f;text-decoration:underline;text-underline-offset:3px;text-decoration-color:#ededed">${escapeHtml(String(s.unreleasedMergedPRs))} PRs since ${escapeHtml(s.latestRelease)}</a> · <a href="${escapeHtml(s.reviewIssueUrl)}" class="primary-link" style="color:#1a1c1f;text-decoration:underline;text-underline-offset:3px;text-decoration-color:#ededed">${escapeHtml(String(s.verifiedCommitments))}/${escapeHtml(String(s.totalCommitments))} verified</a></td>` +
-    `</tr>` +
-    `</table>` +
-
-    // User-verified improvements (1 line each)
-    (verifiedRowsHtml ? (
-      `<div class="divider-top" style="border-top:1px solid #ededed;padding-top:14px;margin:0 0 16px">` +
-      `<div class="section-label" style="font-size:12px;line-height:16px;font-weight:500;color:#767676;margin:0 0 8px">User-verified improvements</div>` +
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">${verifiedRowsHtml}</table>` +
-      `</div>`
-    ) : '') +
-
-    // Needs attention (1 line each)
-    (attentionRowsHtml ? (
-      `<div class="divider-top" style="border-top:1px solid #ededed;padding-top:14px;margin:0 0 20px">` +
-      `<div class="section-label" style="font-size:12px;line-height:16px;font-weight:500;color:#767676;margin:0 0 8px">Needs attention</div>` +
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">${attentionRowsHtml}</table>` +
-      `</div>`
-    ) : '') +
-
-    // Single CTA Button
-    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px">` +
-    `<tr>` +
-    `<td class="button-primary" align="left" style="border-radius:8px">` +
-    `<a href="${dashboardUrl}" style="display:inline-block;padding:9px 16px;border-radius:8px;background-color:#1a1c1f;color:#ffffff;font-size:13px;font-weight:500;line-height:18px;text-decoration:none">Open the dashboard</a>` +
-    `</td>` +
-    `</tr>` +
-    `</table>` +
-
-    // Minimal 1-line Footer
-    `<table role="presentation" class="divider-top" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #ededed;padding-top:14px">` +
-    `<tr>` +
-    `<td align="left" class="muted" style="padding-top:14px;font-size:12px;line-height:16px;color:#767676">EGM Growth Dashboard · Future briefs arrive Mondays</td>` +
-    `<td align="right" class="muted" style="padding-top:14px;font-size:12px;line-height:16px;color:#767676;white-space:nowrap"><a href="${dashboardUrl}" class="muted-link" style="color:#767676;text-decoration:underline;text-underline-offset:3px">egm.n3wth.com</a> · <a href="${escapeHtml(unsubscribeUrl)}" class="muted-link" style="color:#767676;text-decoration:underline;text-underline-offset:3px">Unsubscribe</a></td>` +
-    `</tr>` +
-    `</table>` +
-
-    `</td></tr></table>` +
-    `</td></tr></table>` +
     `</body></html>`
 
   return { subject, text: textLines.join('\n'), html, isoWeek: s.isoWeek, unsubscribeUrl }
@@ -469,21 +525,9 @@ export function buildGrowthUpdateEmail(snapshot, options = {}) {
 
 export function growthUpdateEmailPreview(snapshot, scheme = 'light', options = {}) {
   const { html } = buildGrowthUpdateEmail(snapshot, options)
-  const chrome = scheme === 'dark' ? '#181818' : '#ffffff'
-  const darkForced = scheme === 'dark'
-    ? `.card{border-color:#303030 !important}` +
-      `.heading,.primary-link,.metric-val{color:#f5f5f5 !important}` +
-      `.primary-link{text-decoration-color:#303030 !important}` +
-      `.positive{color:#40c977 !important}` +
-      `.muted,.muted-link,.section-label{color:#afafaf !important}` +
-      `.divider-band{border-top-color:#303030 !important;border-bottom-color:#303030 !important}` +
-      `.divider-top{border-top-color:#303030 !important}` +
-      `.logo-light,.img-light{display:none !important;max-height:0 !important;overflow:hidden !important}` +
-      `.logo-dark,.img-dark{display:block !important;max-height:none !important;overflow:visible !important}` +
-      `.button-primary a{background-color:#f5f5f5 !important;color:#181818 !important}`
-    : ''
-  const style = `<style>html{background-color:${chrome}}body{background:transparent !important;background-color:transparent !important}${darkForced}</style>`
-  return html.replace('</head>', `${style}</head>`)
+  if (scheme !== 'dark') return html
+  const forced = html.match(/@media \(prefers-color-scheme:dark\)\{(.*?)\}\[data-ogsc\]/)?.[1] ?? ''
+  return html.replace('</head>', `<style>${forced}</style></head>`)
 }
 
 async function ensureGrowthEmailTables(env) {

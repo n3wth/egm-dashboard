@@ -33,6 +33,11 @@ test('buildGrowthUpdateEmail uses hosted images, single-line linked items, Monda
   assert.match(email.text, /https:\/\/egm\.n3wth\.com\/development#weekly-building-brief/)
   assert.match(email.text, /Future briefs arrive Mondays · Unsubscribe: https:\/\/egm\.n3wth\.com\/email\/unsubscribe\?token=abc\.def/)
   assert.match(email.html, /EGM Growth Dashboard · Future briefs arrive Mondays/)
+  assert.match(email.html, /Breakout week\. Two blockers before v0\.1\.1\./)
+  assert.match(email.html, /Your to-do list for v0\.1\.1/)
+  assert.match(email.html, /Confirmed fixed by users/)
+  assert.doesNotMatch(email.html, /text-transform:uppercase/, 'No all-caps labels')
+  assert.doesNotMatch(email.html, /logo-dark|egm-mark-white/, 'Single logo on a fixed tile, no light/dark swap')
   assert.match(email.html, /href="https:\/\/egm\.n3wth\.com\/email\/unsubscribe\?token=abc\.def"[^>]*>Unsubscribe<\/a>/)
 
   // Verify hosted light and dark mode chart URLs + custom image support (no attachments)
@@ -41,10 +46,9 @@ test('buildGrowthUpdateEmail uses hosted images, single-line linked items, Monda
   assert.match(email.html, /https:\/\/egm\.n3wth\.com\/email\/custom-light\.png/)
   assert.match(email.html, /https:\/\/egm\.n3wth\.com\/email\/custom-dark\.png/)
   assert.match(email.html, /prefers-color-scheme:dark/)
-  assert.match(email.html, /background:transparent;background-color:transparent/)
   assert.doesNotMatch(email.html, /mix-blend-mode/)
-  assert.match(email.html, />Cumulative stars<\/td>/)
-  assert.match(email.html, />Daily new stars<\/td>/)
+  assert.match(email.html, />Total stars since launch<\/td>/)
+  assert.match(email.html, />New per day, last 14 days<\/td>/)
 
   // Verify links on single-line User-verified improvements and Needs attention items
   assert.match(email.html, /href="https:\/\/github\.com\/google\/elephant-goldfish-model\/pull\/194"[^>]*>Valid GFM pipes in brainstorm table<\/a>/)
@@ -60,7 +64,7 @@ test('buildGrowthUpdateEmail uses hosted images, single-line linked items, Monda
 
   // Verify preview helper and formatting rules
   const darkPreview = growthUpdateEmailPreview(seed, 'dark')
-  assert.match(darkPreview, /\.logo-dark,\.img-dark\{display:block !important/)
+  assert.match(darkPreview, /\.img-dark\{display:block !important/)
   assert.doesNotMatch(email.html, /<strong>/i, 'No mid-sentence strong tags')
   assert.doesNotMatch(email.text, /[—–]/, 'No em or en dashes in plain text')
   assert.doesNotMatch(email.html, /[—–]/, 'No em or en dashes in HTML')
