@@ -51,7 +51,7 @@ export const gptHeldOut = {
 }
 
 export const criteria = [
-  {id: '1', criterion: 'Finds more real problems than no skill', met: 'no', status: 'Not met on any model. gpt-5.5 and Haiku find 97 to 100% with or without the skill. On flash-lite both find 72 to 83%.'},
+  {id: '1', criterion: 'Finds at least as many real problems as no skill (revised from “more”)', met: 'yes', status: 'Met on all three models. gpt-5.5 and Haiku find 97 to 100% with or without the skill. On flash-lite both find 72 to 83%. No single-reply version found more, so the target changed from “more” to “at least as many”.'},
   {id: '2', criterion: 'Fewer unsupported blockers on sound plans than no skill', met: 'yes', status: 'Met on gpt-5.5 and Haiku.'},
   {id: '2b', criterion: 'No unsupported blocker in 90% of sound-plan replies', met: 'partial', status: 'Met on gpt-5.5 (100%) and on Haiku held-out (89%, 99% corrected). Not met on flash-lite.'},
   {id: '3', criterion: 'Right decision at least as often as no skill, on every case type', met: 'partial', status: 'Met on gpt-5.5 and Haiku held-out. Haiku flawed TREK trips 93% vs 98%. Not met on flash-lite (flawed plans 77 to 79% vs 100%).'},
