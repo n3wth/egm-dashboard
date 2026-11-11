@@ -5,7 +5,8 @@ export const pages = [
   {id:'website',path:'/website',label:'Website',summary:'How much traffic egm.dev sends to the repo'},
   {id:'development',path:'/development',label:'Development',summary:'Open issues and PRs, and daily merge activity'},
   {id:'research',path:'/research',label:'Research',summary:'Comparable projects and evidence worth acting on'},
-  {id:'mentions',path:'/mentions',label:'Mentions',summary:'Videos, posts and articles that mention EGM'}
+  {id:'mentions',path:'/mentions',label:'Mentions',summary:'Videos, posts and articles that mention EGM'},
+  {id:'egm-lite',path:'/egm-lite',label:'egm-lite eval',summary:'How egm-lite v0.2.0 compares with no skill on held-out cases'}
 ]
 
 export const pagePath = id => pages.find(page=>page.id===id)?.path ?? null
