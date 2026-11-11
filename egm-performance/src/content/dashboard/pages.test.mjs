@@ -2,9 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {pages,pagePath,isPlainClick} from './pages.mjs'
 test('every page has a canonical path matching the dashboard routes',()=>{
-  assert.deepEqual(pages.map(page=>page.path),['/overview','/acquisition','/adoption','/website','/development','/research','/mentions'])
+  assert.deepEqual(pages.map(page=>page.path),['/overview','/acquisition','/adoption','/website','/development','/research','/mentions','/egm-lite'])
   assert.equal(pagePath('reach'),'/overview')
   assert.equal(pagePath('mentions'),'/mentions')
+  assert.equal(pagePath('egm-lite'),'/egm-lite')
   assert.equal(pagePath('missing'),null)
 })
 test('only plain primary clicks are handled in place',()=>{

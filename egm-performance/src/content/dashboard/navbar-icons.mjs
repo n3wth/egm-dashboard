@@ -11,7 +11,8 @@ const pageIcons = {
   website: 'language',
   development: 'code',
   research: 'search',
-  mentions: 'campaign'
+  mentions: 'campaign',
+  'egm-lite': 'bar_chart'
 }
 
 export const navbarAskIcon = 'navSparkle'
