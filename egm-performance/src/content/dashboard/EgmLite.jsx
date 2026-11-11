@@ -1,7 +1,7 @@
 import React from 'react'
 import {Section} from '../../data-app-public.jsx'
 import './egm-lite.css'
-import {changes,criteria,decimal,evalDate,gptHeldOut,haikuHeldOut,journey,limits,method,percent,removed,result,resultNotes,versionRows,whole} from './egm-lite-eval.mjs'
+import {changes,criteria,decimal,evalDate,gptHeldOut,haikuHeldOut,journey,limits,method,percent,recallNote,removed,result,resultNotes,versionRows,whole} from './egm-lite-eval.mjs'
 
 const metLabel = {yes: 'Met', no: 'Not met', partial: 'Partly met'}
 const displayDate = new Date(evalDate + 'T12:00:00Z').toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'})
@@ -50,6 +50,10 @@ export function EgmLite() {
       </div>
     </Section>
 
+    <Section title="Why the skill cannot raise recall" id="egm-lite-recall">
+      <ul className="egm-lite-list">{recallNote.map(item => <li key={item}>{item}</li>)}</ul>
+    </Section>
+
     <Section title="How we got here" id="egm-lite-journey">
       <ol className="egm-lite-steps">{journey.map(item => <li key={item.step}>
         <span className="egm-lite-step">{item.step}</span>
@@ -63,7 +67,7 @@ export function EgmLite() {
     </Section>
 
     <Section title="Versions on Claude Haiku 5.5" id="egm-lite-versions">
-      <p className="egm-note">Development cases, scored by the Opus judge. These numbers differ from the held-out results above. Opus over-flags blockers, so “sound plans clean” is too low for every version. Rows with a dash were scored only on other test sets.</p>
+      <p className="egm-note">Development cases, scored by the Opus judge. These numbers differ from the held-out results above. Opus over-flags blockers, so “sound plans clean” is too low for every version. Rows with a dash were scored only on other test sets or by another judge. Rounds 7 to 10 used the Haiku judge; their results are in the journey above.</p>
       <div className="egm-table-scroll">
         <table className="egm-brief-table egm-lite-table egm-lite-versions" data-reviewed-rows>
           <thead><tr><th scope="col">Version</th><th scope="col" className="egm-lite-num">Round</th><th scope="col">Status</th><th scope="col">Right decision</th><th scope="col" className="egm-lite-num">Blockers per reply</th><th scope="col" className="egm-lite-num">Sound plans clean</th><th scope="col" className="egm-lite-num">No invented fact</th><th scope="col" className="egm-lite-num">Words</th><th scope="col">Change tested</th></tr></thead>
