@@ -3,12 +3,12 @@
 
 export const evalDate = '2026-11-11'
 
-export const result = 'On strong models, egm-lite v0.3.0 makes the right proceed-or-hold decision on almost every plan. It leaves sound plans alone and still holds every flawed plan.'
+export const result = 'On strong models, egm-lite v0.3.0 makes the right proceed-or-hold decision on 96 to 100% of held-out cases. Without the skill, the figure is 58 to 75%. On 89 to 100% of sound plans it raises no unsupported blocker, and it still holds every flawed plan.'
 
 export const resultNotes = [
   'No skill holds most sound plans for reasons the plan does not support. The original egm-lite (v0.1.0) was worse than no skill.',
-  'The skill does not find more real problems than no skill. Strong models already find 97 to 100% of them.',
-  'On a weak model (gemini-3.5-flash-lite), the skill does not raise recall, and it lets some real problems through.'
+  'The skill does not find more real problems than no skill. Strong models already find 97 to 100% of them without help.',
+  'On a weak model (gemini-3.5-flash-lite), the skill does not help the model find more real problems. It also lets some real problems through.'
 ]
 
 // Held-out cases were never used to tune the skill.
@@ -26,8 +26,8 @@ export const haikuHeldOut = {
     {measure: 'Words per reply', values: ['411', '446', '478', '597']}
   ],
   notes: [
-    'After removing the measured judge error (Rogan-Gladen), v0.3.0 is 99% for sound plans clean and about 100% for no invented fact.',
-    'Haiku replies are graded by Haiku 5.5, which agrees with Sonnet 5.5 on 97% of decisions and 100% of recall.'
+    'We measured how often the judge is wrong and corrected the scores for it (Rogan-Gladen estimator). After correction, 99% of v0.3.0 replies to sound plans have no unsupported blocker, and about 100% have no invented fact.',
+    'Haiku 5.5 grades these replies. It agrees with Sonnet 5.5 on 97% of decisions and 100% of real problems found.'
   ]
 }
 
@@ -46,43 +46,54 @@ export const gptHeldOut = {
   ],
   notes: [
     'v0.3.0 replies were 1.33 times longer than no skill on the held-out cases. This is under the 1.5 times limit.',
-    'TREK (CC BY 4.0) was released in August 2026, after both models’ training data. TREK’s own scorer checks its plans.'
+    'TREK is a public set of trip plans (CC BY 4.0) with its own scorer. It was released in August 2026, after both models’ training data, so neither model can have seen it.'
   ]
 }
 
 export const criteria = [
-  {id: '1', criterion: 'Finds at least as many real problems as no skill (revised from “more”)', met: 'yes', status: 'Met on all three models. gpt-5.5 and Haiku find 97 to 100% with or without the skill. On flash-lite both find 72 to 83%. No single-reply version found more, so the target changed from “more” to “at least as many”.'},
+  {id: '1', criterion: 'Finds at least as many real problems as no skill (changed from “more”)', met: 'yes', status: 'Met on all three models. gpt-5.5 and Haiku find 97 to 100% of real problems, with or without the skill. gemini-3.5-flash-lite finds 72 to 83%, with or without it. In 12 rounds no single-reply version found more, so we changed the target.'},
   {id: '2', criterion: 'Fewer unsupported blockers on sound plans than no skill', met: 'yes', status: 'Met on gpt-5.5 and Haiku.'},
-  {id: '2b', criterion: 'No unsupported blocker in 90% of sound-plan replies', met: 'partial', status: 'Met on gpt-5.5 (100%) and on Haiku held-out (89%, 99% corrected). Not met on flash-lite.'},
-  {id: '3', criterion: 'Right decision at least as often as no skill, on every case type', met: 'partial', status: 'Met on gpt-5.5 and Haiku held-out. Haiku flawed TREK trips 93% vs 98%. Not met on flash-lite (flawed plans 77 to 79% vs 100%).'},
+  {id: '2b', criterion: 'No unsupported blocker in 90% of sound-plan replies', met: 'partial', status: 'Met on gpt-5.5 (100%) and on Haiku held-out cases (89%, or 99% after judge-error correction). Not met on gemini-3.5-flash-lite (22 to 83%).'},
+  {id: '3', criterion: 'Right decision at least as often as no skill, on every case type', met: 'partial', status: 'Met on gpt-5.5 and on Haiku held-out cases. On flawed TREK trips, Haiku is right 93% of the time, against 98% without the skill. Not met on gemini-3.5-flash-lite: right on 77 to 95% of flawed plans, against 100%.'},
   {id: '4', criterion: 'No invented fact in 95% of replies', met: 'yes', status: 'Met on gpt-5.5. Met on Haiku after judge-error correction. Not measured on flash-lite.'},
-  {id: '5', criterion: 'Says it is a same-context review', met: 'yes', status: 'Met. 100%.'},
+  {id: '5', criterion: 'Tells the user the review ran in the same chat, not by an independent reviewer', met: 'yes', status: 'Met (100%).'},
   {id: '6', criterion: 'Next step at least as good as no skill', met: 'yes', status: 'Met (Haiku 83% vs 67%).'},
-  {id: '7', criterion: 'Reads the skill when selected', met: 'yes', status: 'Met. 100%.'},
+  {id: '7', criterion: 'Reads the skill when selected', met: 'yes', status: 'Met (100%).'},
   {id: '8', criterion: 'No more than 1.5 times longer than no skill', met: 'yes', status: 'Met (gpt-5.5 1.33 times; Haiku shorter).'}
 ]
 
 export const recallNote = [
   'Strong models already find nearly every problem without help.',
-  'On a weak model, no instruction raised recall: the tier rules, a five-angle review pass modelled on EGM’s lenses, or a recompute-and-cross-check step.',
-  'Two independent fresh reviews raise flash-lite recall only from 77% to 82%, because both tend to miss the same flaws.',
-  'EGM gets its extra catches from separate reviewers with fresh context. A single chat reply cannot do that.'
+  'On a weak model, we tried five kinds of instruction: blocker, fix and note tiers; a review from five angles based on EGM’s reviewer roles; recomputing figures; a second review pass in the same reply; and checking every stated limit first. None made the model find more real problems.',
+  'Two separate reviews, each with fresh context, raise real problems found on gemini-3.5-flash-lite only from 77% to 82%. Both reviews tend to miss the same problems.',
+  'EGM is the full review method that egm-lite is based on. It uses several separate reviewers, each with fresh context. A single chat reply cannot do that.'
 ]
 
 export const journey = [
-  {step: 'Pilot', kind: 'Problem', text: 'In ChatGPT, egm-lite v0.1.0 scored 15 of 18 and no skill scored 16 of 18. It held sound plans for small gaps.', result: 'We built an eval loop with traces, written answer keys and a judge model.'},
-  {step: 'Round 0', kind: 'Problem', text: 'v0.1.0 was worse than no skill. It raised more unsupported blockers, invented more facts and was twice as long.', result: 'Cause: “challenge the proposal” and the plan checklist turned gaps into conditions.'},
+  {step: 'Pilot', kind: 'Problem', text: 'In ChatGPT, egm-lite v0.1.0 scored 15 of 18 and no skill scored 16 of 18. It held sound plans for small gaps.', result: 'We built an automated test loop. A judge model grades each reply against a written answer key.'},
+  {step: 'Round 0', kind: 'Problem', text: 'v0.1.0 was worse than no skill. It raised more unsupported blockers, invented more facts and was twice as long.', result: 'Cause: the instruction “challenge the proposal” and the plan checklist made small gaps into conditions for proceeding.'},
   {step: 'Round 1', kind: 'Change', text: 'Sort issues as blocker, fix or note. Hold only for a blocker.', result: 'Kept. Unsupported blockers fell, but invented facts rose.'},
   {step: 'Round 2', kind: 'Change', text: 'Restate facts exactly. Use a short, fixed reply order.', result: 'No single change beat round 1. We moved the test model to Claude Haiku 5.5 and reset the baseline.'},
-  {step: 'Round 3', kind: 'Change', text: 'Treat facts in the text as true. Do not wait to re-check them.', result: 'Kept. A large gain: right decisions 91% vs 70%, and about two thirds fewer unsupported blockers.'},
-  {step: 'Judges', kind: 'Problem', text: 'The Opus judge did not meet the 0.8 bar against proxy labels.', result: 'We built two pass/fail judges and checked them against RAGTruth, SummEdits and three-model labels.'},
+  {step: 'Round 3', kind: 'Change', text: 'Treat facts in the text as true. Do not wait to re-check them.', result: 'Kept. Right decisions rose to 91%, against 70% before. Unsupported blockers fell by about two thirds.'},
+  {step: 'Judges', kind: 'Problem', text: 'The Opus judge missed our target of 0.8 for catching real errors, measured against labels from three models.', result: 'We built two pass/fail judges and checked them against RAGTruth, SummEdits and three-model labels.'},
   {step: 'Round 4', kind: 'Change', text: 'Three rules for appendices, unclear terms and misworded summaries.', result: 'No gain beyond noise. Dropped.'},
-  {step: 'Round 5', kind: 'Problem', text: 'No skill already found 97% of flaws, even on 30 blind-spot cases.', result: 'We added TREK trips to test calibration. Change kept: recompute figures and check the summary against the details. Released as v0.2.0.'},
-  {step: 'Round 6', kind: 'Change', text: 'Treat “proceed once X” as a hold. Label own calculations.', result: 'No gain on all sets. Dropped.'},
-  {step: 'Round 7', kind: 'Change', text: 'A five-angle review pass modelled on EGM’s lenses, to raise recall on a weak Gemini model.', result: 'Recall did not rise. Decisions on flawed plans got worse. Dropped.'},
-  {step: 'Round 8', kind: 'Change', text: 'Never phrase a fix as a precondition. Do not ask to confirm details the plan does not depend on.', result: 'Kept. Sound plans clean rose from 42% to 72% on development cases. Unsupported blockers fell by about 65%.'},
-  {step: 'Round 9', kind: 'Change', text: 'Breaking a stated hard limit is a blocker even when it is easy to fix. Anything else is not.', result: 'Kept. Right decisions on TREK trips rose from 77% to 95%.'},
-  {step: 'Round 10', kind: 'Change', text: 'Do not add requirements the plan does not state. Approve the plan as written; list fixes for after.', result: 'Kept. Sound plans clean 78 to 94% vs 44 to 61%. gpt-5.5 confirmed it. Released as v0.3.0.'}
+  {step: 'Round 5', kind: 'Problem', text: 'Without the skill, the model already found 97% of real problems, even on 30 blind-spot cases (cases written to hide problems models often miss).', result: 'We added TREK trips to test whether the skill holds only the plans it should. Change kept: recompute figures and check the summary against the details. Released as v0.2.0.'},
+  {step: 'Round 6', kind: 'Change', text: 'Treat “proceed once X” as a hold. Label own calculations.', result: 'It did not improve results on every test set. Dropped.'},
+  {step: 'Round 7', kind: 'Change', text: 'A review pass from five angles, based on EGM’s reviewer roles, to find more problems on gemini-3.5-flash-lite.', result: 'The model did not find more real problems. It made more wrong decisions on flawed plans. Dropped.'},
+  {step: 'Round 8', kind: 'Change', text: 'Never phrase a fix as a precondition. Do not ask to confirm details the plan does not depend on.', result: 'Kept. Sound plans with no unsupported blocker rose from 42% to 72% on development cases. Unsupported blockers fell by about 65%.'},
+  {step: 'Round 9', kind: 'Change', text: 'If the plan breaks a limit it states, such as a budget cap or a deadline, that is a blocker, even when it is easy to fix. Nothing else is a blocker.', result: 'Kept. Right decisions on TREK trips rose from 77% to 95%.'},
+  {step: 'Round 10', kind: 'Change', text: 'Do not add requirements the plan does not state. Approve the plan as written; list fixes for after.', result: 'Kept. Sound plans with no unsupported blocker: 78 to 94%, against 44 to 61% for round 9. A gpt-5.5 run confirmed the gain. Released as v0.3.0.'}
+]
+
+export const glossary = [
+  {term: 'egm-lite', text: 'a ChatGPT skill that reviews a plan and says proceed or hold.'},
+  {term: 'No skill', text: 'the same model with no skill loaded. Every comparison uses it as the baseline.'},
+  {term: 'Sound plan / flawed plan', text: 'a sound plan has no problem that should stop it. A flawed plan has at least one.'},
+  {term: 'Right decision', text: 'the reply says proceed or hold, as the answer key says.'},
+  {term: 'Unsupported blocker', text: 'a reason to hold that the plan text does not support.'},
+  {term: 'Real problems found (recall)', text: 'the share of the answer key’s known problems that the reply names.'},
+  {term: 'Development / held-out cases', text: 'we tuned the skill on development cases. We never used held-out cases for tuning.'},
+  {term: 'Judge model', text: 'a second model that grades each reply against the answer key. It does not know which version wrote the reply.'}
 ]
 
 export const changes = [
@@ -91,19 +102,19 @@ export const changes = [
   {round: 3, text: 'Treat facts in the text as true. Do not wait to re-check what the text already says.'},
   {round: 5, text: 'Recompute totals and dates from the plan’s own figures. Check the summary against the details.'},
   {round: 8, text: 'Never phrase a fix as a precondition. Do not ask to confirm details the plan does not depend on.'},
-  {round: 9, text: 'Breaking a stated hard limit is a blocker even when it is easy to fix. Anything else is not.'},
+  {round: 9, text: 'If the plan breaks a limit it states, such as a budget cap or a deadline, that is a blocker, even when it is easy to fix. Nothing else is a blocker.'},
   {round: 10, text: 'Do not add requirements the plan does not state. Approve the plan as written; list fixes for after.'}
 ]
 
 export const removed = 'Removed: “challenge the proposal before endorsing it”, the plan checklist and the separate critique section. These caused most unsupported blockers.'
 
 export const method = [
-  'The models ran through the OpenAI Agents SDK. In tool mode, the model must open the skill file, as in the ChatGPT app.',
-  '77 cases: 27 hand-written (19 for tuning, 8 held out), 30 blind-spot cases and 20 TREK trips.',
-  'Rubric judges: Claude Opus 5.5 (rounds 2 to 4), Sonnet 5.5 (rounds 5 and 6), Haiku 5.5 (rounds 7 to 10).',
-  'The blocker judge (Haiku 5.5) scored TPR 0.90 / TNR 1.00 against three-model proxy labels. The invented-fact judge (Sonnet 5.5) scored TPR 0.73 / TNR 0.92 against human labels from RAGTruth and SummEdits.',
-  'We kept a change only when it beat the current version by more than the run-to-run noise between two no-skill batches, and it made no other measure worse.',
-  'Ten rounds, 31 skill versions tested.'
+  'We ran the models through the OpenAI Agents SDK. The skill is not in the prompt: the model must open the skill file itself, as in the ChatGPT app.',
+  'We used 77 cases: 27 hand-written (19 for tuning, 8 held out), 30 blind-spot cases and 20 TREK trips.',
+  'Judges: Claude Opus 5.5 in rounds 2 to 4, Sonnet 5.5 in rounds 5 and 6, and Haiku 5.5 in rounds 7 to 12.',
+  'We tested two pass/fail judges against reference labels. TPR is the share of real errors a judge catches; TNR is the share of clean replies it passes. The blocker judge (Haiku 5.5): TPR 0.90, TNR 1.00, against labels from three models. The invented-fact judge (Sonnet 5.5): TPR 0.73, TNR 0.92, against human labels from the public RAGTruth and SummEdits datasets.',
+  'We kept a change only if it beat the current version by more than the normal variation between repeated runs. It also had to make no other measure worse.',
+  'We ran 12 rounds and tested 33 skill versions.'
 ]
 
 export const limits = [
@@ -111,7 +122,7 @@ export const limits = [
   'The held-out set is small (8 cases). The gpt-5.5 check uses 2 runs per case.',
   'The line between a fix and a blocker is a judgment call.',
   'ChatGPT web runs were not repeated. The gpt-5.5 API runs use the same model family.',
-  'Gemini 3.6 and 3.7 Flash were overloaded (HTTP 503) during the final rounds, so the Gemini results use flash-lite only.'
+  'Gemini 3.6 and 3.7 Flash were overloaded (HTTP 503) in the final rounds. The Gemini results use gemini-3.5-flash-lite only.'
 ]
 
 // Per-version rows on Claude Haiku 5.5, development cases, Opus judge (results.csv). Fractions; null = not run on this set.
