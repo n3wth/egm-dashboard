@@ -5,6 +5,8 @@ export const evalDate = '2026-11-11'
 
 export const result = 'On strong models, egm-lite v0.3.0 makes the right proceed-or-hold decision on 96 to 100% of held-out cases. Without the skill, the figure is 58 to 75%. On 89 to 100% of sound plans it raises no unsupported blocker, and it still holds every flawed plan.'
 
+export const modelWarning = 'Use egm-lite with a strong model, such as GPT-5.5 or Claude. On small, fast models (for example gemini-3.5-flash-lite), it can approve plans that have real problems: it made the right decision on only 77 to 95% of flawed plans. For a review you depend on, use full EGM Review, which uses separate reviewers. This is a known gap.'
+
 export const resultNotes = [
   'No skill holds most sound plans for reasons the plan does not support. The original egm-lite (v0.1.0) was worse than no skill.',
   'The skill does not find more real problems than no skill. Strong models already find 97 to 100% of them without help.',

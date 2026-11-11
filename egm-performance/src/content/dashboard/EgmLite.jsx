@@ -1,7 +1,7 @@
 import React from 'react'
 import {Section} from '../../data-app-public.jsx'
 import './egm-lite.css'
-import {changes,criteria,decimal,evalDate,glossary,gptHeldOut,haikuHeldOut,journey,limits,method,percent,recallNote,removed,result,resultNotes,versionRows,whole} from './egm-lite-eval.mjs'
+import {changes,criteria,decimal,evalDate,glossary,modelWarning,gptHeldOut,haikuHeldOut,journey,limits,method,percent,recallNote,removed,result,resultNotes,versionRows,whole} from './egm-lite-eval.mjs'
 
 const metLabel = {yes: 'Met', no: 'Not met', partial: 'Partly met'}
 const displayDate = new Date(evalDate + 'T12:00:00Z').toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'})
@@ -31,6 +31,10 @@ export function EgmLite() {
       <p className="egm-dash-hero-headline">{result}</p>
       <ul className="egm-dash-hero-facts">{resultNotes.map(note => <li key={note}>{note}</li>)}</ul>
       <p className="egm-dash-hero-range"><span>Eval date: <time dateTime={evalDate}>{displayDate}</time>. Reviewed results, not live data.</span></p>
+    </Section>
+
+    <Section title="Use a strong model" id="egm-lite-warning">
+      <p>{modelWarning}</p>
     </Section>
 
     <Section title="Terms used on this page" id="egm-lite-terms">
