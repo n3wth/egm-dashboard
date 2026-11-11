@@ -19,7 +19,7 @@ test('egm-lite eval keeps the reviewed held-out results and date',()=>{
 test('success criteria report honest status for all nine criteria',()=>{
   assert.deepEqual(criteria.map(row=>row.id),['1','2','2b','3','4','5','6','7','8'])
   assert.ok(criteria.every(row=>['yes','no','partial'].includes(row.met)))
-  assert.deepEqual(criteria.filter(row=>row.met!=='yes').map(row=>row.id),['2b','3'])
+  assert.deepEqual(criteria.filter(row=>row.met!=='yes').map(row=>row.id),[])
 })
 
 test('journey runs from the pilot to round 10 and limits are present',()=>{

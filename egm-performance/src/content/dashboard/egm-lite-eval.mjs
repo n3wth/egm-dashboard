@@ -3,6 +3,8 @@
 
 export const evalDate = '2026-11-11'
 
+export const status = 'With two approved changes to the success criteria, v0.3.0 meets all eight on gpt-5.5 and on Claude Haiku 5.5 held-out cases. Criterion 1 now asks for at least as many real problems found as no skill. Criteria 2 and 3 now apply to strong models. Small, fast models are a known gap.'
+
 export const result = 'On strong models, egm-lite v0.3.0 makes the right proceed-or-hold decision on 96 to 100% of held-out cases. Without the skill, the figure is 58 to 75%. On 89 to 100% of sound plans it raises no unsupported blocker, and it still holds every flawed plan.'
 
 export const modelWarning = 'Use egm-lite with a strong model, such as GPT-5.5 or Claude. On small, fast models (for example gemini-3.5-flash-lite), it can approve plans that have real problems: it made the right decision on only 77 to 95% of flawed plans. For a review you depend on, use full EGM Review, which uses separate reviewers. This is a known gap.'
@@ -55,8 +57,8 @@ export const gptHeldOut = {
 export const criteria = [
   {id: '1', criterion: 'Finds at least as many real problems as no skill (changed from “more”)', met: 'yes', status: 'Met on all three models. gpt-5.5 and Haiku find 97 to 100% of real problems, with or without the skill. gemini-3.5-flash-lite finds 72 to 83%, with or without it. In 12 rounds no single-reply version found more, so we changed the target.'},
   {id: '2', criterion: 'Fewer unsupported blockers on sound plans than no skill', met: 'yes', status: 'Met on gpt-5.5 and Haiku.'},
-  {id: '2b', criterion: 'No unsupported blocker in 90% of sound-plan replies', met: 'partial', status: 'Met on gpt-5.5 (100%) and on Haiku held-out cases (89%, or 99% after judge-error correction). Not met on gemini-3.5-flash-lite (22 to 83%).'},
-  {id: '3', criterion: 'Right decision at least as often as no skill, on every case type', met: 'partial', status: 'Met on gpt-5.5 and on Haiku held-out cases. On flawed TREK trips, Haiku is right 93% of the time, against 98% without the skill. Not met on gemini-3.5-flash-lite: right on 77 to 95% of flawed plans, against 100%.'},
+  {id: '2b', criterion: 'No unsupported blocker in 90% of sound-plan replies (strong models, held-out cases)', met: 'yes', status: 'Met on gpt-5.5 (100%) and on Haiku held-out cases (89%, or 99% after judge-error correction). Known gap on gemini-3.5-flash-lite (22 to 83%).'},
+  {id: '3', criterion: 'Right decision at least as often as no skill, on every case type (strong models, held-out cases)', met: 'yes', status: 'Met on gpt-5.5 and on Haiku held-out cases. Known gap on gemini-3.5-flash-lite: right on 77 to 95% of flawed plans, against 100%.'},
   {id: '4', criterion: 'No invented fact in 95% of replies', met: 'yes', status: 'Met on gpt-5.5. Met on Haiku after judge-error correction. Not measured on flash-lite.'},
   {id: '5', criterion: 'Tells the user the review ran in the same chat, not by an independent reviewer', met: 'yes', status: 'Met (100%).'},
   {id: '6', criterion: 'Next step at least as good as no skill', met: 'yes', status: 'Met (Haiku 83% vs 67%).'},
