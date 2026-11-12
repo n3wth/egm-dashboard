@@ -54,3 +54,9 @@ test('page copy carries no costs, secrets or artifact links',async()=>{
     assert.doesNotMatch(source,/\$\d|claude\.ai|api[_-]?key|token=/i,file)
   }
 })
+
+test('page shows run totals and four main findings',async()=>{
+  const {stats,findings}=await import('./egm-lite-eval.mjs')
+  assert.deepEqual(stats.map(item=>item.value),['12','33','7,726','5','77','14,320'])
+  assert.equal(findings.length,4)
+})
