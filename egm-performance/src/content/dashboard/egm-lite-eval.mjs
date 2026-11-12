@@ -5,9 +5,25 @@ export const evalDate = '2026-11-11'
 
 export const status = 'With two approved changes to the success criteria, v0.3.0 meets all eight on gpt-5.5 and on Claude Haiku 5.5 held-out cases. Criterion 1 now asks for at least as many real problems found as no skill. Criteria 2 and 3 now apply to strong models. Small, fast models are a known gap.'
 
-export const result = 'On strong models, egm-lite v0.3.0 makes the right proceed-or-hold decision on 96 to 100% of held-out cases. Without the skill, the figure is 58 to 75%. On 89 to 100% of sound plans it raises no unsupported blocker, and it still holds every flawed plan.'
+export const result = 'On strong models, egm-lite v0.3.0 makes the right proceed-or-hold decision on 96 to 100% of held-out cases, against 58 to 75% without it.'
 
 export const modelWarning = 'Use egm-lite with a strong model, such as GPT-5.5 or Claude. On small, fast models (for example gemini-3.5-flash-lite), it can approve plans that have real problems: it made the right decision on only 77 to 95% of flawed plans. For a review you depend on, use full EGM Review, which uses separate reviewers. This is a known gap.'
+
+export const stats = [
+  {value: '12', label: 'rounds'},
+  {value: '33', label: 'skill versions tested'},
+  {value: '7,726', label: 'model runs'},
+  {value: '5', label: 'models'},
+  {value: '77', label: 'test cases'},
+  {value: '14,320', label: 'judge scores'}
+]
+
+export const findings = [
+  {title: 'Better decisions.', text: 'On held-out cases, v0.3.0 makes the right proceed-or-hold decision 96 to 100% of the time. Without the skill, the figure is 58 to 75%. The first version (v0.1.0) did worse than no skill.'},
+  {title: 'Sound plans left alone.', text: 'With v0.3.0, 89 to 100% of replies to sound plans have no unsupported blocker. Without the skill, the figure is 0 to 33%. On gpt-5.5 and Claude Haiku 5.5, the skill still holds every flawed plan.'},
+  {title: 'No extra catches.', text: 'The skill does not find more real problems than no skill. Strong models already find 97 to 100% without help.'},
+  {title: 'Weak-model gap.', text: 'On gemini-3.5-flash-lite, no instruction made the model find more real problems. The skill lets some real problems through: right decisions on flawed plans are 77 to 95%, against 100% without the skill.'}
+]
 
 export const resultNotes = [
   'No skill holds most sound plans for reasons the plan does not support. The original egm-lite (v0.1.0) was worse than no skill.',

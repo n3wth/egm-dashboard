@@ -1,7 +1,8 @@
 import React from 'react'
 import {Section} from '../../data-app-public.jsx'
 import './egm-lite.css'
-import {changes,criteria,decimal,evalDate,glossary,modelWarning,gptHeldOut,haikuHeldOut,journey,limits,method,percent,recallNote,status,removed,result,resultNotes,versionRows,whole} from './egm-lite-eval.mjs'
+import {SkillDiff, VersionDots} from './EgmLiteCharts.jsx'
+import {changes,criteria,decimal,evalDate,findings,glossary,modelWarning,gptHeldOut,haikuHeldOut,journey,limits,method,percent,recallNote,stats,status,removed,result,resultNotes,versionRows,whole} from './egm-lite-eval.mjs'
 
 const metLabel = {yes: 'Met', no: 'Not met', partial: 'Partly met'}
 const displayDate = new Date(evalDate + 'T12:00:00Z').toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'})
@@ -30,8 +31,13 @@ export function EgmLite() {
     <Section title="egm-lite eval" id="egm-lite-summary-heading" className="egm-dash-hero" spacing="none">
       <p className="egm-dash-hero-headline">{result}</p>
       <p>{status}</p>
+      <ul className="egm-lite-stats">{stats.map(item => <li key={item.label}><strong>{item.value}</strong><span>{item.label}</span></li>)}</ul>
       <ul className="egm-dash-hero-facts">{resultNotes.map(note => <li key={note}>{note}</li>)}</ul>
       <p className="egm-dash-hero-range"><span>Eval date: <time dateTime={evalDate}>{displayDate}</time>. Reviewed results, not live data.</span></p>
+    </Section>
+
+    <Section title="Main findings" id="egm-lite-findings">
+      <ol className="egm-lite-findings">{findings.map(item => <li key={item.title}><strong>{item.title}</strong> {item.text}</li>)}</ol>
     </Section>
 
     <Section title="Use a strong model" id="egm-lite-warning">
@@ -68,6 +74,16 @@ export function EgmLite() {
         <span className="egm-lite-step">{item.step}</span>
         <span><strong>{item.kind}.</strong> {item.text} <span className="egm-lite-step-result">{item.result}</span></span>
       </li>)}</ol>
+    </Section>
+
+    <Section title="Each version against no skill" id="egm-lite-dots">
+      <p className="egm-note">Claude Haiku 5.5, development cases, Opus judge. Each row is one skill version. The dashed line is no skill. Green marks a version we kept, red a version we dropped.</p>
+      <VersionDots/>
+    </Section>
+
+    <Section title="Compare versions" id="egm-lite-compare">
+      <p className="egm-note">The full skill text of two versions. Green is added, red is removed.</p>
+      <SkillDiff/>
     </Section>
 
     <Section title="What the skill now says" id="egm-lite-changes">
