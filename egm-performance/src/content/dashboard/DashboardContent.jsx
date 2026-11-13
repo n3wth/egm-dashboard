@@ -7,7 +7,7 @@ import './egm.css'
 import {Research} from './Research.jsx'
 import {TrendSparkline} from './TrendSparkline.jsx'
 import {Mentions} from './Mentions.jsx'
-import {EgmLite} from './EgmLite.jsx'
+import {EgmChat} from './EgmChat.jsx'
 import {pathLabel, popularPageRows, repoPathHref} from './repo-paths.mjs'
 import {sourceIcon} from './source-icon.mjs'
 import {weeklyChange,starWeeklyChange,observedStarChange,weeklyChangeLabel,weeklyDelta} from './weekly-change.mjs'
@@ -35,7 +35,7 @@ import {pageSummary} from './page-summary.mjs'
 import {alignedTrendValues,sampledTrendValues,dailySnapshotValues,chartDates} from './metric-trend.mjs'
 import {WeeklyBriefSection, OssHealthSection, WorkflowResearchSection} from './WeeklyBrief.jsx'
 
-const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]},{id:'egm-lite',label:'egm-lite eval',filterIds:[]}]
+const tabs = [{id:'reach',label:'Overview',previousLabels:['Reach'],filterIds:[]},{id:'acquisition',label:'Acquisition',filterIds:[]},{id:'adoption',label:'Adoption',filterIds:[]},{id:'website',label:'Website',previousLabels:['egm.dev'],filterIds:[]},{id:'development',label:'Development',filterIds:[]},{id:'research',label:'Research',filterIds:[]},{id:'mentions',label:'Mentions',filterIds:[]},{id:'egm-chat',label:'egm-chat eval',filterIds:[]}]
 const n = count
 const compact = value => new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value)
 const metricNumber=value=>Number.isFinite(value)?new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:value>=20000?0:1}).format(value).replace('K','k'):'—'
@@ -202,7 +202,7 @@ function TabPage({activeTabId}) {
   const {queries} = useDataApp()
   if(activeTabId==='research') return <Research />
   if(activeTabId==='mentions') return <Mentions />
-  if(activeTabId==='egm-lite') return <EgmLite />
+  if(activeTabId==='egm-chat') return <EgmChat />
   const rows = id => queries[id]?.rows??[]
   const reach = rows('reach')[0]??{}, daily = rows('traffic'), web = rows('website')[0]??{}, queue = rows('maintenance')[0]??{}
   const reportDates=chartDates(daily)

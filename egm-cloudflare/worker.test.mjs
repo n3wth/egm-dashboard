@@ -207,10 +207,10 @@ test('a storage failure during sign-in shows the unavailable page with a retry t
     assert.doesNotMatch(html,/d1 down/)
   } finally { globalThis.fetch=priorFetch }
 })
-test('signed-out egm-lite eval page shows sign-in, not the missing-page response',async()=>{
+test('signed-out egm-chat eval page shows sign-in, not the missing-page response',async()=>{
   const env={APP_URL:'https://egm.n3wth.com',SESSION_SECRET:secret}
-  const page=await handle(new Request(env.APP_URL+'/egm-lite',{headers:{accept:'text/html'}}),env)
-  const missing=await handle(new Request(env.APP_URL+'/egm-lite-missing',{headers:{accept:'text/html'}}),env)
+  const page=await handle(new Request(env.APP_URL+'/egm-chat',{headers:{accept:'text/html'}}),env)
+  const missing=await handle(new Request(env.APP_URL+'/egm-chat-missing',{headers:{accept:'text/html'}}),env)
   assert.equal(missing.status,404)
   assert.notEqual(page.status,404)
   assert.match(await page.text(),/href="\/auth\/login"/)

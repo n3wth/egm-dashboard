@@ -1,6 +1,6 @@
 import React, {useMemo, useState} from 'react'
-import skills from './egm-lite-skills.json'
-import {decimal, percent, versionRows} from './egm-lite-eval.mjs'
+import skills from './egm-chat-skills.json'
+import {decimal, percent, versionRows} from './egm-chat-eval.mjs'
 
 const PANELS = [
   {key: 'decision', title: 'Right decision', max: 1, fmt: percent},
@@ -12,18 +12,18 @@ export function VersionDots() {
   const rows = versionRows.filter(row => Number.isFinite(row.decision))
   const none = rows.find(row => row.variant === 'No skill')
   const rowH = 22, top = 8, h = top + rows.length * rowH + 8
-  return <div className="egm-lite-dots">
+  return <div className="egm-chat-dots">
     {PANELS.map(panel => {
       const x = value => 4 + (Math.min(value, panel.max) / panel.max) * 220
-      return <figure key={panel.key} className="egm-lite-dot-panel">
+      return <figure key={panel.key} className="egm-chat-dot-panel">
         <figcaption>{panel.title}</figcaption>
         <svg viewBox={`0 0 340 ${h}`} role="img" aria-label={`${panel.title} by version`}>
-          <line x1={x(none[panel.key])} x2={x(none[panel.key])} y1={top} y2={h - 8} className="egm-lite-dot-base"/>
+          <line x1={x(none[panel.key])} x2={x(none[panel.key])} y1={top} y2={h - 8} className="egm-chat-dot-base"/>
           {rows.map((row, i) => {
             const y = top + i * rowH + rowH / 2
             return <g key={row.variant} data-status={row.status}>
               <title>{`${row.variant}: ${panel.fmt(row[panel.key])}`}</title>
-              <line x1={4} x2={228} y1={y} y2={y} className="egm-lite-dot-grid"/>
+              <line x1={4} x2={228} y1={y} y2={y} className="egm-chat-dot-grid"/>
               <circle cx={x(row[panel.key])} cy={y} r={5}/>
               <text x={236} y={y + 4}>{`${row.variant.replace(' (v0.2.0)', '')} ${panel.fmt(row[panel.key])}`}</text>
             </g>
@@ -64,15 +64,15 @@ export function SkillDiff() {
   const ops = useMemo(() => wordDiff(A.text, B.text), [A, B])
   const added = ops.filter(op => op.kind === 'ins').reduce((sum, op) => sum + words(op.text), 0)
   const removed = ops.filter(op => op.kind === 'del').reduce((sum, op) => sum + words(op.text), 0)
-  return <div className="egm-lite-diff-wrap">
-    <div className="egm-lite-diff-bar">
+  return <div className="egm-chat-diff-wrap">
+    <div className="egm-chat-diff-bar">
       <label>From <select value={from} onChange={event => setFrom(event.target.value)}>{skills.map(skill => <option key={skill.id} value={skill.id}>{skill.label}</option>)}</select></label>
       <label>To <select value={to} onChange={event => setTo(event.target.value)}>{skills.map(skill => <option key={skill.id} value={skill.id}>{skill.label}</option>)}</select></label>
       <label><input type="checkbox" checked={onlyChanges} onChange={event => setOnlyChanges(event.target.checked)}/> Changes only</label>
       <span className="egm-note">{`${added} words added, ${removed} removed. ${A.label}: ${words(A.text)} words. ${B.label}: ${words(B.text)} words.`}</span>
     </div>
-    <div className={`egm-lite-diff${onlyChanges ? ' egm-lite-diff-only' : ''}`}>
-      {ops.map((op, index) => op.kind === 'same' ? <span key={index} className="egm-lite-same">{op.text}</span> : React.createElement(op.kind, {key: index}, op.text))}
+    <div className={`egm-chat-diff${onlyChanges ? ' egm-chat-diff-only' : ''}`}>
+      {ops.map((op, index) => op.kind === 'same' ? <span key={index} className="egm-chat-same">{op.text}</span> : React.createElement(op.kind, {key: index}, op.text))}
     </div>
   </div>
 }

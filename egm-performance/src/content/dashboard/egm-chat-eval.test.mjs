@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {criteria,evalDate,gptHeldOut,haikuHeldOut,journey,limits,versionRows,percent,decimal,whole} from './egm-lite-eval.mjs'
+import {criteria,evalDate,gptHeldOut,haikuHeldOut,journey,limits,versionRows,percent,decimal,whole} from './egm-chat-eval.mjs'
 
-test('egm-lite eval keeps the reviewed held-out results and date',()=>{
+test('egm-chat eval keeps the reviewed held-out results and date',()=>{
   assert.equal(evalDate,'2026-11-11')
   const haiku=Object.fromEntries(haikuHeldOut.rows.map(row=>[row.measure,row.values]))
   assert.deepEqual(haikuHeldOut.columns,['v0.3.0','v0.2.0','No skill','v0.1.0'])
@@ -49,14 +49,14 @@ test('formatters show a dash for missing values',()=>{
 
 test('page copy carries no costs, secrets or artifact links',async()=>{
   const {readFileSync}=await import('node:fs')
-  for(const file of ['./egm-lite-eval.mjs','./EgmLite.jsx']) {
+  for(const file of ['./egm-chat-eval.mjs','./EgmChat.jsx']) {
     const source=readFileSync(new URL(file,import.meta.url),'utf8')
     assert.doesNotMatch(source,/\$\d|claude\.ai|api[_-]?key|token=/i,file)
   }
 })
 
 test('page shows run totals and four main findings',async()=>{
-  const {stats,findings}=await import('./egm-lite-eval.mjs')
+  const {stats,findings}=await import('./egm-chat-eval.mjs')
   assert.deepEqual(stats.map(item=>item.value),['12','33','7,726','5','77','14,320'])
   assert.equal(findings.length,4)
 })
