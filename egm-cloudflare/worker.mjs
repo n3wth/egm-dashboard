@@ -13,6 +13,7 @@ import {manageAccess} from './access-management.mjs'
 import {invitationForOtherAccount,invitationHash,manageInvitations,redeemInvitation,validInvitationToken} from './invitations.mjs'
 import {rbacConfigured,workosSessionConfigured,storeWorkosSession,validatedWorkosSession,workosAdminPermission,sessionSecrets,revokeWorkosSession} from './workos-session.mjs'
 import {syncWorkosMember,syncWorkosMemberships} from './workos-membership.mjs'
+import {autoApprovedEmail} from './auto-approve.mjs'
 import {isDashboardOwner} from './owner-identity.mjs'
 import {readVerifiedWorkosEmail,reconcileVerifiedEmail} from './workos-identity.mjs'
 import {cachedWorkosRead} from './workos-request-cache.mjs'
@@ -219,6 +220,11 @@ export async function handle(request,env,ctx) {
     if(existing && existing.id!==user.id) return fail('review')
     if(existing && await reconcileVerifiedEmail(env,existing,email)==='conflict') return fail('review')
     const isOwner=isDashboardOwner({id:user.id,email},env)
+    const autoApproved=!isOwner && autoApprovedEmail(email)
+    if(existing?.status==='pending' && autoApproved) {
+      await env.DB.prepare("UPDATE users SET status='approved',decided_at=?,decided_by='auto:domain' WHERE id=? AND status='pending'").bind(new Date().toISOString(),user.id).run()
+      ctx?.waitUntil?.(accessChanged(env).catch(()=>{}))
+    }
     let invited=false
     if(flow.invitationToken) {
       try { invited=await redeemInvitation(env,flow.invitationToken,user) } catch { return fail('error') }
@@ -229,9 +235,9 @@ export async function handle(request,env,ctx) {
     }
     if(!existing && !invited) {
       const name=[user.first_name,user.last_name].filter(Boolean).join(' ')||email
-      await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at) VALUES(?,?,?,1,?,?)').bind(user.id,email,name,isOwner?'approved':'pending',new Date().toISOString()).run()
+      await env.DB.prepare('INSERT INTO users(id,email,name,verified,status,created_at,decided_at,decided_by) VALUES(?,?,?,1,?,?,?,?)').bind(user.id,email,name,isOwner||autoApproved?'approved':'pending',new Date().toISOString(),autoApproved?new Date().toISOString():null,autoApproved?'auto:domain':null).run()
       if(!isOwner) auditAccessRequested(env,{id:user.id,name,email},request,promise=>ctx?.waitUntil?.(promise))
-      if(!isOwner) ctx?.waitUntil(Promise.allSettled([flushApprovalEvents(env).catch(error=>console.error('Approval event flush failed',error?.message)),flushGrokNotifications(env)]))
+      if(!isOwner && !autoApproved) ctx?.waitUntil(Promise.allSettled([flushApprovalEvents(env).catch(error=>console.error('Approval event flush failed',error?.message)),flushGrokNotifications(env)]))
       if(!isOwner) ctx?.waitUntil(accessChanged(env).catch(()=>{}))
     }
     const sid=random()
