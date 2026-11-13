@@ -162,14 +162,27 @@ test('sendGrowthUpdateEmail sends individually to all approved members, excludes
     }
 
     // 5. Second call with same idempotencySuffix is idempotent
+    let modelCalls = 0
+    env.INFER = { run: async () => { modelCalls++; return { response: 'Insight' } } }
     const second = await sendGrowthUpdateEmail(env, { idempotencySuffix: 'w44-broadcast' }, mockFetch)
+    delete env.INFER
     assert.equal(second.status, 'already_sent')
+    assert.equal(second.alreadySentCount, 2)
     assert.equal(calls.length, 2)
+    assert.equal(modelCalls, 0, 'A repeat run with nothing left to send does not call the model')
 
-    // 6. Unsubscribing member2 via GET /email/unsubscribe prevents future sends to member2
-    const getUnsub = await handle(new Request(`https://egm.n3wth.com/email/unsubscribe?token=${encodeURIComponent(unsubToken)}`), env)
+    // 6. GET only asks for confirmation, so a mail scanner following the link changes nothing
+    const unsubUrl = `https://egm.n3wth.com/email/unsubscribe?token=${encodeURIComponent(unsubToken)}`
+    const getUnsub = await handle(new Request(unsubUrl), env)
     assert.equal(getUnsub.status, 200)
-    assert.match(await getUnsub.text(), /Unsubscribed/)
+    const confirmHtml = await getUnsub.text()
+    assert.match(confirmHtml, /<form action="\/email\/unsubscribe\?token=[^"]+" method="post">/)
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM growth_email_unsubscribes').get().n, 0)
+
+    // 7. The confirmation form's POST unsubscribes member2 and prevents future sends
+    const postUnsub = await handle(new Request(unsubUrl, { method: 'POST', headers: { accept: 'text/html' } }), env)
+    assert.equal(postUnsub.status, 200)
+    assert.match(await postUnsub.text(), /<h1>Unsubscribed<\/h1>/)
 
     const nextMonday = await sendGrowthUpdateEmail(
       env,
