@@ -73,6 +73,11 @@ test('the old growth advice links land on Overview', async () => {
     assert.equal(redirect.status,302,path)
     assert.equal(new URL(redirect.headers.get('location'),env.APP_URL).pathname,'/overview',path)
   }
+  for (const path of ['/egm-lite','/?tab=egm-lite']) {
+    const redirect=await handle(new Request(env.APP_URL+path),env)
+    assert.equal(redirect.status,302,path)
+    assert.equal(new URL(redirect.headers.get('location'),env.APP_URL).pathname,'/egm-chat',path)
+  }
   const kept=await handle(new Request(env.APP_URL+'/?tab=website'),env)
   assert.equal(new URL(kept.headers.get('location'),env.APP_URL).pathname,'/website')
 })
