@@ -1,4 +1,4 @@
-// Reviewed findings from the egm-chat eval loop (egm-growth lite-loop REPORT.md, rounds/log.yaml and
+// Reviewed findings from the egm-chat eval loop (n3wth/egm-chat evals/loop: REPORT.md, rounds/log.yaml and
 // dashboard/results.csv, 2026-11-11). Static data: the page does not fetch or refresh it.
 
 export const evalDate = '2026-11-11'
