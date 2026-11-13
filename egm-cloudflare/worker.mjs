@@ -143,12 +143,12 @@ export async function handle(request,env,ctx) {
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})
   if(url.pathname==='/mcp') return mcp(request,env,ctx)
   const pagePaths=['overview','reach','website','development','acquisition','adoption','research','mentions','egm-chat']
-  // Renamed pages: Overview was Reach, and Growth advice moved into Ask.
-  const moved=['reach','growth']
-  if(moved.includes(url.pathname.slice(1)) && request.method==='GET') return new Response(null,{status:302,headers:{location:'/overview','cache-control':'no-store'}})
-  if(url.pathname==='/' && url.searchParams.has('tab') && request.method==='GET' && [...pagePaths,'growth'].includes(url.searchParams.get('tab'))) {
+  // Renamed pages: Overview was Reach, Growth advice moved into Ask, and egm-chat was egm-lite.
+  const moved={reach:'/overview',growth:'/overview','egm-lite':'/egm-chat'}
+  if(Object.hasOwn(moved,url.pathname.slice(1)) && request.method==='GET') return new Response(null,{status:302,headers:{location:moved[url.pathname.slice(1)],'cache-control':'no-store'}})
+  if(url.pathname==='/' && url.searchParams.has('tab') && request.method==='GET' && [...pagePaths,...Object.keys(moved)].includes(url.searchParams.get('tab'))) {
     const tab=url.searchParams.get('tab')
-    return new Response(null,{status:302,headers:{location:moved.includes(tab)?'/overview':'/'+tab,'cache-control':'no-store'}})
+    return new Response(null,{status:302,headers:{location:moved[tab]||'/'+tab,'cache-control':'no-store'}})
   }
   if(url.pathname==='/auth/logout') {
     if(request.method!=='POST') return new Response('Use POST',{status:405})
