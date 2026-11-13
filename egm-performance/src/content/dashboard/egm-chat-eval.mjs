@@ -1,13 +1,13 @@
-// Reviewed findings from the egm-lite eval loop (egm-growth lite-loop REPORT.md, rounds/log.yaml and
+// Reviewed findings from the egm-chat eval loop (egm-growth lite-loop REPORT.md, rounds/log.yaml and
 // dashboard/results.csv, 2026-11-11). Static data: the page does not fetch or refresh it.
 
 export const evalDate = '2026-11-11'
 
 export const status = 'With two approved changes to the success criteria, v0.3.0 meets all eight on gpt-5.5 and on Claude Haiku 5.5 held-out cases. Criterion 1 now asks for at least as many real problems found as no skill. Criteria 2 and 3 now apply to strong models. Small, fast models are a known gap.'
 
-export const result = 'On strong models, egm-lite v0.3.0 makes the right proceed-or-hold decision on 96 to 100% of held-out cases, against 58 to 75% without it.'
+export const result = 'On strong models, egm-chat v0.3.0 makes the right proceed-or-hold decision on 96 to 100% of held-out cases, against 58 to 75% without it.'
 
-export const modelWarning = 'Use egm-lite with a strong model, such as GPT-5.5 or Claude. On small, fast models (for example gemini-3.5-flash-lite), it can approve plans that have real problems: it made the right decision on only 77 to 95% of flawed plans. For a review you depend on, use full EGM Review, which uses separate reviewers. This is a known gap.'
+export const modelWarning = 'Use egm-chat with a strong model, such as GPT-5.5 or Claude. On small, fast models (for example gemini-3.5-flash-lite), it can approve plans that have real problems: it made the right decision on only 77 to 95% of flawed plans. For a review you depend on, use full EGM Review, which uses separate reviewers. This is a known gap.'
 
 export const stats = [
   {value: '12', label: 'rounds'},
@@ -26,7 +26,7 @@ export const findings = [
 ]
 
 export const resultNotes = [
-  'No skill holds most sound plans for reasons the plan does not support. The original egm-lite (v0.1.0) was worse than no skill.',
+  'No skill holds most sound plans for reasons the plan does not support. The original egm-chat (v0.1.0) was worse than no skill.',
   'The skill does not find more real problems than no skill. Strong models already find 97 to 100% of them without help.',
   'On a weak model (gemini-3.5-flash-lite), the skill does not help the model find more real problems. It also lets some real problems through.'
 ]
@@ -86,11 +86,11 @@ export const recallNote = [
   'Strong models already find nearly every problem without help.',
   'On a weak model, we tried five kinds of instruction: blocker, fix and note tiers; a review from five angles based on EGM’s reviewer roles; recomputing figures; a second review pass in the same reply; and checking every stated limit first. None made the model find more real problems.',
   'Two separate reviews, each with fresh context, raise real problems found on gemini-3.5-flash-lite only from 77% to 82%. Both reviews tend to miss the same problems.',
-  'EGM is the full review method that egm-lite is based on. It uses several separate reviewers, each with fresh context. A single chat reply cannot do that.'
+  'EGM is the full review method that egm-chat is based on. It uses several separate reviewers, each with fresh context. A single chat reply cannot do that.'
 ]
 
 export const journey = [
-  {step: 'Pilot', kind: 'Problem', text: 'In ChatGPT, egm-lite v0.1.0 scored 15 of 18 and no skill scored 16 of 18. It held sound plans for small gaps.', result: 'We built an automated test loop. A judge model grades each reply against a written answer key.'},
+  {step: 'Pilot', kind: 'Problem', text: 'In ChatGPT, egm-chat v0.1.0 scored 15 of 18 and no skill scored 16 of 18. It held sound plans for small gaps.', result: 'We built an automated test loop. A judge model grades each reply against a written answer key.'},
   {step: 'Round 0', kind: 'Problem', text: 'v0.1.0 was worse than no skill. It raised more unsupported blockers, invented more facts and was twice as long.', result: 'Cause: the instruction “challenge the proposal” and the plan checklist made small gaps into conditions for proceeding.'},
   {step: 'Round 1', kind: 'Change', text: 'Sort issues as blocker, fix or note. Hold only for a blocker.', result: 'Kept. Unsupported blockers fell, but invented facts rose.'},
   {step: 'Round 2', kind: 'Change', text: 'Restate facts exactly. Use a short, fixed reply order.', result: 'No single change beat round 1. We moved the test model to Claude Haiku 5.5 and reset the baseline.'},
@@ -106,7 +106,7 @@ export const journey = [
 ]
 
 export const glossary = [
-  {term: 'egm-lite', text: 'a ChatGPT skill that reviews a plan and says proceed or hold.'},
+  {term: 'egm-chat', text: 'a ChatGPT skill that reviews a plan and says proceed or hold.'},
   {term: 'No skill', text: 'the same model with no skill loaded. Every comparison uses it as the baseline.'},
   {term: 'Sound plan / flawed plan', text: 'a sound plan has no problem that should stop it. A flawed plan has at least one.'},
   {term: 'Right decision', text: 'the reply says proceed or hold, as the answer key says.'},
@@ -149,7 +149,7 @@ export const limits = [
 // inventedFree is the share of replies with no invented fact. Rows h5-a, h5-b and h6-h10 were scored on other sets or by another judge.
 export const versionRows = [
   {variant: 'No skill', round: 0, status: 'baseline', change: 'Plain model, no skill', decision: 0.705, blockers: 1.779, soundClean: 0.022, inventedFree: 0.45, words: 404},
-  {variant: 'v0.1.0', round: 0, status: 'baseline', change: 'egm-lite as shipped in the ChatGPT preview', decision: 0.667, blockers: 2.533, soundClean: 0, inventedFree: 0.44, words: 528},
+  {variant: 'v0.1.0', round: 0, status: 'baseline', change: 'egm-chat as shipped in the ChatGPT preview', decision: 0.667, blockers: 2.533, soundClean: 0, inventedFree: 0.44, words: 528},
   {variant: 'h1-b', round: 1, status: 'accepted', change: 'Blocker, fix or note tiers. Only blockers hold the decision', decision: 0.873, blockers: 1.014, soundClean: 0.158, inventedFree: 0.563, words: 503},
   {variant: 'h2-a', round: 2, status: 'rejected', change: 'h1-b + restate facts exactly, label inferences', decision: 0.884, blockers: 0.928, soundClean: 0.118, inventedFree: 0.667, words: 503},
   {variant: 'h2-b', round: 2, status: 'rejected', change: 'h1-b + drop critique section and plan checklist', decision: 0.851, blockers: 1.23, soundClean: 0.136, inventedFree: 0.5, words: 407},

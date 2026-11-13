@@ -25,7 +25,7 @@ test('navbar icons are 20px Material Symbols Rounded strokes, except the smaller
   assert.equal(navbarIcon('development'), 'code')
   assert.equal(navbarIcon('research'), 'search')
   assert.equal(navbarIcon('mentions'), 'campaign')
-  assert.equal(navbarIcon('egm-lite'), 'bar_chart')
+  assert.equal(navbarIcon('egm-chat'), 'bar_chart')
   assert.equal(navbarRefreshIcon, 'refresh')
   assert.equal(navbarAccountIcon, 'account_circle')
   assert.equal(navbarIcon('unknown'), 'textDocument')

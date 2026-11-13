@@ -142,7 +142,7 @@ export async function handle(request,env,ctx) {
   }
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})
   if(url.pathname==='/mcp') return mcp(request,env,ctx)
-  const pagePaths=['overview','reach','website','development','acquisition','adoption','research','mentions','egm-lite']
+  const pagePaths=['overview','reach','website','development','acquisition','adoption','research','mentions','egm-chat']
   // Renamed pages: Overview was Reach, and Growth advice moved into Ask.
   const moved=['reach','growth']
   if(moved.includes(url.pathname.slice(1)) && request.method==='GET') return new Response(null,{status:302,headers:{location:'/overview','cache-control':'no-store'}})

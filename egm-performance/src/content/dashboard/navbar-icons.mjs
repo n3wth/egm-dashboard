@@ -12,7 +12,7 @@ const pageIcons = {
   development: 'code',
   research: 'search',
   mentions: 'campaign',
-  'egm-lite': 'bar_chart'
+  'egm-chat': 'bar_chart'
 }
 
 export const navbarAskIcon = 'navSparkle'
