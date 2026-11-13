@@ -21,12 +21,13 @@ const views = {
   login_expired: {title:'Sign-in expired',description:'This sign-in attempt expired or was already used. Start again to open the dashboard.',action:'Sign in with Google',note:'Sign-in attempts last 10 minutes.',status:400},
   session_expired: {title:'Your session ended',description:'Sign in again to continue to the dashboard.',action:'Sign in with Google',note:'',status:401},
   rate_limited: {title:'Too many attempts',description:'Wait a minute, then try again.',action:'Try again',note:'Your account and access are unchanged.',status:429,retry:true,retryAfter:60},
+  unsubscribe_confirm: {title:'Unsubscribe from the weekly brief?',description:'You will stop receiving weekly EGM Growth & Building Brief emails. Your dashboard access is unchanged.',action:'Unsubscribe',note:'',status:200,post:true},
   unsubscribed: {title:'Unsubscribed',description:'You will no longer receive weekly EGM Growth & Building Brief emails. Your dashboard access is unchanged.',action:'Open the dashboard',note:'',status:200,link:'/'},
   unsubscribe_invalid: {title:'Invalid unsubscribe link',description:'This unsubscribe link is invalid or incomplete. Open the link directly from your weekly email.',action:'Open the dashboard',note:'',status:400,link:'/'},
   unavailable: {title:'Something went wrong',description:'The dashboard can’t load right now. Please try again shortly.',action:'Try again',note:'Your account and access are unchanged.',status:503,retry:true}
 }
 
-/** Fixed states only: no untrusted email, error message, redirect, or HTML is rendered. */
+/** Fixed states only: no untrusted email, error message, or HTML is rendered. `href` is a same-site path chosen by the Worker and is escaped. */
 export function renderAccessPage(state='signin',{headers:extraHeaders={},href}={}) {
   const view=views[state]??views.error
   const hasHandoff=state==='signin'||state==='invite'
@@ -36,6 +37,8 @@ export function renderAccessPage(state='signin',{headers:extraHeaders={},href}={
     ? `<a href="${escape(href??'')}" class="action">${view.action}</a>`
     : view.link
     ? `<a href="${escape(href??view.link)}" class="action">${view.action}</a>`
+    : view.post
+    ? `<form action="${escape(href??'')}" method="post"><button type="submit" class="action">${view.action}</button></form>`
     : view.invite
     ? `<form action="/auth/invite/continue" method="post"><button type="submit" class="action">${google}<span>${view.action}</span></button></form>`
     : view.logout

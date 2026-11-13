@@ -2,7 +2,7 @@ import {validatePresentation} from '../egm-performance/src/presentation-state.js
 import {runRefresh} from './refresh-runner.mjs'
 import {flushApprovalEvents} from './approval-events.mjs'
 import {flushGrokNotifications} from './grok-notify.mjs'
-import {sendGrowthUpdateEmail,unsubscribeGrowthEmail} from './growth-update-email.mjs'
+import {sendGrowthUpdateEmail,unsubscribeGrowthEmail,verifyUnsubscribeToken} from './growth-update-email.mjs'
 import {flushFeedbackEvents,flushFeedbackToPosthog,loadFeedbackSurvey,recordFeedbackActivity,submitFeedback} from './feedback-events.mjs'
 import {mcp} from './mcp-server.mjs'
 import {renderAccessPage} from './auth-pages.mjs'
@@ -125,9 +125,7 @@ export async function handle(request,env,ctx) {
   const url=new URL(request.url)
   if(url.origin!==env.APP_URL) return new Response('Not found',{status:404})
   if(['/favicon.svg','/og.png','/apple-touch-icon.png','/email/egm-mark-black.png','/email/egm-mark-white.png','/email/growth-chart-light.png','/email/growth-chart-dark.png'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) {
-    const flushParam=url.searchParams.get('flush_growth_email')
-    const previewOnly=flushParam==='preview' || url.searchParams.get('preview')==='1'
-    if(url.pathname==='/favicon.svg' && flushParam) ctx?.waitUntil?.(sendGrowthUpdateEmail(env,{recipient:previewOnly?'newth@google.com':null,idempotencySuffix:flushParam==='1'?'v4':flushParam,force:flushParam==='force'||previewOnly}).catch(()=>{}))
+    // Public assets never trigger side effects; sending mail is owner-only at POST /api/growth-update-email.
     return env.ASSETS.fetch(request)
   }
   if(['/rive/egm-login.js','/rive/rive.js','/rive/rive.wasm','/rive/egm-handoff.riv'].includes(url.pathname) && ['GET','HEAD'].includes(request.method)) return env.ASSETS.fetch(request)
@@ -136,9 +134,13 @@ export async function handle(request,env,ctx) {
   if(!env.SESSION_SECRET || env.SESSION_SECRET.length<48) return unavailable(request)
   if(url.pathname==='/email/unsubscribe' && (request.method==='GET' || request.method==='POST')) {
     const token=url.searchParams.get('token')
+    const retry='/email/unsubscribe?token='+encodeURIComponent(token??'')
+    // Mail scanners follow links, so GET only asks for confirmation; the change needs a POST.
+    if(request.method==='GET') return await verifyUnsubscribeToken(token,sessionSecrets(env))?renderAccessPage('unsubscribe_confirm',{href:retry}):renderAccessPage('unsubscribe_invalid')
     const result=await unsubscribeGrowthEmail(env,token,sessionSecrets(env)).catch(()=>({status:'error'}))
-    if(request.method==='POST') return json({status:result.status},result.status==='unsubscribed'?200:400)
-    return renderAccessPage(result.status==='unsubscribed'?'unsubscribed':'unsubscribe_invalid')
+    // Mail clients send the one-click POST and read JSON; the confirmation form expects a page.
+    if(!request.headers.get('accept')?.includes('text/html')) return json({status:result.status},result.status==='unsubscribed'?200:result.status==='error'?503:400)
+    return result.status==='error'?renderAccessPage('unavailable',{href:retry}):renderAccessPage(result.status==='unsubscribed'?'unsubscribed':'unsubscribe_invalid')
   }
   if(url.pathname==='/.well-known/oauth-protected-resource') return json({resource:env.APP_URL+'/mcp',authorization_servers:[env.WORKOS_AUTHKIT_DOMAIN],scopes_supported:['openid','email','profile'],bearer_methods_supported:['header'],resource_name:'EGM approvals'})
   if(url.pathname==='/mcp') return mcp(request,env,ctx)
@@ -417,9 +419,24 @@ export async function handle(request,env,ctx) {
 ? new HTMLRewriter().on('title',{element(element){element.setInnerContent(SITE_NAME)}}).on('head',{element(element){element.append('<meta name="data-app-snapshot-storage" content="external-v1"><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=trunk-c">'+siteMeta(env.APP_URL),{html:true})}}).transform(response)
     : response
 }
+const baselineHeaders={'strict-transport-security':'max-age=31536000','x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'same-origin'}
+// Every response carries the baseline headers unless a handler already set its own value.
+export function secured(response) {
+  // A WebSocket upgrade must be returned untouched.
+  if(response.status===101 || response.webSocket) return response
+  const result=new Response(response.body,response)
+  for(const [name,value] of Object.entries(baselineHeaders)) if(!result.headers.has(name)) result.headers.set(name,value)
+  return result
+}
 export default {
-  async fetch(request,env,ctx) {try {return await handle(request,env,ctx)} catch(error) {console.error('Request failed',new URL(request.url).pathname,error?.message);return unavailable(request)}},
+  async fetch(request,env,ctx) {
+    try {return secured(await handle(request,env,ctx))}
+    catch(error) {console.error('Request failed',new URL(request.url).pathname,error?.message);return secured(unavailable(request))}
+  },
   async scheduled(controller,env) {
+    // Expired rows grant nothing; removing them keeps the table bounded.
+    try { await env.DB.prepare('DELETE FROM sessions WHERE expires_at<=?').bind(now()).run() }
+    catch { console.error('Expired session cleanup deferred') }
     if(env.WORKOS_RBAC_ENABLED==='true' || env.WORKOS_WIDGETS_ENABLED==='true') {
       try { await env.DB.prepare('DELETE FROM workos_sessions WHERE NOT EXISTS (SELECT 1 FROM sessions WHERE sessions.id=workos_sessions.session_id AND sessions.expires_at>?)').bind(now()).run() }
       catch { console.error('Expired WorkOS session cleanup deferred') }

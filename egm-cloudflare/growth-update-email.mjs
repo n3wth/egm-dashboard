@@ -17,7 +17,9 @@ const hmacKey = secret => crypto.subtle.importKey('raw', enc.encode(String(secre
 
 export async function createUnsubscribeToken(email, secret) {
   const cleanEmail = String(email ?? '').trim().toLowerCase()
-  const activeSecret = [].concat(secret).find(s => typeof s === 'string' && s.length > 0) || 'egm-growth-unsubscribe-default'
+  // No built-in fallback: a token signed with a known string could be forged by anyone.
+  const activeSecret = [].concat(secret).find(s => typeof s === 'string' && s.length > 0)
+  if (!activeSecret) throw Error('unsubscribe_secret_missing')
   const payload = b64(enc.encode(JSON.stringify({ email: cleanEmail, aud: 'growth_unsubscribe' })))
   const sig = b64(await crypto.subtle.sign('HMAC', await hmacKey(activeSecret), enc.encode(payload)))
   return `${payload}.${sig}`
@@ -29,7 +31,7 @@ export async function verifyUnsubscribeToken(token, secrets) {
     const [payload, sig, ...extra] = token.split('.')
     if (extra.length || !payload || !sig) return null
     const candidateSecrets = [].concat(secrets).filter(s => typeof s === 'string' && s.length > 0)
-    if (!candidateSecrets.length) candidateSecrets.push('egm-growth-unsubscribe-default')
+    if (!candidateSecrets.length) return null
     let valid = false
     for (const secret of candidateSecrets) {
       if (await crypto.subtle.verify('HMAC', await hmacKey(secret), un64(sig), enc.encode(payload))) {
@@ -687,6 +689,11 @@ export async function sendGrowthUpdateEmail(
 
   const snapshot = await loadCurrentSnapshot(env)
   const summary = extractGrowthSummary(snapshot)
+  if (!force) {
+    // Cron retries through Monday; once everyone has this send, skip the model call and the per-recipient work.
+    const sent = await Promise.all(recipients.map(email => env.DB.prepare("SELECT 1 AS sent FROM growth_update_emails WHERE id=? AND state='sent'").bind(`${summary.isoWeek}:${email}:${idempotencySuffix}`).first()))
+    if (sent.every(Boolean)) return { status: 'already_sent', sentCount: 0, alreadySentCount: recipients.length, failedCount: 0, recipients: recipients.map(email => ({ status: 'already_sent', recipient: email })) }
+  }
   const llmInsight = await generateGrowthEmailInsight(env, summary, fetcher)
   const insightLine = llmInsight || summary.oneLineInsight
   const signingSecrets = [env?.SESSION_SECRET, env?.SESSION_SECRET_PREVIOUS, env?.RESEND_API_KEY].filter(Boolean)
