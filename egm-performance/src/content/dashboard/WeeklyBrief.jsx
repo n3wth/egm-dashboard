@@ -28,8 +28,8 @@ export function WeeklyBriefSection({ queries = {} }) {
   }
 
   const viewOptions = [
-    { value: 'internal', label: 'Internal brief (draft)' },
-    { value: 'public', label: 'Public-safe draft (requires review)' }
+    { value: 'internal', label: 'Internal draft' },
+    { value: 'public', label: 'Public draft · review required' }
   ]
 
   return (
@@ -146,7 +146,7 @@ export function WeeklyBriefSection({ queries = {} }) {
           <DataComponent
             id="weekly-brief-commitments"
             queryId={activeQueryId}
-            title="1. Close last week's commitments"
+            title="1. Last week's commitments"
             kind="custom"
             variant="card"
             displayRows={brief.commitments}
@@ -157,42 +157,38 @@ export function WeeklyBriefSection({ queries = {} }) {
                 <table className="egm-brief-table">
                   <thead>
                     <tr>
-                      <th>Commitment action</th>
-                      <th>Owner</th>
-                      <th>Evidence</th>
-                      <th>Status</th>
-                      <th>Next check</th>
+                      <th>Action</th>
                       <th>Outcome</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {brief.commitments.map(item => (
                       <tr key={item.id}>
-                        <td>{item.action}</td>
-                        <td>{item.owner}</td>
                         <td>
-                          {safeExternalUrl(item.url) ? (
-                            <a href={safeExternalUrl(item.url)} target="_blank" rel="noreferrer">
-                              {item.evidence}
-                            </a>
-                          ) : (
-                            item.evidence
-                          )}
+                          {item.action}
+                          <details className="egm-row-details">
+                            <summary aria-label={`Details: ${item.action}`}>Details</summary>
+                            <dl>
+                              <div><dt>Owner</dt><dd>{item.owner}</dd></div>
+                              <div><dt>Evidence</dt><dd>{safeExternalUrl(item.url) ? <a href={safeExternalUrl(item.url)} target="_blank" rel="noreferrer">{item.evidence}</a> : item.evidence}</dd></div>
+                              <div><dt>Next check</dt><dd>{item.nextCheck}</dd></div>
+                            </dl>
+                          </details>
                         </td>
-                        <td>{item.status}</td>
-                        <td>{item.nextCheck}</td>
                         <td>
                           <span className={`egm-badge egm-outcome-${item.outcome}`}>
                             {item.outcome}
                           </span>
                         </td>
+                        <td>{item.status}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <p className="egm-note">
-                Close prior commitments before selecting new work. Resolved actions require verified evidence.
+                Close prior commitments first. Resolution requires verified evidence.
               </p>
             </div>
           </DataComponent>
@@ -215,7 +211,7 @@ export function WeeklyBriefSection({ queries = {} }) {
                     <span className="egm-brief-stage-badge stage-user-verified">User-verified</span>
                     <span className="egm-stage-count">({brief.improvedByStage.userVerified.length})</span>
                   </h4>
-                  <p className="egm-stage-subhead">Confirmed by user report or community retest</p>
+                  <p className="egm-stage-subhead">Confirmed by a user or community retest</p>
                   <ul className="egm-stage-list">
                     {brief.improvedByStage.userVerified.map(item => (
                       <li key={item.id} className="egm-stage-item">
@@ -240,7 +236,7 @@ export function WeeklyBriefSection({ queries = {} }) {
                     <span className="egm-brief-stage-badge stage-released">Released ({brief.latestRelease})</span>
                     <span className="egm-stage-count">({brief.improvedByStage.released.length})</span>
                   </h4>
-                  <p className="egm-stage-subhead">Shipped in tagged release; user outcome unverified</p>
+                  <p className="egm-stage-subhead">Released; user outcome unverified</p>
                   <ul className="egm-stage-list">
                     {brief.improvedByStage.released.map(item => (
                       <li key={item.id} className="egm-stage-item">
@@ -265,7 +261,7 @@ export function WeeklyBriefSection({ queries = {} }) {
                     <span className="egm-brief-stage-badge stage-merged-unreleased">Merged on main</span>
                     <span className="egm-stage-count">({brief.improvedByStage.mergedUnreleased.length})</span>
                   </h4>
-                  <p className="egm-stage-subhead">PR merged to main; not yet cut into a tagged release</p>
+                  <p className="egm-stage-subhead">Merged; not yet released</p>
                   <ul className="egm-stage-list">
                     {brief.improvedByStage.mergedUnreleased.map(item => (
                       <li key={item.id} className="egm-stage-item">
@@ -350,7 +346,7 @@ export function WeeklyBriefSection({ queries = {} }) {
           <DataComponent
             id="weekly-brief-help"
             queryId={activeQueryId}
-            title="4. Where you can help (bounded volunteer proposals)"
+            title="4. Volunteer proposals"
             kind="custom"
             variant="card"
             displayRows={brief.help}
@@ -411,10 +407,10 @@ export function WeeklyBriefSection({ queries = {} }) {
                 {brief.missingEvidence.map(item => (
                   <li key={item.id} className="egm-missing-item">
                     <p className="egm-missing-question">
-                      <strong>Unresolved question:</strong> {item.unresolvedQuestion}
+                      <strong>Question:</strong> {item.unresolvedQuestion}
                     </p>
                     <p className="egm-missing-observation">
-                      <strong>Smallest observation:</strong> {item.smallestObservation}
+                      <strong>Evidence needed:</strong> {item.smallestObservation}
                     </p>
                   </li>
                 ))}
@@ -440,7 +436,7 @@ export function OssHealthSection({ queries = {} }) {
       <DataComponent
         id="oss-health-metrics"
         queryId={activeQueryId}
-        title="Open source project health"
+        title="Project health"
         kind="custom"
         variant="card"
         displayRows={health.rows}
@@ -478,7 +474,7 @@ export function WorkflowResearchSection({ queries = {} }) {
       <DataComponent
         id="adoption-workflow-research"
         queryId={activeQueryId}
-        title="Voluntary first-workflow and blocker-retest log"
+        title="Workflow issues and retests"
         kind="custom"
         variant="card"
         displayRows={research.rows}
@@ -512,34 +508,33 @@ export function WorkflowResearchSection({ queries = {} }) {
             <table className="egm-workflow-table">
               <thead>
                 <tr>
-                  <th>Intended task / Issue</th>
-                  <th>Environment & version</th>
-                  <th>Last successful step</th>
-                  <th>Outcome & help required</th>
-                  <th>Voluntary retest status</th>
-                  <th>Repeat use inquiry</th>
+                  <th>Issue / task</th>
+                  <th>Outcome</th>
+                  <th>Retest</th>
                 </tr>
               </thead>
               <tbody>
                 {research.rows.map(row => (
                   <tr key={row.id}>
-                    <td>{safeExternalUrl(row.url) ? <a href={safeExternalUrl(row.url)} target="_blank" rel="noreferrer">{row.intendedTask}</a> : row.intendedTask}</td>
-                    <td>{row.environment} ({row.version})</td>
-                    <td>{row.lastSuccessfulStep}</td>
+                    <td>
+                      {safeExternalUrl(row.url) ? <a href={safeExternalUrl(row.url)} target="_blank" rel="noreferrer">{row.intendedTask}</a> : row.intendedTask}
+                      <details className="egm-row-details">
+                        <summary aria-label={`Details: ${row.intendedTask}`}>Details</summary>
+                        <dl>
+                          <div><dt>Environment</dt><dd>{row.environment} ({row.version})</dd></div>
+                          <div><dt>Last successful step</dt><dd>{row.lastSuccessfulStep}</dd></div>
+                          {row.helpRequired && <div><dt>Help needed</dt><dd>{row.helpRequired}</dd></div>}
+                          <div><dt>Retest</dt><dd>{row.retestDetail || row.voluntaryRetest}</dd></div>
+                          <div><dt>Repeat use</dt><dd><span className={`egm-badge repeat-${row.repeatUse}`}>{row.repeatUse === 'unknown' ? 'Unknown' : row.repeatUse.replaceAll('_', ' ')}</span></dd></div>
+                        </dl>
+                      </details>
+                    </td>
                     <td>
                       <span className={`egm-badge outcome-${row.outcome}`}>{row.outcome}</span>
-                      {row.helpRequired && (
-                        <div className="egm-help-detail">{row.helpRequired}</div>
-                      )}
                     </td>
                     <td>
                       <span className={`egm-badge retest-${row.voluntaryRetest}`}>
-                        {row.retestDetail || row.voluntaryRetest}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`egm-badge repeat-${row.repeatUse}`}>
-                        {row.repeatUse === 'unknown' ? 'Unknown' : row.repeatUse.replaceAll('_', ' ')}
+                        {row.voluntaryRetest.replaceAll('_', ' ')}
                       </span>
                     </td>
                   </tr>

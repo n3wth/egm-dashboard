@@ -1,6 +1,7 @@
 import React from 'react'
 import {Icon} from '../../data-app-public.jsx'
 import {startersFor} from './ask-starters.mjs'
+import {ANALYSIS_QUESTION} from './ask-analysis.mjs'
 import './ask-starters.css'
 
 /** Suggested prompts shown under the Ask box before the first question, like AI Elements' Suggestions. */
@@ -20,7 +21,7 @@ export function AskStarters({tabId, onPick}) {
       <h4 id="egm-ask-starters-page">About this page</h4>
       <ul>{questions.map(question => <li key={question}>
         <button type="button" onClick={() => onPick({id: 'tab-question', question})}>
-          <span className="egm-ask-starter-text"><span>{question}</span></span>
+          <span className="egm-ask-starter-text"><span>{question===ANALYSIS_QUESTION?'Compare weekly star growth':question}</span></span>
         </button>
       </li>)}</ul>
     </section>

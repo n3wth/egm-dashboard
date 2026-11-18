@@ -131,14 +131,23 @@ test('rendered dashboard components bind provenance, toolbar, and preserve adopt
     )
     assert.match(briefHtml, /data-query-id="weekly_brief"/, 'WeeklyBriefSection binds weekly_brief provenance')
     assert.match(briefHtml, /class="egm-brief-toolbar"/, 'Dedicated responsive toolbar rendered')
-    assert.match(briefHtml, /Close last week.*commitments/, 'Commitments header rendered')
+    assert.match(briefHtml, /Last week.*commitments/, 'Commitments header rendered')
     assert.match(briefHtml, /User-verified/, 'User-verified stage badge rendered')
     assert.match(briefHtml, /Released \(v0\.1\.0\)/, 'Released stage badge rendered')
     assert.match(briefHtml, /Merged on main/, 'Merged stage badge rendered')
-    assert.match(briefHtml, /Where you can help/, 'Help proposals section rendered')
+    assert.match(briefHtml, /Volunteer proposals/, 'Help proposals section rendered')
     assert.match(briefHtml, /Missing evidence/, 'Missing evidence section rendered')
-    assert.match(briefHtml, /Internal brief \(draft\)/, 'View switcher contains internal brief option')
-    assert.match(briefHtml, /Public-safe draft \(requires review\)/, 'View switcher contains public draft option')
+    assert.match(briefHtml, /Internal draft/, 'View switcher contains internal brief option')
+    assert.match(briefHtml, /Public draft · review required/, 'View switcher retains public draft review requirement')
+    const commitmentsTable = briefHtml.match(/<table class="egm-brief-table">([\s\S]*?)<\/table>/)?.[1] ?? ''
+    assert.equal((commitmentsTable.match(/<th>/g) ?? []).length, 3, 'Commitments show three main columns')
+    const commitmentDetails = [...commitmentsTable.matchAll(/<details\b[^>]*>([\s\S]*?)<\/details>/g)]
+    assert.equal(commitmentDetails.length, weeklyBriefViewModel(snapshot.queries).commitments.length, 'Every commitment has discoverable details')
+    for (const [, detail] of commitmentDetails) {
+      assert.match(detail, /<summary\b[^>]*>Details<\/summary>/)
+      for (const label of ['Owner', 'Evidence', 'Next check']) assert.ok(detail.includes(`<dt>${label}</dt>`), `${label} remains in details`)
+    }
+    assert.match(commitmentsTable, /<dt>Evidence<\/dt><dd><a href="https:\/\//, 'Evidence links remain available in details')
 
     const healthHtml = renderToStaticMarkup(
       React.createElement(
@@ -148,7 +157,7 @@ test('rendered dashboard components bind provenance, toolbar, and preserve adopt
       )
     )
     assert.match(healthHtml, /data-query-id="oss_health"/, 'OssHealthSection binds oss_health provenance')
-    assert.match(healthHtml, /Open source project health/, 'Health title rendered')
+    assert.match(healthHtml, /Project health/, 'Health title rendered')
     assert.match(healthHtml, /Not measured/, 'Unmeasured metrics render Not measured')
     assert.match(healthHtml, /1\.8 hours/, 'Measured PR turnaround renders 1.8 hours')
 
@@ -160,7 +169,16 @@ test('rendered dashboard components bind provenance, toolbar, and preserve adopt
       )
     )
     assert.match(researchHtml, /data-query-id="workflow_research"/, 'WorkflowResearchSection binds workflow_research')
-    assert.match(researchHtml, /Voluntary first-workflow and blocker-retest log/, 'Research log title rendered')
+    assert.match(researchHtml, /Workflow issues and retests/, 'Research log title rendered')
+    const workflowTable = researchHtml.match(/<table class="egm-workflow-table">([\s\S]*?)<\/table>/)?.[1] ?? ''
+    assert.equal((workflowTable.match(/<th>/g) ?? []).length, 3, 'Workflow log shows three main columns')
+    const workflowDetails = [...workflowTable.matchAll(/<details\b[^>]*>([\s\S]*?)<\/details>/g)]
+    assert.equal(workflowDetails.length, workflowResearchViewModel(snapshot.queries).rows.length, 'Every workflow row has discoverable details')
+    for (const [, detail] of workflowDetails) {
+      for (const label of ['Environment', 'Last successful step', 'Retest', 'Repeat use']) assert.ok(detail.includes(`<dt>${label}</dt>`), `${label} remains in details`)
+    }
+    assert.match(workflowTable, /class="egm-badge outcome-/, 'Outcome remains visible')
+    assert.match(workflowTable, /class="egm-badge retest-/, 'Retest status remains visible')
     assert.match(researchHtml, /Small selected samples explain mechanisms/, 'Mechanism caveat rendered')
     assert.match(researchHtml, /class="stat-value stat-unmeasured">Not measured/, 'Unmeasured session counts render Not measured')
 
@@ -193,7 +211,7 @@ test('rendered dashboard components bind provenance, toolbar, and preserve adopt
       'Workflow research component rendered on adoption tab'
     )
     assert.ok(
-      adoptionHtml.indexOf('First use and repeat use') < adoptionHtml.indexOf('Voluntary first-workflow'),
+      adoptionHtml.indexOf('First use and repeat use') < adoptionHtml.indexOf('Workflow issues and retests'),
       'Measurement gap card appears above voluntary workflow research card'
     )
 

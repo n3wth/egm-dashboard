@@ -1,3 +1,5 @@
+import {ANALYSIS_QUESTION} from './ask-analysis.mjs'
+
 // Suggested prompts for Ask. The three growth starters carry the evidence-and-experiment prompts that used to
 // live behind the Growth advice tab; each tab adds a couple of short questions about what is on screen.
 export const growthStarters = [
@@ -7,7 +9,7 @@ export const growthStarters = [
 ]
 
 const tabQuestions = {
-  reach: ['What changed in the last 7 days compared with the 7 before?', 'What is behind the recent jump in views and clones?'],
+  reach: ['What changed in the last 7 days compared with the 7 before?', ANALYSIS_QUESTION],
   acquisition: ['Which channels send the most repo views, and which are worth testing?', 'How much of our traffic is unattributed?'],
   adoption: ['What do clone counts tell us, and what do they not?', 'How could we measure a successful first workflow?'],
   website: ['How much traffic does egm.dev send to GitHub?', 'What is not measured about the website?'],

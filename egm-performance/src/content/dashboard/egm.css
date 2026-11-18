@@ -62,8 +62,8 @@
 .egm-chart-notes summary{width:fit-content;cursor:pointer;color:var(--secondary);font-size:var(--text-xs-size);line-height:1.5;min-height:24px}
 .egm-chart-notes summary:focus-visible{outline:2px solid var(--text);outline-offset:3px}
 .egm-chart-notes p{margin:8px 0 0;max-width:80ch}
-.egm-metric-value { font-size: var(--egm-text-metric); font-weight: 500; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.egm-metric-sparkline { width: 70px; height: 30px; flex-shrink: 0; }
+.egm-metric-value { flex: 0 0 auto; font-size: var(--egm-text-metric); font-weight: 500; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.egm-metric-sparkline { width: auto; min-width: 0; height: 41px; flex: 1 1 0; }
 .egm-metric-secondary { margin: 0; color: var(--secondary); font-size: var(--text-xs-size); line-height: 1.5; }
 .egm-metric-secondary strong { font-weight: 500; color: var(--text); }
 .egm-metric-weekly { display: flex; flex-wrap: nowrap; align-items: center; justify-content:space-between;gap:8px;white-space:nowrap; }
@@ -185,7 +185,7 @@
   .egm-development-grid > .egm-block--metric { grid-column: span 6; }
   .egm-development-grid > .egm-block--metric:nth-child(3 of .egm-block--metric) { grid-column: 1 / -1; }
   .egm-dashboard-grid > .egm-block--metric .component-header { padding-right: 32px; }
-  .egm-dashboard-grid .egm-metric-reading { flex-wrap: wrap; gap: 4px 12px; }
+  .egm-dashboard-grid .egm-metric-reading { gap: 12px; }
   .egm-dashboard-grid .egm-metric-value { font-size: 26px; }
 }
 .egm-channel-name { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
@@ -324,8 +324,8 @@
 @media (prefers-reduced-motion: reduce) { .egm-thumb[data-loaded] { animation: none; } }
 @media (pointer: coarse) { .egm-mention-link { padding-block: 11px; margin-block: -11px; } }
 
-/* Metric trendlines: larger, smooth and in the first chart color so they match the line charts. */
-.egm-metric-reading .data-metric-sparkline { width: 96px; height: 41px; min-width: 64px; flex: 0 1 96px; color: var(--chart-1); }
+/* Metric trendlines fill the available width to the right of their values. */
+.egm-metric-reading .data-metric-sparkline { width: auto; height: 41px; min-width: 0; flex: 1 1 0; color: var(--chart-1); }
 .egm-empty { display: grid; align-content: center; justify-items: center; gap: 4px; min-height: 120px; padding: 24px 16px; box-sizing: border-box; text-align: center; color: var(--secondary); font-size: var(--egm-text-label); line-height: 1.5; }
 .egm-empty strong { color: var(--text); font-size: var(--text-sm-size); font-weight: 500; }
 .egm-empty--chart { min-height: 260px; }
@@ -343,6 +343,7 @@
 
 :is(.egm-brief-table, .egm-workflow-table) {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   margin-bottom: 12px;
 }
@@ -362,7 +363,16 @@
   border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
+:is(.egm-brief-table, .egm-workflow-table) th:first-child { width: 48%; }
+:is(.egm-brief-table, .egm-workflow-table) th:nth-child(2) { width: 20%; }
+.egm-row-details { margin-top: 8px; color: var(--secondary); font-size: var(--text-xs-size); line-height: 1.5; }
+.egm-row-details summary { width: fit-content; cursor: pointer; }
+.egm-row-details summary:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.egm-row-details dl { margin: 8px 0 0; display: grid; gap: 8px; }
+.egm-row-details dt { color: var(--text); font-weight: 500; }
+.egm-row-details dd { margin: 2px 0 0; }
 :is(.egm-brief-table, .egm-workflow-table) td:first-child {
   color: var(--text);
   font-weight: 400;
