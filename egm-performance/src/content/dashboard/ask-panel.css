@@ -14,6 +14,18 @@
 .egm-ask-cards :has(> table) { overflow-x: auto; }
 .egm-ask-cards > * { min-width: 0; }
 .egm-ask-live-card { padding: var(--ask-space-5); border: 1px solid var(--border); border-radius: var(--card-radius); }
+.egm-ask-calculated-chart { grid-column: 1 / -1; }
+.egm-ask-calculated-chart h3 { margin: 0 0 var(--ask-space-3); font-size: var(--text-sm-size); font-weight: 500; }
+.egm-ask-calculation { margin-top: var(--ask-space-4); border-top: 1px solid var(--border); color: var(--text); font-size: var(--text-xs-size); line-height: 1.6; }
+.egm-ask-calculation summary { width: fit-content; padding-block: var(--ask-space-3); cursor: pointer; }
+.egm-ask-calculation summary:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.egm-ask-calculation-body { display: grid; gap: var(--ask-space-3); padding-bottom: var(--ask-space-3); }
+.egm-ask-calculation-body p { margin: 0; }
+.egm-ask-calculation-meta { display: grid; gap: var(--ask-space-2); margin: 0; }
+.egm-ask-calculation-meta dt { color: var(--secondary); }
+.egm-ask-calculation-meta dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.egm-ask-calculation-boundaries { display: grid; gap: var(--ask-space-3); margin: 0; padding-left: 20px; }
+.egm-ask-calculation-boundaries li > span { display: block; font-variant-numeric: tabular-nums; }
 .egm-ask-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--ask-space-4) var(--ask-space-5); margin: 0; }
 .egm-ask-metrics dt { color: var(--secondary); font-size: var(--ask-text-meta); line-height: var(--ask-leading-heading); }
 .egm-ask-metrics dd { margin: var(--ask-space-1) 0 0; font-size: var(--ask-text-metric); line-height: var(--ask-leading-heading); font-variant-numeric: tabular-nums; }

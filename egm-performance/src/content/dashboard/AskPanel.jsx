@@ -2,7 +2,7 @@ import { Hint } from '../../data-app-public.jsx'
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
-import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
+import {Chart,DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
 import {askTableColumns,askCellText} from './ask-table.mjs'
 import {AskTransport,answerSections,answerText,askNeedsSignIn,askRetryable,citeId,linkCitations,messageResult,messageText,streamingCitations} from './ask-transport.mjs'
@@ -65,14 +65,46 @@ const seriesColors=['var(--chart-1)','var(--chart-4)','var(--chart-2)']
 export function AnswerCard({card,index,turnId}) {
   const {queries}=useDataApp()
   const rows=Array.isArray(card.rows)?card.rows:[]
+  const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId} tab={card.tab} tabLabel={card.tabLabel}/>
+  if(card.calculated&&card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <section className="egm-ask-live-card egm-ask-calculated-chart" data-reviewed-rows><h3>{card.title}</h3><Chart rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,seriesColors[index%seriesColors.length]])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}/>{foot}</section>
   const source=queries[card.queryId]
   if(!source)return card.type==='metric'?<LiveMetricCard card={card} turnId={turnId}/>:null
   const props={id:`ask-result-${turnId}-${index}-${card.queryId}`,title:card.title,queryId:source?card.queryId:undefined,sourceRows:source?.rows??rows,displayRows:rows,variant:'card',showActions:Boolean(source)}
-  const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId} tab={card.tab} tabLabel={card.tabLabel}/>
   if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,seriesColors[index%seriesColors.length]])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>
   if(card.type==='table')return <DataComponent {...props} kind="table"><DataTable rows={rows} searchable={false} pageSize={5} columns={askTableColumns(card.columns,rows,card.columnLabels).map(column=>({field:column.field,label:column.label,...(column.clip?{renderCell:(value,row)=>{const {text,tooltip}=askCellText(value,row,column);const href=column.link?sourceHref(row?.url):column.field==='url'?sourceHref(value):null;return <span className="egm-cell-clip" title={tooltip}>{href?<a href={href} target="_blank" rel="noreferrer">{text}</a>:text}</span>}}:{})}))} label={card.title}/>{card.rowsTruncated&&<p className="egm-note">Showing {rows.length} of {card.rowCount} rows.</p>}{foot}</DataComponent>
   if(card.type==='metric')return <DataComponent {...props} kind="custom"><MetricGrid metrics={card.metrics}/>{foot}</DataComponent>
   return null
+}
+
+const signedStars=value=>`${value>0?'+':''}${format(value)}`
+function ExactObservation({value}) {
+  return typeof value==='string'&&Number.isFinite(Date.parse(value))?<time dateTime={value}>{value}</time>:<>Unavailable</>
+}
+export function CalculationDetails({calculation}) {
+  if(!calculation)return null
+  const {definition,timeZone,observedAt,availableRange,reason,boundaries,previous,current,difference}=calculation
+  const complete=calculation.status==='complete'
+  return <details className="egm-ask-calculation">
+    <summary>How calculated</summary>
+    <div className="egm-ask-calculation-body">
+      <p>{definition}</p>
+      <dl className="egm-ask-calculation-meta">
+        <div><dt>Reporting time zone</dt><dd>{timeZone}</dd></div>
+        <div><dt>Source observed at</dt><dd><ExactObservation value={observedAt}/></dd></div>
+        <div><dt>Available sampling dates</dt><dd>{availableRange?`${availableRange.startDate} to ${availableRange.endDate}`:'Unavailable'}</dd></div>
+      </dl>
+      {complete?<>
+        <ol className="egm-ask-calculation-boundaries">{boundaries.map(boundary=><li key={boundary.label}><strong>{boundary.label}</strong><span>{boundary.date} · <ExactObservation value={boundary.observedAt}/></span><span>{format(boundary.stars)} total stars</span></li>)}</ol>
+        <dl className="egm-ask-calculation-meta">
+          <div><dt>Previous 7 sampling days</dt><dd>{format(boundaries[1].stars)} − {format(boundaries[0].stars)} = {format(previous)} net stars</dd></div>
+          <div><dt>Latest 7 sampling days</dt><dd>{format(boundaries[2].stars)} − {format(boundaries[1].stars)} = {format(current)} net stars</dd></div>
+          <div><dt>Latest minus previous</dt><dd>{format(current)} − ({format(previous)}) = {signedStars(difference)} stars</dd></div>
+        </dl>
+      </>:<p>{reason}</p>}
+      <p>Observation times vary; these are sampling intervals, not exact midnight-to-midnight days. The latest source sampling day is excluded.</p>
+      <p>Overview can show reconstructed new stars from current stargazers. This calculation measures net changes in observed repository totals and can differ.</p>
+    </div>
+  </details>
 }
 
 const statusNote=(status,stopped)=>stopped?'Stopped.':status==='submitted'?'Reading dashboard data…':status==='streaming'?'Generating…':status==='error'?'':''
@@ -209,6 +241,7 @@ export function AskPanel({open,onClose,initialQuestion=''}) {
             {typeof result?.coverageNote==='string'&&result.coverageNote&&<p className="egm-note">{result.coverageNote}</p>}
             {!streaming&&text&&<div className="egm-ask-actions">{result&&<span className="egm-ask-options">{resultLabel(result)}</span>}<CopyButton text={result?.coverageNote?`${text}\n\n${result.coverageNote}`:text}/>{message.id===lastAssistantId&&!busy&&<Hint as="button" type="button" onClick={()=>{followBottom.current=true;regenerate()}} aria-label="Regenerate answer" title="Regenerate answer"><Icon name="refresh" size={16}/></Hint>}</div>}
             {result&&<SourceList sources={result.sources} messageId={message.id}/>}
+            <CalculationDetails calculation={result?.calculation}/>
           </div>
         })())}
         {status==='submitted'&&<div className="egm-ask-assistant"><span className="egm-chat-speaker egm-ask-live">EGM</span><Trace steps={[]} running/></div>}

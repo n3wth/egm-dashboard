@@ -2,6 +2,7 @@ import {ASK_ANSWER_CHARS,streamAsk} from './ask-stream.mjs'
 import {dashboardTab} from './ask-tabs.mjs'
 import {GEMINI_MODEL as model,geminiRunner} from './gemini.mjs'
 import {captureAiGeneration} from './ai-analytics.mjs'
+import {analysisResult,analysisStream,isAnalysisQuestion} from './ask-analysis.mjs'
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
 const safeLink=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
 // Room for three structured experiments; the stream guard caps characters at the same budget.
@@ -144,8 +145,10 @@ export async function handleAsk(request,env,user,options={}) {
   const followUp=history.length&&(question.split(/\s+/).length<8||/\b(?:that|those|it|them|more|why)\b/i.test(question))
   const contextQuestion=followUp?history.at(-1).question+' '+question:question
   // env.INFER lets tests inject a model; production uses Gemini through GEMINI_API_KEY.
-  const infer=env.INFER??geminiRunner(env)
-  if(!infer?.run)return reply({error:'ask_unavailable'},503)
+  // Only the latest question selects the deterministic analysis; it needs no model configuration.
+  const analysis=isAnalysisQuestion(question)
+  const infer=analysis?null:env.INFER??geminiRunner(env)
+  if(!analysis&&!infer?.run)return reply({error:'ask_unavailable'},503)
   const now=options.now??Date.now()
   const at=new Date(now).toISOString()
   let track=()=>{},streaming=false,release=()=>{}
@@ -153,11 +156,15 @@ export async function handleAsk(request,env,user,options={}) {
     const stored=await env.DB.prepare('SELECT body,generated_at FROM snapshots WHERE id=1').first()
     if(!stored)return reply({error:'snapshot_unavailable'},503)
     const snapshot=JSON.parse(stored.body)
-    let context=askContext(snapshot,contextQuestion)
-    if(!context.records.length)return reply({error:'snapshot_unavailable'},503)
+    let context=analysis?null:askContext(snapshot,contextQuestion)
+    if(!analysis&&!context.records.length)return reply({error:'snapshot_unavailable'},503)
     // Atomic INSERT SELECT prevents concurrent requests bypassing the quota.
     const quota=await env.DB.prepare("INSERT INTO audit(id,user_id,action,actor,created_at) SELECT ?,?,'ask.request',?,? WHERE (SELECT COUNT(*) FROM audit WHERE user_id=? AND action='ask.request' AND created_at>?)<200").bind(crypto.randomUUID(),user.id,user.id,at,user.id,new Date(now-3600000).toISOString()).run()
     if(!quota.meta?.changes)return reply({error:'rate_limited'},429)
+    if(analysis) {
+      const result=analysisResult(snapshot,now,stored.generated_at??snapshot.generatedAt??null)
+      return payload.stream===true?analysisStream(result,request.signal):reply(result)
+    }
     let toolStatus={name:'GitHub repository',status:'cached'}
     const liveWanted=payload.live===true||/\b(?:current|latest|now|stars?|forks?|issues?)\b/i.test(question)
     // Streaming passes a step emitter so progress events are sent as each stage happens.
