@@ -24,7 +24,7 @@ calculations to produce its answers.
 
 1. A reader can request the supported comparison from an Overview Ask starter.
 2. Arithmetic uses all retained observed-total rows before any prompt sampling.
-3. The answer, chart and evidence describe the same computed result.
+3. The answer, available chart and evidence describe the same computed result.
 4. Missing, invalid or stale boundaries produce an explicit unavailable result.
 5. The reader can inspect the definition, reporting zone, actual sample
    timestamps, boundary totals, subtraction and source observation time.
@@ -46,8 +46,10 @@ Given an approved signed-in reader and 15 consecutive valid closed daily
 samples ending yesterday in America/Los_Angeles, when the reader asks
 "Compare EGM net star growth over the last 7 complete sampling days with the
 previous 7?", then Ask returns the two endpoint differences, their signed
-difference (latest net minus previous net), a chart of the 14 daily net changes,
-and calculation evidence.
+difference (latest net minus previous net), and calculation evidence. A chart
+of the 14 daily net changes appears when the matching reviewed browser source
+is loaded. Otherwise show a chart-unavailable note; retain the full answer and
+calculation evidence without binding to another source version.
 The latest source sampling day is always excluded even when collection is
 stale. A negative endpoint difference is a valid observed net decline.
 
@@ -101,11 +103,14 @@ reporting zone, source query ID, observed time, exact boundary records,
 comparison values. It contains no generated query text
 and no claims that SQL ran. Citation ID 1 points to star_observations. Chart
 rows come from calculation output in an ordinary chart card. Reuse the
-existing chart card layout. A calculated card always uses the public Chart
-export inside the same titled section and citation footer. This avoids
-EvidenceChart's browser query registry dependency and ensures the plot and
-evidence use the same server-returned rows. Never attach this calculation to
-unrelated or newer browser source rows.
+existing EvidenceChart wrapper with a stable per-answer component ID, standard
+source/edit/copy actions and the server-returned display rows. Its reviewed
+query must exist in the browser and have the same valid observation timestamp
+as the calculated result. The source inspector uses that matching query's
+reviewed source rows. If the query is absent, older or newer, show a titled
+chart-unavailable note and the citation footer instead of a bare chart or a
+misleading source binding. CalculationDetails remains independent of the
+browser registry. This avoids adding protected runtime APIs for transient data.
 
 Return a single existing-protocol result event when stream=true. The current
 transport already accepts a final result without preceding text deltas.
@@ -116,9 +121,9 @@ that never invoked one.
 In Ask, add a collapsed native details element titled "How calculated" below
 the answer evidence. Show plain-language definition and formulas, actual
 boundary dates/timestamps/totals, freshness and caveats. Use existing theme
-tokens and accessible summary keyboard behavior. A calculation chart must
-render its own returned rows even if browser queries are absent or newer.
-Use the public Chart export for calculated cards and existing citation styles.
+tokens and accessible summary keyboard behavior. When the reviewed browser
+source matches, the chart plots returned calculation rows using the public
+EvidenceChart wrapper and existing citation styles.
 
 ## Alternatives considered
 

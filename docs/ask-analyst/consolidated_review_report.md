@@ -9,7 +9,7 @@ the implementation explicitly authorized by Oliver.
 | --- | --- | --- |
 | Reuse deterministic helpers | Initial zoom-out | Thin wrapper only |
 | Distinguish observed net from reconstructed history | Initial zoom-out | Explain measurement difference |
-| Avoid duplicate chart/provenance paths | Initial, design, intermediate | One calculated Chart branch using returned rows |
+| Preserve standard chart/provenance actions | Initial, design, intermediate, PR review | EvidenceChart with matching reviewed source; explicit unavailable note otherwise |
 | Specify input selection | Comprehension | Latest valid sample per Pacific date |
 | Signed difference wording | Comprehension, critics, intermediate | Latest net minus prior net, no percentages |
 | Narrow routing | Initial zoom-out | Exact normalized starter only |
@@ -29,3 +29,16 @@ available in Details. Reviewed source facts and provenance must be preserved.
 
 The preview uses an ignored exact copy of the current stored production
 snapshot rather than the old bundled seed. Production data was not changed.
+
+## PR review follow-up
+
+The PR review identified two concerns missed by the local code reviews.
+Calculated charts must retain standard source and chart actions; bare Chart
+rendering omitted them. The final design uses EvidenceChart only with the
+matching reviewed browser source, and keeps the deterministic answer/evidence
+when the plot cannot bind to that version. This supersedes the earlier bare
+Chart mitigation recorded in the intermediate review.
+
+The protected header stylesheet and its manifest change were removed from the
+final diff. Content simplification, same-row sparklines and concise notices
+remain within editable authored content. No protected runtime change ships.

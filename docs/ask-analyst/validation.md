@@ -2,15 +2,17 @@
 
 Validated against current main on 2026-11-18 before PR submission.
 
-* `npm test`: 596 passed (389 backend and related tests, 207 app tests), zero
-  failures. The app suite passed again after the shorter starter label.
+* `npm test`: 597 passed (389 backend and related tests, 208 app tests), zero
+  failures.
 * `npm run build`: passed, including the 256-file protected-runtime verifier
   and Cloudflare asset packaging. Existing large-chunk warning remains.
 * `wrangler deploy --dry-run`: passed; bundles the Worker's cross-directory
   imports. Bundle output stayed outside the repository. No deployment occurred
   during this check.
 * `git diff --check`: passed.
-* Independent correctness and adversarial code reviews: no actionable findings.
+* Local correctness and adversarial code reviews reported no actionable
+  findings. The subsequent PR review found missing standard chart actions and
+  a protected header change; both were addressed before merging.
 
 ## Browser checks
 
@@ -26,6 +28,9 @@ Validated against current main on 2026-11-18 before PR submission.
   signed difference -35, the 14-row chart and exact evidence formulas.
 * Complete calculation verified in light and dark appearances. Expanded
   evidence and chart fit a 390px viewport without horizontal page overflow.
+* Calculated charts use standard evidence actions only when browser and server
+  source versions match. Source inspection exposes the reviewed samples.
+  Ask hides only its authored dashboard content, keeping source panels usable.
 * Appearance was restored to System after testing. Temporary viewport overrides
   were cleared. The user-facing dev tab remains open.
 

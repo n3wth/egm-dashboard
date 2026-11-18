@@ -25,21 +25,86 @@ const card = {
   rows: Array.from({length: 14}, (_, i) => ({date: `2026-11-${String(i + 4).padStart(2, '0')}`, netStars: i < 7 ? 10 : -4})),
 }
 
-test('calculated charts render without browser queries and ignore browser chart overrides', async () => {
+test('matching calculated charts use reviewed evidence wrappers and standard chart actions', async () => {
   const server = await createServer({server: {middlewareMode: true}, logLevel: 'silent'})
   try {
     const {AnswerCard} = await server.ssrLoadModule('/src/content/dashboard/AskPanel.jsx')
     const {DataAppContext} = await server.ssrLoadModule('/src/DataAppContext.jsx')
-    const render = (value, resultCard = card) => renderToStaticMarkup(React.createElement(DataAppContext.Provider, {value}, React.createElement(AnswerCard, {card: resultCard, index: 0, turnId: 'comparison'})))
-    const html = render({queries: {}})
-    assert.match(html, /<h3>Observed daily net stars<\/h3>/)
-    assert.match(html, /egm-ask-calculated-chart/)
+    const id = 'ask-result-comparison-0-star_observations'
+    const query = {source: {executedAt: '2026-11-18T07:00:00-08:00'}, rows: [{date: '2026-11-17', stars: 1042}]}
+    let component
+    const value = {
+      snapshot: {surface: 'dashboard'}, queries: {star_observations: query},
+      visible: componentId => { assert.equal(componentId, id); return true },
+      chartProps: componentId => { assert.equal(componentId, id); return {} },
+      componentActions: {
+        canEdit: true, onOpen() {}, onCopy() {}, onRegisterComponent() {},
+        additionalActions: metadata => { component = metadata; return null },
+      },
+    }
+    const render = (overrides = {}, resultCard = card) => renderToStaticMarkup(React.createElement(DataAppContext.Provider, {value: {...value, ...overrides}}, React.createElement(AnswerCard, {card: resultCard, index: 0, turnId: 'comparison'})))
+    const html = render()
+    assert.match(html, new RegExp(`data-component-id="${id}"`))
+    assert.match(html, /data-query-id="star_observations"/)
+    assert.match(html, /data-component-kind="chart"/)
     assert.match(html, /chart-frame/)
     assert.match(html, /href="#ask-cite-comparison-1"/)
-    const newerBrowser = render({queries: {star_observations: {rows: [{date: '2099-01-01', stars: 999999}]}}, chartOverrides: {'ask-result-comparison-0-star_observations': {type: 'pie'}}})
-    assert.equal(newerBrowser, html)
+    for (const action of ['Edit chart', 'View data source', 'Copy data']) assert.ok(html.includes(action))
+    assert.equal(component.id, id)
+    assert.equal(component.queryId, 'star_observations')
+    assert.equal(component.sourceRows, query.rows)
+    assert.equal(component.displayRows, card.rows)
+    assert.equal(component.chart.type, 'line')
+    assert.equal(component.chart.x, 'date')
+    assert.deepEqual(component.chart.fields, ['netStars'])
+    assert.equal(component.chart.legend.labels.netStars, 'Net stars')
+    render({chartOverrides: {[id]: {type: 'bar', x: 'date', y: 'netStars', fields: ['netStars']}}})
+    assert.equal(component.chart.type, 'bar')
+    assert.equal(component.sourceRows, query.rows)
+    assert.equal(component.displayRows, card.rows)
+    assert.equal(render({visible: () => false}), '')
+    assert.match(render({}, {...card, calculated: false}), /data-component-kind="chart"/)
     assert.equal(render({queries: {}}, {...card, calculated: false}), '')
     assert.equal(render({queries: {}}, {...card, type: 'metric', calculated: false, metrics: [{label: 'Stars', value: 1234}]}).includes('1,234'), true)
+  } finally { await server.close() }
+})
+
+test('unmatched calculated charts disclose unavailable visuals and preserve exact server calculations', async () => {
+  const server = await createServer({server: {middlewareMode: true}, logLevel: 'silent'})
+  try {
+    const {AnswerCard, CalculationDetails} = await server.ssrLoadModule('/src/content/dashboard/AskPanel.jsx')
+    const {DataAppContext} = await server.ssrLoadModule('/src/DataAppContext.jsx')
+    const cases = [
+      ['missing query', undefined, card.observedAt],
+      ['older query', '2026-11-18T14:00:00.000Z', card.observedAt],
+      ['newer query', '2026-11-18T16:00:00.000Z', card.observedAt],
+      ['invalid query timestamp', 'invalid', card.observedAt],
+      ['missing query timestamp', null, card.observedAt],
+      ['invalid card timestamp', card.observedAt, 'invalid'],
+      ['missing card timestamp', card.observedAt, null],
+      ['both timestamps invalid', 'invalid', 'invalid'],
+    ]
+    for (const [label, executedAt, observedAt] of cases) {
+      const value = {
+        snapshot: {surface: 'dashboard'},
+        queries: executedAt === undefined ? {} : {star_observations: {source: {executedAt}, rows: [{stars: 999999}]}},
+        visible: () => assert.fail('Unavailable charts must not mount evidence wrappers'),
+        componentActions: {},
+      }
+      const html = renderToStaticMarkup(React.createElement(DataAppContext.Provider, {value},
+        React.createElement(React.Fragment, null,
+          React.createElement(AnswerCard, {card: {...card, observedAt}, index: 0, turnId: 'comparison'}),
+          React.createElement(CalculationDetails, {calculation}))))
+      assert.match(html, /<h3>Observed daily net stars<\/h3>/, label)
+      assert.match(html, /Chart unavailable for this dashboard snapshot\. See calculation details\./, label)
+      assert.match(html, /href="#ask-cite-comparison-1"/, label)
+      assert.doesNotMatch(html, /chart-frame|data-component-id|Edit chart|View data source|999999|Invalid Date/, label)
+      assert.match(html, /How calculated/, label)
+      assert.match(html, /1,070 − 1,000 = 70 net stars/, label)
+      assert.match(html, /1,042 − 1,070 = -28 net stars/, label)
+      assert.match(html, /-28 − \(70\) = -98 stars/, label)
+      assert.ok(html.includes(calculation.observedAt), label)
+    }
   } finally { await server.close() }
 })
 

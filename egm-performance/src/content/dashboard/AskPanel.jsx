@@ -2,7 +2,7 @@ import { Hint } from '../../data-app-public.jsx'
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {useChat} from '@ai-sdk/react'
 import {createPortal} from 'react-dom'
-import {Chart,DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
+import {DataComponent,DataTable,EvidenceChart,Icon,useDataApp} from '../../data-app-public.jsx'
 import './ask-panel.css'
 import {askTableColumns,askCellText} from './ask-table.mjs'
 import {AskTransport,answerSections,answerText,askNeedsSignIn,askRetryable,citeId,linkCitations,messageResult,messageText,streamingCitations} from './ask-transport.mjs'
@@ -66,8 +66,12 @@ export function AnswerCard({card,index,turnId}) {
   const {queries}=useDataApp()
   const rows=Array.isArray(card.rows)?card.rows:[]
   const foot=<Attribution sourceId={card.sourceId} observedAt={card.observedAt} turnId={turnId} tab={card.tab} tabLabel={card.tabLabel}/>
-  if(card.calculated&&card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <section className="egm-ask-live-card egm-ask-calculated-chart" data-reviewed-rows><h3>{card.title}</h3><Chart rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,seriesColors[index%seriesColors.length]])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}/>{foot}</section>
   const source=queries[card.queryId]
+  if(card.calculated&&card.type==='chart') {
+    const observedAt=typeof card.observedAt==='string'?Date.parse(card.observedAt):NaN
+    const executedAt=typeof source?.source?.executedAt==='string'?Date.parse(source.source.executedAt):NaN
+    if(!source||!Number.isFinite(observedAt)||!Number.isFinite(executedAt)||observedAt!==executedAt)return <section className="egm-ask-live-card egm-ask-calculated-chart" data-reviewed-rows><h3>{card.title}</h3><p className="egm-note">Chart unavailable for this dashboard snapshot. See calculation details.</p>{foot}</section>
+  }
   if(!source)return card.type==='metric'?<LiveMetricCard card={card} turnId={turnId}/>:null
   const props={id:`ask-result-${turnId}-${index}-${card.queryId}`,title:card.title,queryId:source?card.queryId:undefined,sourceRows:source?.rows??rows,displayRows:rows,variant:'card',showActions:Boolean(source)}
   if(card.type==='chart'&&rows.length&&Array.isArray(card.series)&&card.series.length)return <EvidenceChart {...props} rows={rows} height={210} spec={{type:'line',x:card.xKey??'date',y:card.series[0],fields:card.series,colors:Object.fromEntries(card.series.map((field,index)=>[field,seriesColors[index%seriesColors.length]])),legend:{labels:card.seriesLabels??{}},showXAxisLabel:false,showYAxisLabel:false}}>{foot}</EvidenceChart>

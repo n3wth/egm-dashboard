@@ -70,7 +70,8 @@ a.egm-ask-cite:hover { background: var(--border-strong); }
   .egm-ask-inline { width: 100%; }
 }
 @media(prefers-reduced-motion:reduce) { .egm-ask-inline,.egm-spin,.egm-ask-user,.egm-ask-assistant { animation: none; } .egm-shimmer { animation: none; color: var(--secondary); } .egm-trace-trigger > .dashboard-icon { transition: none; } }
-.egm-ask-page > :not(.egm-ask-body-host) { display: none !important; }
+.egm-dashboard-content { display: contents; }
+.egm-ask-page > .egm-dashboard-content { display: none; }
 .egm-ask-followups { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: 20px; margin-bottom: 4px; }
 .egm-ask-followups button { display: inline-flex; align-items: center; gap: var(--space-2); text-align: left; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: transparent; color: var(--text); font: inherit; font-size: var(--text-xs-size); line-height: 1.5; }
 .egm-ask-followups button:hover { background: var(--interaction-hover, var(--border)); }

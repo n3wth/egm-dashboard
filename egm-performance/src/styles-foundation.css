@@ -341,12 +341,11 @@ header[data-data-app-chrome="topbar"] :is(strong, span, button, a) {
 .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period { margin-top: 0; margin-left: 0; align-items: center; gap: var(--nav-gap, 4px) !important; color: var(--secondary); font-size: var(--nav-meta-size, 13px); font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; }
 .dashboard-topbar.egm-single-row[data-mode] .dashboard-reporting-period time { font-family: var(--font-sans); font-size: var(--nav-meta-size, 13px); font-weight: 500; font-variant-numeric: normal; line-height: 1; }
 .dashboard-topbar.egm-single-row[data-mode] .dashboard-topbar-mode-controls,
-.dashboard-topbar.egm-single-row[data-mode] .dashboard-topbar-actions { display: flex; align-items: center; flex: 0 0 auto; gap: var(--nav-gap, 4px); }
+.dashboard-topbar.egm-single-row[data-mode] .dashboard-topbar-actions { display: flex; align-items: center; flex: 0 0 auto; gap: var(--space-2); }
 .dashboard-topbar.egm-single-row[data-mode] .dashboard-header-action-button,
 .dashboard-topbar.egm-single-row[data-mode] .egm-feedback-trigger { height: var(--nav-control, 36px); min-height: var(--nav-control, 36px); }
 .dashboard-topbar.egm-single-row .dashboard-header-action-button { border-radius: var(--radius-md); }
 .dashboard-topbar.egm-single-row .egm-feedback-trigger { border-color: transparent; }
-.dashboard-topbar.egm-single-row:not([data-mode="edit"]) .dashboard-topbar-actions :is(.egm-feedback-trigger, .dashboard-header-overflow-button, .dashboard-native-overflow) { box-sizing: border-box; width: var(--nav-control, 36px); min-width: var(--nav-control, 36px); height: var(--nav-control, 36px); min-height: var(--nav-control, 36px); padding: 0; }
 .dashboard-topbar.egm-single-row :is(.egm-feedback-trigger,.dashboard-ask-button) { color: var(--secondary); }
 .dashboard-topbar.egm-single-row .egm-account-button { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; box-shadow: none; background: transparent; }
 .dashboard-topbar.egm-single-row :is(.dashboard-ask-button,.egm-account-button,.egm-feedback-trigger):is(:hover,[data-state="open"]) { background: var(--interaction-hover); }

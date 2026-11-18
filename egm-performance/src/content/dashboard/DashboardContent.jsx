@@ -186,7 +186,7 @@ function AcrossEgm({queries}) {
 }
 export function DashboardContent() {
   const {snapshot} = useDataApp()
-  return <><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/></>
+  return <div className="egm-dashboard-content"><StaleNotice generatedAt={snapshot?.generatedAt}/><DashboardTab/></div>
 }
 function DashboardTab() {
   const {appTitle,setAppTitle,queries,snapshot} = useDataApp()
