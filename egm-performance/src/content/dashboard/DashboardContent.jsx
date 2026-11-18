@@ -271,8 +271,8 @@ function TabPage({activeTabId}) {
     <div id="adoption-measurement-gap">
     <DataComponent id="adoption-measurement-gap" queryId="traffic" queryIds={['traffic','downloads']} title="First use and repeat use" kind="custom" variant="card" displayRows={daily} sourceRowsByQuery={{traffic:daily,downloads:rows('downloads')}}>
       <dl className="egm-adoption-gaps"><div><dt>First successful workflow</dt><dd>Not measured</dd></div><div><dt>Repeat use after seven days</dt><dd>Not measured</dd></div></dl>
-      <p className="egm-note">Next check: observe five new users following the existing installation and first-workflow instructions without help. Record completion and where each person stops, then check whether they use EGM again after seven days.</p>
-      <p className="egm-note">Clone operations and package downloads show code access. They do not establish successful installation, activation, or retention.</p>
+      <details className="egm-row-details"><summary>Next check</summary><p>Observe five new users installing and completing their first workflow without help. Record completion and stopping points; check repeat use after seven days.</p></details>
+      <p className="egm-note">Clones and downloads show code access, not successful installation, activation, or retention.</p>
     </DataComponent>
     </div>
     <WorkflowResearchSection queries={queries}/>
@@ -339,7 +339,7 @@ function TabPage({activeTabId}) {
       {item('issue-queue',12,<Table id="issue-queue" queryId="issue_queue" title="Open issues by discussion volume" rows={rows('issue_queue')} searchable columns={[{field:'number',label:'#'},{field:'title',label:'Issue',renderCell:(v,r)=>safeExternalUrl(r.url)?<a href={safeExternalUrl(r.url)} target="_blank" rel="noreferrer">{v}</a>:v},{field:'comments',label:'Comments'}]} />,'table')}
     </SortableRegion>
     </Section>
-    <p className="egm-note">Comment counts show how much an issue is discussed, not its severity. Release downloads are on the Adoption tab.</p>
+    <p className="egm-note">Comments measure discussion, not severity. Downloads are on Adoption.</p>
   </>
   const starHistory=rows('star_history')
   const historyObservedAt=queries.star_history?.source?.executedAt
