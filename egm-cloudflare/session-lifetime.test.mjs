@@ -46,6 +46,35 @@ test('sign-in starts a 7-day session and records a sign-in event', async () => {
   } finally { globalThis.fetch = priorFetch }
 })
 
+test('multi-organization sign-in completes only the configured organization offered by WorkOS', async () => {
+  const { db, env } = setup()
+  db.exec(readFileSync(new URL('./workos-session-schema.sql', import.meta.url), 'utf8'))
+  Object.assign(env, { WORKOS_RBAC_ENABLED: 'true', WORKOS_RBAC_ORGANIZATION_ID: 'org_dashboard', WORKOS_RBAC_ISSUER: 'https://issuer.example', WORKOS_API_KEY: 'test-api-key' })
+  const flow = await seal({ state: 'good', verifier: 'test-verifier' }, env.SESSION_SECRET, 'login')
+  const callback = () => handle(new Request(env.APP_URL + '/auth/callback?state=good&code=test', { headers: { cookie: '__Host-egm_flow=' + flow } }), env)
+  const priorFetch = globalThis.fetch
+  try {
+    for (const offered of [false, true]) {
+      const calls = []
+      globalThis.fetch = async (_url, init) => {
+        calls.push(JSON.parse(init.body))
+        return calls.length === 1
+          ? Response.json({ code: 'organization_selection_required', pending_authentication_token: 'pending-secret', organizations: [{ id: offered ? 'org_dashboard' : 'org_other' }] }, { status: 403 })
+          : Response.json({ user: { id: 'user_a', email: 'a@example.org', email_verified: true }, access_token: 'access', refresh_token: 'refresh' })
+      }
+      const response = await callback()
+      assert.equal(response.status, offered ? 302 : 401)
+      assert.equal(calls.length, offered ? 2 : 1)
+      assert.equal(calls[0].code_verifier, 'test-verifier')
+      if (offered) {
+        assert.deepEqual(calls[1], { client_id: env.WORKOS_CLIENT_ID, client_secret: env.WORKOS_API_KEY, grant_type: 'urn:workos:oauth:grant-type:organization-selection', pending_authentication_token: 'pending-secret', organization_id: 'org_dashboard' })
+        assert.equal(response.headers.get('location'), '/overview')
+        assert.equal(db.prepare('SELECT COUNT(*) AS count FROM workos_sessions').get().count, 1)
+      }
+    }
+  } finally { globalThis.fetch = priorFetch; db.close() }
+})
+
 test('activity extends the session to 7 days after the last visit', async () => {
   const { db, env } = setup()
   const { response, expiresAt } = await visit(env, db, { cookieEndsAt: clock() + 27 * day, expiresAt: clock() + 2 * day })
