@@ -213,9 +213,20 @@ export async function handle(request,env,ctx) {
       return response
     }
     if(!flow || flow.state!==url.searchParams.get('state') || !url.searchParams.get('code')) return fail(flow?.state===url.searchParams.get('state') && url.searchParams.has('error')?'login_cancelled':'login_expired')
-    const auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,grant_type:'authorization_code',code:url.searchParams.get('code'),code_verifier:flow.verifier}),signal:AbortSignal.timeout(10000)})
-    if(!auth.ok) return fail(auth.status===429?'rate_limited':auth.status>=500?'unavailable':'error')
-    const {user,access_token:accessToken,refresh_token:refreshToken}=await auth.json()
+    let auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,grant_type:'authorization_code',code:url.searchParams.get('code'),code_verifier:flow.verifier}),signal:AbortSignal.timeout(10000)})
+    let result=await auth.json().catch(()=>({}))
+    // This dashboard has one configured organization. Complete only a choice
+    // WorkOS offered after the code and PKCE verifier were authenticated.
+    if(auth.status===403 && result.code==='organization_selection_required' && rbacConfigured(env) && typeof result.pending_authentication_token==='string' && result.pending_authentication_token && Array.isArray(result.organizations) && result.organizations.some(org=>org?.id===env.WORKOS_RBAC_ORGANIZATION_ID)) {
+      auth=await fetch('https://api.workos.com/user_management/authenticate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({client_id:env.WORKOS_CLIENT_ID,client_secret:env.WORKOS_API_KEY,grant_type:'urn:workos:oauth:grant-type:organization-selection',pending_authentication_token:result.pending_authentication_token,organization_id:env.WORKOS_RBAC_ORGANIZATION_ID}),signal:AbortSignal.timeout(10000)})
+      result=await auth.json().catch(()=>({}))
+    }
+    if(!auth.ok) {
+      const code=result.error??result.code
+      console.warn('egm_auth_exchange_failed',{status:auth.status,code:typeof code==='string' && /^[a-z_]{1,80}$/.test(code)?code:'unknown'})
+      return fail(auth.status===429?'rate_limited':auth.status>=500?'unavailable':'error')
+    }
+    const {user,access_token:accessToken,refresh_token:refreshToken}=result
     if(!user?.id || !user.email_verified || typeof user.email!=='string') return fail('verify')
     const email=user.email.trim().toLowerCase()
     const existing=await env.DB.prepare('SELECT * FROM users WHERE id=? OR email=?').bind(user.id,email).first()
@@ -248,8 +259,9 @@ export async function handle(request,env,ctx) {
       // Migration or provider failures do not prevent ordinary sign-in; they
       // leave privileged operations unavailable until a fresh valid session.
       let stored=false
-      try { stored=await storeWorkosSession(env,sid,user.id,accessToken,refreshToken) } catch {}
+      try { stored=await storeWorkosSession(env,sid,user.id,accessToken,refreshToken) } catch { console.warn('egm_auth_session_store_failed') }
       if(env.WORKOS_WIDGETS_ENABLED==='true' && !stored) {
+        console.warn('egm_auth_session_unavailable',{configured:workosSessionConfigured(env),accessToken:typeof accessToken==='string',refreshToken:typeof refreshToken==='string'})
         await env.DB.prepare('DELETE FROM sessions WHERE id=?').bind(sid).run()
         return fail('error')
       }
